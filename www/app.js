@@ -201,7 +201,7 @@ async function chat(r){
   const remoteHistory=remote===null?[]:remote.map(m=>({text:m.body||m.text||'',from:String(m.sender_id)===String(r.id)?'them':'me',at:m.created_at||''}));
   if(remote!==null)clearSyncedLocalMessages(r.id,remoteHistory);
   const currentLocal=savedMessages(r.id);
-  const history=remote===null?local:remoteHistory.concat(currentLocal.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text)));
+  const history=remote===null?local:remoteHistory.concat(currentLocal.filter(l=>l.pending||!remoteHistory.some(m=>m.from===l.from&&m.text===l.text)));
   history.sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
   shell(`${topbar('CHAT PRIVADO',true)}<div class="chatHead"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><div><small>CONVERSACIÓN CON</small><h2>${esc(r.name)}</h2></div></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+(m.pending?' pending':'')+'">'+esc(m.text)+(m.pending?'<small class="messageState">Pendiente</small>':'')+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes.</p>'}</div><button class="btn voice" id="voice">Invitar a Rider Voz</button><div class="composer"><input id="msg" maxlength="1000" autocomplete="off" enterkeyhint="send" placeholder="Escribe un mensaje..."><button id="send" aria-label="Enviar"><span class="sendGlyph"></span></button></div>`);
   
