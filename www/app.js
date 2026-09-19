@@ -49,13 +49,14 @@ async function fetchCommunityRiders(){
   try{
     const {data,error}=await supabaseClient.from('profiles').select('*').limit(50);
     if(error||!data||!data.length)return riders;
-    return data.map((p,i)=>({
+    const real=data.map((p,i)=>({
       id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
-      status:p.is_active?'Activo ahora':'Última ubicación',
+      status:p.is_active?'Activo ahora':'Fuera de cobertura',
       state:p.is_active?'green':'red',
       left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
-      board:p.board||'eSkate',km:p.km?String(p.km)+' km':''
+      bio:p.bio||''
     }));
+    return real.concat(riders);
   }catch{return riders}
 }
 async function fetchSharedRoutes(){
@@ -75,9 +76,15 @@ async function fetchChallenges(){
   }catch{return challengeData}
 }
 const riders=[
-{id:1,name:'Alex Rider',city:'Madrid',status:'Activo ahora',state:'green',left:'48%',top:'39%',board:'eSkate SUV',km:'1.240 km'},
-{id:2,name:'Marta',city:'Valencia',status:'Última conexión: hace 2 h',state:'red',left:'70%',top:'51%',board:'Electric Rider',km:'860 km'},
-{id:3,name:'Dani',city:'Sevilla',status:'Activo ahora',state:'green',left:'27%',top:'58%',board:'eSkate',km:'2.105 km'}];
+{id:'offline-luna',name:'LunaRoad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'47%',top:'37%',bio:'Rutas tranquilas, fotografía y kilómetros al atardecer.'},
+{id:'offline-nomad',name:'SkateNomad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'54%',top:'42%',bio:'Carretera, naturaleza y nuevos horizontes.'},
+{id:'offline-volt',name:'VoltRider',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'43%',top:'48%',bio:'Explorando rutas y rincones nuevos sobre ruedas.'},
+{id:'offline-north',name:'NorthLine',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'59%',top:'34%',bio:'Curvas, paisaje y buenas rutas.'},
+{id:'offline-urban',name:'UrbanFlow',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'38%',top:'41%',bio:'Kilómetros urbanos cuando cae el sol.'},
+{id:'offline-ruta',name:'RutaLibre',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'62%',top:'49%',bio:'Buscando carreteras nuevas y buena compañía.'},
+{id:'offline-zero',name:'ZeroNoise',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'49%',top:'55%',bio:'Rodar, descubrir y repetir.'},
+{id:'offline-sierra',name:'SierraRide',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'34%',top:'53%',bio:'Más montaña, menos tráfico.'}
+];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
 function topbar(label,back){return '<div class="appTop"><div class="miniBrand"><b>eSKATE SUV</b><span>COMUNIDAD</span></div>'+(back?'<button class="backBtn" id="back" aria-label="Volver">‹</button>':'')+'</div>'+(label?'<div class="screenLabel">'+label+'</div>':'')}
@@ -155,7 +162,7 @@ function profile(id){
   const pool=window.communityRiders||riders;
   const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));
   const online=r.state==='green';
-  shell(`${topbar('PERFIL RIDER',true)"}<div class="riderCover communityProfileCover"><div class="riderAvatar userAvatar" title="Foto de perfil del Rider"><span>R</span></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${esc(r.city||'—')}</b><small>ZONA</small></div><div><b>0</b><small>RUTAS</small></div><div><b>0</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${esc(r.bio||'Rider de la comunidad eSKATE SUV.')}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
+  shell(`${topbar('PERFIL RIDER',true)}<div class="riderCover communityProfileCover"><div class="riderAvatar userAvatar" title="Foto de perfil del Rider"><span>R</span></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${esc(r.city||'—')}</b><small>ZONA</small></div><div><b>0</b><small>RUTAS</small></div><div><b>0</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${esc(r.bio||'Rider de la comunidad eSKATE SUV.')}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
   document.querySelector('#back').onclick=map;
   if(online){
     document.querySelector('#message').onclick=()=>chat(r);
