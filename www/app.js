@@ -173,6 +173,7 @@ function profile(id){
   }
 }
 async function chat(r){
+  if(!r||r.state!=='green'){if(r?.id)profile(r.id);else map();return}
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
   const history=remote===null?local:remote.map(m=>({text:m.body||m.text||'',from:m.sender_id===r.id?'them':'me'}));
