@@ -136,7 +136,7 @@ sw.onclick=()=>{sw.classList.add('on');box.classList.remove('hidden')};document.
 async function map(){
   const liveRiders=await fetchCommunityRiders();
   window.communityRiders=liveRiders;
-  shell(`<div class="brand">RIDERS EN MI ZONA</div><div class="row spread"><h1>España</h1><button class="mini" id="back">‹</button></div><div class="legend"><span>🟢 Activo</span><span>🔴 Última ubicación</span><span>🔵 Tú</span></div><div class="map"><div class="spain"></div>${liveRiders.map(r=>`<button aria-label="${esc(r.name)}" class="dot ${r.state}" data-rider="${r.id}" style="left:${r.left};top:${r.top}"></button>`).join('')}<i class="dot cyan" style="left:52%;top:56%"></i></div><p class="sub center">Toca un rider para ver su perfil.</p><button class="btn secondary" id="privacy">⚙️ Privacidad de ubicación</button>`);
+  shell(`<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">📍</span><div><small>RIDERS EN MI ZONA</small><h1>España</h1></div></div><button class="mini" id="back">‹</button></div><div class="legend"><span>🟢 Activo</span><span>🔴 Última ubicación</span><span>🔵 Tú</span></div><div class="map"><div class="spain"></div>${liveRiders.map(r=>`<button aria-label="${esc(r.name)}" class="dot ${r.state}" data-rider="${r.id}" style="left:${r.left};top:${r.top}"></button>`).join('')}<i class="dot cyan" style="left:52%;top:56%"></i></div><p class="sub center">Toca un rider para ver su perfil.</p><button class="btn secondary" id="privacy">⚙️ Privacidad de ubicación</button>`);
   document.querySelector('#back').onclick=home;
   document.querySelector('#privacy').onclick=privacy;
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
@@ -166,7 +166,7 @@ const routes=[{id:1,name:'Casa de Campo Loop',city:'Madrid',km:'18,4',time:'1 h 
 async function sharedRoutes(){
   const liveRoutes=await fetchSharedRoutes();
   window.communityRoutes=liveRoutes;
-  shell('<div class="brand">RUTAS COMPARTIDAS</div><div class="row spread"><h1>Descubrir rutas</h1><button class="mini" id="back">‹</button></div><p class="sub">Rutas publicadas por la comunidad.</p>'+liveRoutes.map(r=>'<button class="card menuCard" data-route="'+r.id+'"><strong>🗺️ '+esc(r.name)+'</strong><small>📍 '+esc(r.city)+' · '+r.km+' km · '+esc(r.level)+'</small><small>🛹 '+esc(r.author)+' · ♥ '+r.likes+'</small></button>').join(''));
+  shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">🗺️</span><div><small>RUTAS COMPARTIDAS</small><h1>Descubrir rutas</h1></div></div><button class="mini" id="back">‹</button></div><p class="sub">Rutas publicadas por la comunidad.</p>'+liveRoutes.map(r=>'<button class="card menuCard communityListCard" data-route="'+r.id+'"><strong>🗺️ '+esc(r.name)+'</strong><small>📍 '+esc(r.city)+' · '+r.km+' km · '+esc(r.level)+'</small><small>🛹 '+esc(r.author)+' · ♥ '+r.likes+'</small></button>').join(''));
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeDetail(b.dataset.route));
 }
@@ -175,7 +175,7 @@ const challengeData=[{id:1,icon:'⚡',name:'50 km esta semana',desc:'Acumula 50 
 async function challenges(){
   const liveChallenges=await fetchChallenges();
   window.communityChallenges=liveChallenges;
-  shell('<div class="brand">RETOS</div><div class="row spread"><h1>Esta semana</h1><button class="mini" id="back">‹</button></div><p class="sub">Objetivos para darle una excusa más a las ruedas.</p>'+liveChallenges.map(x=>{const pct=Math.min(100,Math.round(x.progress/x.target*100));return '<button class="card menuCard" data-challenge="'+x.id+'"><strong>'+x.icon+' '+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><small>'+x.progress+' / '+x.target+' '+esc(x.unit)+' · '+pct+'%</small></button>'}).join(''));
+  shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">🏆</span><div><small>RETOS</small><h1>Esta semana</h1></div></div><button class="mini" id="back">‹</button></div><p class="sub">Objetivos para darle una excusa más a las ruedas.</p>'+liveChallenges.map(x=>{const pct=Math.min(100,Math.round(x.progress/x.target*100));return '<button class="card menuCard communityListCard" data-challenge="'+x.id+'"><strong>'+x.icon+' '+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><small>'+x.progress+' / '+x.target+' '+esc(x.unit)+' · '+pct+'%</small></button>'}).join(''));
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-challenge]').forEach(b=>b.onclick=()=>challengeDetail(b.dataset.challenge));
 }
