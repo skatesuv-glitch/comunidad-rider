@@ -21,6 +21,36 @@ function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).includes(id)
 function joinChallenge(id){const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];if(!db.joinedChallenges.includes(id))db.joinedChallenges.push(id);dbSave(db)}
 function saveState(){localStorage.setItem('cr_location_consent',state.locationConsent?'yes':'no');localStorage.setItem('cr_location_sharing',state.locationSharing?'yes':'no')}
 function requestLocation(done){if(!navigator.geolocation){done&&done(null);return}navigator.geolocation.getCurrentPosition(p=>done&&done({lat:p.coords.latitude,lng:p.coords.longitude}),()=>done&&done(null),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})}
+async function fetchCommunityRiders(){
+  if(!supabase)return riders;
+  try{
+    const {data,error}=await supabase.from('profiles').select('*').limit(50);
+    if(error||!data||!data.length)return riders;
+    return data.map((p,i)=>({
+      id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
+      status:p.is_active?'Activo ahora':'Última ubicación',
+      state:p.is_active?'green':'red',
+      left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
+      board:p.board||'eSkate',km:p.km?String(p.km)+' km':''
+    }));
+  }catch{return riders}
+}
+async function fetchSharedRoutes(){
+  if(!supabase)return routes;
+  try{
+    const {data,error}=await supabase.from('routes').select('*').limit(50);
+    if(error||!data||!data.length)return routes;
+    return data.map((r,i)=>({id:r.id,name:r.name||'Ruta Rider',city:r.city||'',km:String(r.distance_km??r.km??'—'),time:r.duration||'—',level:r.level||'—',author:r.author_name||'Rider',likes:r.likes||0}));
+  }catch{return routes}
+}
+async function fetchChallenges(){
+  if(!supabase)return challengeData;
+  try{
+    const {data,error}=await supabase.from('challenges').select('*').limit(50);
+    if(error||!data||!data.length)return challengeData;
+    return data.map((x,i)=>({id:x.id,icon:'🏆',name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
+  }catch{return challengeData}
+}
 const riders=[
 {id:1,name:'Alex Rider',city:'Madrid',status:'Activo ahora',state:'green',left:'48%',top:'39%',board:'eSkate SUV',km:'1.240 km'},
 {id:2,name:'Marta',city:'Valencia',status:'Última conexión: hace 2 h',state:'red',left:'70%',top:'51%',board:'Electric Rider',km:'860 km'},
