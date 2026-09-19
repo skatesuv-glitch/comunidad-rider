@@ -56,7 +56,7 @@ async function fetchCommunityRiders(){
       left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
       bio:p.bio||'Sin descripción.'
     }));
-    return real.concat(riders);
+    const ids=new Set(real.map(r=>String(r.id)));return real.concat(riders.filter(r=>!ids.has(String(r.id))));
   }catch{return riders}
 }
 async function fetchSharedRoutes(){
