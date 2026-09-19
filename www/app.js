@@ -208,7 +208,8 @@ async function chat(r){
   document.querySelector('#send').onclick=send;
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   document.querySelector('#voice').onclick=()=>voiceInvite(r);
-  const retryPending=async()=>{if(document.visibilityState!=='visible'||!navigator.onLine)return;const sent=await flushPendingMessages(r.id);if(sent)chat(r)};
+  let retryingPending=false;
+  const retryPending=async()=>{if(retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent)chat(r)}finally{retryingPending=false}};
   window.addEventListener('online',retryPending,{once:true});
   const onVisible=()=>{if(document.visibilityState==='visible'){document.removeEventListener('visibilitychange',onVisible);retryPending()}};
   document.addEventListener('visibilitychange',onVisible);
