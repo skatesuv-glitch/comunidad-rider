@@ -231,12 +231,13 @@ function riderVoice(){
   const picker=document.querySelector('#riderPicker'),group=document.querySelector('#voiceGroup'),leave=document.querySelector('#leaveVoice');
   const selected=new Map((dbLoad().voiceGroup||[]).map(id=>{const r=selectable.find(x=>String(x.id)===String(id));return r?[String(r.id),r]:null}).filter(Boolean));
   const renderGroup=()=>{const db=dbLoad();db.voiceGroup=[...selected.keys()];dbSave(db);const speaker=document.querySelector('#voiceSpeaker'),status=document.querySelector('.voiceStatus span');if(speaker)speaker.textContent=selected.size?(selected.size===1?[...selected.values()][0].name:selected.size+' Riders en el grupo'):'Sin grupo activo';if(status)status.textContent=selected.size?'Grupo preparado · esperando conexión':'Manos libres · esperando grupo';group.innerHTML=selected.size?[...selected.values()].map(r=>`<button class="groupRider" data-remove-rider="${r.id}" title="Quitar Rider"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><small>${esc(r.name)}</small><b>×</b></button>`).join(''):'<span class="emptyGroup">Añade Riders para crear el grupo</span>';leave.classList.toggle('hidden',!selected.size);document.querySelectorAll('[data-remove-rider]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.removeRider));renderGroup()})};
-  document.querySelector('#find').onclick=()=>picker.classList.remove('hidden');
-  document.querySelector('#closePicker').onclick=()=>picker.classList.add('hidden');
+  document.querySelector('#find').onclick=()=>{picker.classList.remove('hidden');document.body.classList.add('pickerOpen')};
+  const closePicker=()=>{picker.classList.add('hidden');document.body.classList.remove('pickerOpen')};
+  document.querySelector('#closePicker').onclick=closePicker;
   document.querySelectorAll('[data-add-rider]').forEach(b=>{const id=String(b.dataset.addRider);if(selected.has(id)){b.classList.add('selected');b.querySelector('b').textContent='✓'}b.onclick=()=>{const r=selectable.find(x=>String(x.id)===id);if(!r)return;if(selected.has(id)){selected.delete(id);b.classList.remove('selected');b.querySelector('b').textContent='+'}else{selected.set(id,r);b.classList.add('selected');b.querySelector('b').textContent='✓'}renderGroup()}});
   document.querySelector('#mute').onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Micrófono OFF':'Micrófono ON'};const volume=document.querySelector('#volume');volume.onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Audio OFF':'Volumen'};
-  leave.onclick=()=>{selected.clear();document.querySelectorAll('[data-add-rider]').forEach(b=>{b.classList.remove('selected');const mark=b.querySelector('b');if(mark)mark.textContent='+'});picker.classList.add('hidden');renderGroup()};
-  picker.addEventListener('click',e=>{if(e.target===picker)picker.classList.add('hidden')});
+  leave.onclick=()=>{selected.clear();document.querySelectorAll('[data-add-rider]').forEach(b=>{b.classList.remove('selected');const mark=b.querySelector('b');if(mark)mark.textContent='+'});closePicker();renderGroup()};
+  picker.addEventListener('click',e=>{if(e.target===picker)closePicker()});
   renderGroup();
 }
 boot();
