@@ -36,6 +36,12 @@ async function sendRemoteMessage(riderId,text){
     return !error;
   }catch{return false}
 }
+async function flushPendingMessages(riderId){
+  const pending=savedMessages(riderId).filter(m=>m.pending);
+  if(!pending.length)return;
+  for(const msg of pending){const sent=await sendRemoteMessage(riderId,msg.text);if(!sent)break;msg.pending=false}
+  const db=dbLoad();if(db.messages?.[riderId]){db.messages[riderId]=db.messages[riderId].filter(m=>m.pending!==false);dbSave(db)}
+}
 function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
 function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
 function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
@@ -175,6 +181,7 @@ function profile(id){
 }
 async function chat(r){
   if(!r||r.state!=='green'){if(r?.id)profile(r.id);else map();return}
+  await flushPendingMessages(r.id);
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
   const remoteHistory=remote===null?[]:remote.map(m=>({text:m.body||m.text||'',from:String(m.sender_id)===String(r.id)?'them':'me',at:m.created_at||''}));
