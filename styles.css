@@ -26,3 +26,8 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .heroArrow{position:absolute;right:14px;bottom:16px;width:32px;height:32px;border:1px solid var(--eskate-cyan);border-radius:50%;display:grid;place-items:center;color:var(--eskate-cyan);font-size:26px}
 .profileStrip{width:100%;margin-top:14px;padding:14px;display:flex;align-items:center;gap:12px;text-align:left;background:#071723;color:#fff;border:1px solid var(--eskate-line);border-radius:14px}
 .profileStrip span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:3px}.profileStrip small{color:var(--eskate-muted)}.profileStrip b{font-size:24px;color:var(--eskate-cyan)}
+
+.sectionEyebrow{margin:2px 0 12px;color:var(--eskate-cyan);font-size:10px;font-weight:800;letter-spacing:.2em}
+.sectionHero{display:flex;align-items:center;gap:12px}.sectionHeroIcon{width:48px;height:48px;display:grid;place-items:center;border:1px solid var(--eskate-cyan);border-radius:14px;background:#061b28;font-size:23px;box-shadow:0 0 22px rgba(0,170,255,.14)}
+.sectionHero small{color:var(--eskate-cyan);font-size:10px;letter-spacing:.16em}.sectionHero h1{margin:3px 0 0}
+.voiceFeature{display:flex;align-items:center;gap:15px}
