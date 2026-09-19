@@ -85,11 +85,11 @@ async function getSession(){
   try{const {data}=await supabase.auth.getSession();return data?.session||null}catch{return null}
 }
 function authScreen(){
-  shell(`<div class="brand">E-SKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra o crea tu cuenta para conectar con la comunidad.</p><label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn" id="login">Entrar</button><button class="btn secondary" id="signup">Crear cuenta</button><p class="sub center" id="authMsg"></p>`);
-  const email=document.querySelector('#authEmail'),pass=document.querySelector('#authPass'),msg=document.querySelector('#authMsg');
+  shell(`<div class="brand">E-SKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra o crea tu cuenta para conectar con la comunidad.</p><label class="field">Seudónimo Rider<input id="authAlias" autocomplete="nickname" maxlength="24" placeholder="Tu nombre en la comunidad"></label><label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn" id="login">Entrar</button><button class="btn secondary" id="signup">Crear cuenta</button><p class="sub center" id="authMsg"></p>`);
+  const alias=document.querySelector('#authAlias'),email=document.querySelector('#authEmail'),pass=document.querySelector('#authPass'),msg=document.querySelector('#authMsg');
   const values=()=>({email:email.value.trim(),password:pass.value});
   document.querySelector('#login').onclick=async()=>{msg.textContent='Entrando…';const {error}=await supabase.auth.signInWithPassword(values());if(error){msg.textContent=error.message;return}home()};
-  document.querySelector('#signup').onclick=async()=>{msg.textContent='Creando cuenta…';const {data,error}=await supabase.auth.signUp(values());if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
+  document.querySelector('#signup').onclick=async()=>{const nick=alias.value.trim();if(nick.length<3){msg.textContent='El seudónimo debe tener al menos 3 caracteres.';return}msg.textContent='Creando cuenta…';const v=values();v.options={data:{alias:nick}};const {data,error}=await supabase.auth.signUp(v);if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
 }
 async function ensureProfile(){
   const uid=await currentUserId();if(!uid||!supabase)return;
