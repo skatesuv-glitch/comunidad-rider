@@ -220,7 +220,7 @@ async function myProfile(){
   document.querySelector('#back').onclick=home;
   document.querySelector('#saveProfile').onclick=async()=>{
     const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),bio:document.querySelector('#bio').value.trim()};
-    if(!profile.alias){document.querySelector('#saved').textContent='El seudónimo es obligatorio';document.querySelector('#alias').focus();return}if(profile.alias.length<3){document.querySelector('#saved').textContent='Usa al menos 3 caracteres';document.querySelector('#alias').focus();return}if(!/^[\p{L}\p{N}._ -]+$/u.test(profile.alias)){document.querySelector('#saved').textContent='El seudónimo contiene caracteres no admitidos';document.querySelector('#alias').focus();return}
+    if(!profile.alias){document.querySelector('#saved').textContent='El seudónimo es obligatorio';document.querySelector('#alias').focus();return}if(profile.alias.length<3){document.querySelector('#saved').textContent='Usa al menos 3 caracteres';document.querySelector('#alias').focus();return}if(!/^[\p{L}\p{N}._ -]+$/u.test(profile.alias)){document.querySelector('#saved').textContent='El seudónimo contiene caracteres no admitidos';document.querySelector('#alias').focus();return}profile.alias=profile.alias.replace(/\s+/g,' ').trim();profile.city=profile.city.replace(/\s+/g,' ').trim();profile.bio=profile.bio.trim();
     const db=dbLoad();db.profile=profile;dbSave(db);
     let remote=false;
     if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
