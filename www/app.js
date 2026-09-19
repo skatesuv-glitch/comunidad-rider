@@ -43,12 +43,12 @@ async function flushPendingMessages(riderId){
   for(const msg of pending){
     const sent=await sendRemoteMessage(riderId,msg.text);
     if(!sent)break;
-    sentKeys.add(msg.at);
+    sentKeys.add(msg.id||msg.at);
   }
   if(sentKeys.size){
     const db=dbLoad();
     if(db.messages?.[riderId]){
-      db.messages[riderId]=db.messages[riderId].filter(m=>!sentKeys.has(m.at));
+      db.messages[riderId]=db.messages[riderId].filter(m=>!sentKeys.has(m.id||m.at));
       dbSave(db);
     }
   }
