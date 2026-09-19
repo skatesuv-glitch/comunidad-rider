@@ -146,3 +146,6 @@ create policy voice_invites_participants_read on voice_invites for select using 
 create policy voice_invites_sender_insert on voice_invites for insert with check (sender_id=auth.uid());
 create policy voice_invites_participants_update on voice_invites for update using (sender_id=auth.uid() or recipient_id=auth.uid());
 
+
+
+-- Trigger de despliegue inicial tras conectar Supabase con GitHub.
