@@ -109,3 +109,11 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .eyeBtn:before{content:"";display:block;width:18px;height:11px;border:2px solid #7fa8bb;border-radius:70% 20% 70% 20%;transform:rotate(45deg);opacity:.75}
 .eyeBtn:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:#7fa8bb;left:50%;top:50%;transform:translate(-50%,-50%)}
 .eyeBtn.showing:before{border-color:#13cfff}.eyeBtn.showing:after{background:#13cfff}
+
+/* Iconografía propia Comunidad, sin emojis */
+.privacyGlyph{display:block;width:16px;height:16px;border:2px solid currentColor;border-radius:50%;position:relative}
+.privacyGlyph:after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:currentColor;left:4px;top:4px}
+.sendGlyph{display:block;width:12px;height:12px;border-top:2px solid currentColor;border-right:2px solid currentColor;transform:rotate(45deg);margin-left:-3px}
+.voiceInviteGlyph{display:block;width:34px;height:34px;border:2px solid #13cfff;border-radius:50%;position:relative;margin:auto}
+.voiceInviteGlyph:before,.voiceInviteGlyph:after{content:"";position:absolute;left:50%;top:50%;border-radius:999px;transform:translate(-50%,-50%)}
+.voiceInviteGlyph:before{width:7px;height:18px;background:#13cfff}.voiceInviteGlyph:after{width:20px;height:20px;border:1px solid rgba(19,207,255,.45)}
