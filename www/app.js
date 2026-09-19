@@ -56,7 +56,7 @@ async function flushPendingMessages(riderId){
 }
 function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
 function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
-function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
+function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>l.pending||!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
 function isFavorite(id){return (dbLoad().favoriteRoutes||[]).includes(id)}
 function toggleFavorite(id){const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];const i=db.favoriteRoutes.indexOf(id);i<0?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);return db.favoriteRoutes.includes(id)}
 function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).includes(id)}
