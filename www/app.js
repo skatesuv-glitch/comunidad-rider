@@ -222,8 +222,10 @@ async function myProfile(){
     document.querySelector('#saved').textContent=remote?'✓ Perfil sincronizado':'✓ Perfil guardado en este dispositivo';
   };
 }
-function riderVoice(){
-  const pool=window.communityRiders||riders;
+async function riderVoice(){
+  const liveRiders=await fetchCommunityRiders();
+  window.communityRiders=liveRiders;
+  const pool=liveRiders;
   const selectable=pool.filter(r=>r.state==='green');
   const offline=pool.filter(r=>r.state!=='green');
   shell(`<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div><small class="voiceLabel">RIDER VOZ</small><h1 class="voiceTitle">Conexión de voz</h1></div><button class="mini" id="back">‹</button></div><div class="voiceCockpit"><div class="voiceRing"><div class="voiceWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><strong>LISTO</strong><small id="voiceSpeaker">Sin grupo activo</small></div></div><div class="voiceParticipants" id="voiceParticipants"><small>GRUPO RIDER</small><div id="voiceGroup"><span class="emptyGroup">Añade Riders para crear el grupo</span></div></div><div class="voiceControls"><button class="voiceControl" id="mute"><span>MIC</span><small>Micrófono ON</small></button><button class="voiceControl primaryVoice" id="find"><span>+</span><small>Rider</small></button><button class="voiceControl" id="volume"><span>VOL</span><small>Volumen</small></button></div><div class="voiceStatus"><i></i><span>Manos libres · esperando grupo</span></div><button class="btn voiceExit hidden" id="leaveVoice">Salir del grupo</button><div class="riderPicker hidden" id="riderPicker"><div class="pickerHead"><div><small>AÑADIR AL GRUPO</small><h2>Riders</h2></div><button id="closePicker">×</button></div><div class="pickerList">${selectable.length?selectable.map(r=>`<button class="pickerRider" data-add-rider="${r.id}"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="online">● En línea</small></span><b>+</b></button>`).join(''):'<p class="pickerEmpty">No hay Riders conectados ahora mismo.</p>'}${offline.map(r=>`<div class="pickerRider unavailable"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="offline">● Fuera de cobertura</small></span><b>×</b></div>`).join('')}</div></div>`);
