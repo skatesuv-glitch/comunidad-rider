@@ -209,7 +209,7 @@ async function chat(r){
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   document.querySelector('#voice').onclick=()=>voiceInvite(r);
   let chatActive=true;
-  const backBtn=document.querySelector('#back');backBtn.onclick=()=>{chatActive=false;profile(r.id)};
+  const backBtn=document.querySelector('#back');backBtn.onclick=()=>{chatActive=false;window.removeEventListener('online',retryPending);document.removeEventListener('visibilitychange',onVisible);profile(r.id)};
   let retryingPending=false;
   const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent)chat(r)}finally{retryingPending=false}};
   window.addEventListener('online',retryPending,{once:true});
