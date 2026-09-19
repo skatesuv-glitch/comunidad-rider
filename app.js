@@ -1,3 +1,13 @@
+const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_7GinSOXWplq3vLmtQmKMAw_xom0bg3A';
+const supabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+async function supabaseStatus(){
+  if(!supabase)return {ok:false,text:'Supabase no disponible'};
+  try{
+    const {error}=await supabase.from('profiles').select('id',{head:true,count:'exact'}).limit(1);
+    return error?{ok:false,text:'Backend pendiente'}:{ok:true,text:'Backend conectado'};
+  }catch{return {ok:false,text:'Sin conexión al backend'}}
+}
 const app=document.querySelector('#app');
 const state={locationConsent:localStorage.getItem('cr_location_consent')==='yes',locationSharing:localStorage.getItem('cr_location_sharing')==='yes'};
 const KEY='comunidad_rider_v1';
@@ -17,9 +27,9 @@ const riders=[
 {id:3,name:'Dani',city:'Sevilla',status:'Activo ahora',state:'green',left:'27%',top:'58%',board:'eSkate',km:'2.105 km'}];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
-function home(){shell(`<div class="brand">E-SKATE SUV</div><h1>Comunidad Rider</h1><p class="sub">Conecta, rueda y comparte.</p>
+function home(){shell(`<div class="brand">E-SKATE SUV</div><h1>Comunidad Rider</h1><p class="sub">Conecta, rueda y comparte.</p><div class="backendStatus" id="backendStatus"><i></i><span>Comprobando backend…</span></div>
 ${[['🎙️','Rider Voz','Conversación entre riders durante la ruta.'],['📍','Riders en mi zona','Descubre riders activos y contactos cercanos.'],['🗺️','Rutas compartidas','Descubre y comparte rutas de la comunidad.'],['🏆','Retos','Retos de distancia, desnivel y exploración.'],['👤','Mi perfil Rider','Tu identidad dentro de la comunidad.']].map((x,i)=>`<button class="card menuCard" data-menu="${i}"><span class="row"><span class="icon">${x[0]}</span><span><strong>${x[1]}</strong><small>${x[2]}</small></span></span></button>`).join('')}`);
-document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile}
+supabaseStatus().then(s=>{const el=document.querySelector('#backendStatus');if(el){el.classList.toggle('ok',s.ok);el.querySelector('span').textContent=s.text}});document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile}
 function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`<div class="brand">RIDERS EN MI ZONA</div><h1>Privacidad primero</h1><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
 const sw=document.querySelector('#sw'), box=document.querySelector('#consent');
 sw.onclick=()=>{sw.classList.add('on');box.classList.remove('hidden')};document.querySelector('#accept').onclick=()=>{state.locationConsent=true;state.locationSharing=true;saveState();requestLocation(()=>map())};document.querySelector('#back').onclick=home}
