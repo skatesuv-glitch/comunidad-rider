@@ -76,3 +76,7 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 /* Perfil Rider: la cabecera pertenece a Comunidad; el Rider solo personaliza su avatar circular */
 .communityProfileCover{background-image:linear-gradient(180deg,rgba(2,9,14,.04) 25%,rgba(2,9,14,.92) 100%),radial-gradient(circle at 72% 18%,rgba(19,207,255,.18),transparent 32%),linear-gradient(145deg,#163b4d 0%,#0b2433 48%,#061019 100%);background-size:cover;background-position:center}
 .userAvatar{cursor:default}
+
+/* Retratos Rider: estructura lista para fotografía circular, sin alterar la cabecera editorial */
+.avatarPortrait{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 30%,#24495d,#091b27 68%);background-size:cover;background-position:center}
+.avatarPortrait span{display:grid;width:100%;height:100%;place-items:center;color:#d9f8ff;font-size:27px;font-weight:900;text-shadow:0 2px 12px rgba(0,0,0,.8)}
