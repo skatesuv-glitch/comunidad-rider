@@ -45,3 +45,16 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .heroCopy strong{font-size:17px;line-height:1.08}.heroCopy small{font-size:12px;line-height:1.25}
 .profileMark{width:34px;height:34px;border:1px solid var(--eskate-cyan);border-radius:50%;display:grid;place-items:center;color:var(--eskate-cyan);font-weight:900;background:#061b28}
 .profileMarkBig{width:86px;height:86px;font-size:32px;margin:auto}
+
+/* Rider Voz: cockpit aprobado, sin iconografía provisional */
+.voiceLabel{display:block;color:#13cfff;font-size:11px;font-weight:900;letter-spacing:.22em;margin-top:4px}
+.voiceTitle{margin:4px 0 0;font-size:27px}
+.voiceCockpit{min-height:360px;display:grid;place-items:center;position:relative}
+.voiceCockpit:before{content:"";position:absolute;width:290px;height:290px;border-radius:50%;background:radial-gradient(circle,rgba(19,207,255,.12),rgba(19,207,255,.025) 54%,transparent 70%)}
+.voiceRing{position:relative;width:230px;height:230px;border-radius:50%;border:2px solid #13cfff;box-shadow:0 0 18px rgba(19,207,255,.6),inset 0 0 38px rgba(19,207,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle,#0a2130 0,#06131d 66%,#030a10 100%)}
+.voiceRing:before,.voiceRing:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(19,207,255,.2)}
+.voiceRing:before{inset:-18px}.voiceRing:after{inset:18px}
+.voiceRing strong{font-size:22px;letter-spacing:.18em;margin-top:18px}.voiceRing small{color:#8fa8b8;margin-top:5px;letter-spacing:.1em}
+.voiceWave{height:50px;display:flex;align-items:center;gap:5px}.voiceWave i{display:block;width:4px;border-radius:8px;background:#13cfff;box-shadow:0 0 10px #13cfff}.voiceWave i:nth-child(1),.voiceWave i:nth-child(7){height:14px}.voiceWave i:nth-child(2),.voiceWave i:nth-child(6){height:27px}.voiceWave i:nth-child(3),.voiceWave i:nth-child(5){height:39px}.voiceWave i:nth-child(4){height:50px}
+.voiceControls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 18px}.voiceControl{min-height:78px;border:1px solid #17445d;border-radius:18px;background:#081b29;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-weight:800}.voiceControl span{font-size:14px;color:#13cfff}.voiceControl small{font-size:10px;color:#8fa8b8}.primaryVoice{border-color:#13cfff;box-shadow:0 0 18px rgba(19,207,255,.18)}
+.voiceStatus{display:flex;align-items:center;justify-content:center;gap:8px;color:#8fa8b8;font-size:12px;margin:4px 0 14px}.voiceStatus i{width:8px;height:8px;border-radius:50%;background:#516876}
