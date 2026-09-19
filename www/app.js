@@ -210,8 +210,9 @@ async function chat(r){
   const send=async()=>{
     const value=input.value.trim();if(!value||input.disabled||!chatActive)return;
     input.disabled=true;const sendBtn=document.querySelector('#send');if(sendBtn)sendBtn.disabled=true;
-    const live=(window.communityRiders||riders).find(x=>String(x.id)===String(r.id));
-    if(!live||live.state!=='green'){input.disabled=false;if(sendBtn)sendBtn.disabled=false;profile(r.id);return}
+    const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
+    const live=refreshed.find(x=>String(x.id)===String(r.id));
+    if(!live||live.state!=='green'){input.disabled=false;if(sendBtn)sendBtn.disabled=false;cleanupChat();profile(r.id);return}
     const sent=await sendRemoteMessage(r.id,value);
     if(!sent)saveMessage(r.id,value);
     const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
