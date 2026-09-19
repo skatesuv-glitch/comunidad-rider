@@ -32,6 +32,11 @@ jobs:
           test -s www/styles.css
           node --check www/app.js
           grep -q "Arranque Android OK" www/index.html
+      - name: Bundle Supabase SDK locally
+        run: |
+          cp node_modules/@supabase/supabase-js/dist/umd/supabase.js www/supabase.js
+          sed -i '/<script src="app.js"><\/script>/i <script src="supabase.js"></script>' www/index.html
+          test -s www/supabase.js
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build debug APK
