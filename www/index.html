@@ -21,6 +21,5 @@ html,body{margin:0;min-height:100%;background:#03070c;color:#fff;font-family:sys
 window.addEventListener('error',function(e){var m=document.getElementById('bootmsg');if(m)m.textContent='ERROR JS: '+(e.message||'desconocido')+' · línea '+(e.lineno||'?');});
 window.addEventListener('unhandledrejection',function(e){var m=document.getElementById('bootmsg');if(m)m.textContent='ERROR PROMESA: '+String(e.reason||'desconocido');});
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 </body></html>
