@@ -54,7 +54,7 @@ async function fetchCommunityRiders(){
       status:p.is_active?'Activo ahora':'Fuera de cobertura',
       state:p.is_active?'green':'red',
       left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
-      bio:p.bio||''
+      bio:p.bio||'Sin descripción.'
     }));
     return real.concat(riders);
   }catch{return riders}
@@ -76,14 +76,14 @@ async function fetchChallenges(){
   }catch{return challengeData}
 }
 const riders=[
-{id:'offline-luna',name:'LunaRoad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'47%',top:'37%',bio:'Rutas tranquilas, fotografía y kilómetros al atardecer.'},
-{id:'offline-nomad',name:'SkateNomad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'54%',top:'42%',bio:'Carretera, naturaleza y nuevos horizontes.'},
-{id:'offline-volt',name:'VoltRider',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'43%',top:'48%',bio:'Explorando rutas y rincones nuevos sobre ruedas.'},
-{id:'offline-north',name:'NorthLine',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'59%',top:'34%',bio:'Curvas, paisaje y buenas rutas.'},
-{id:'offline-urban',name:'UrbanFlow',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'38%',top:'41%',bio:'Kilómetros urbanos cuando cae el sol.'},
-{id:'offline-ruta',name:'RutaLibre',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'62%',top:'49%',bio:'Buscando carreteras nuevas y buena compañía.'},
-{id:'offline-zero',name:'ZeroNoise',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'49%',top:'55%',bio:'Rodar, descubrir y repetir.'},
-{id:'offline-sierra',name:'SierraRide',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'34%',top:'53%',bio:'Más montaña, menos tráfico.'}
+{id:'offline-luna',name:'LunaRoad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'47%',top:'37%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-nomad',name:'SkateNomad',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'54%',top:'42%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-volt',name:'VoltRider',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'43%',top:'48%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-north',name:'NorthLine',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'59%',top:'34%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-urban',name:'UrbanFlow',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'38%',top:'41%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-ruta',name:'RutaLibre',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'62%',top:'49%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-zero',name:'ZeroNoise',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'49%',top:'55%',bio:'Madrid · Rider de la comunidad.'},
+{id:'offline-sierra',name:'SierraRide',city:'Madrid',status:'Fuera de cobertura',state:'red',left:'34%',top:'53%',bio:'Madrid · Rider de la comunidad.'}
 ];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
