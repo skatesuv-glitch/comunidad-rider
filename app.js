@@ -101,15 +101,34 @@ async function ensureProfile(){
     else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabase.from('profiles').update({alias}).eq('id',uid);
   }catch{}
 }
-async function boot(){
+async function signOutRider(){
+  if(!supabase)return;
+  try{await supabase.auth.signOut()}catch{}
+  authScreen();
+}
+async function accountScreen(){
+  const uid=await currentUserId();
+  if(!uid||!supabase){authScreen();return}
+  let user=null,profile=null;
+  try{
+    const {data:u}=await supabase.auth.getUser();user=u?.user||null;
+    const {data:p}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
+  }catch{}
+  const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
+  shell(`<div class="brand">MI CUENTA RIDER</div><div class="row spread"><h1>${esc(alias)}</h1><button class="mini" id="back">‹</button></div><div class="card"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary" id="logout">Cerrar sesión</button>`);
+  document.querySelector('#back').onclick=home;
+  document.querySelector('#logout').onclick=signOutRider;
+}
+
   if(!supabase){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
   await ensureProfile();home();
 }
-function home(){shell(`<div class="brand">E-SKATE SUV</div><h1>Comunidad Rider</h1><p class="sub">Conecta, rueda y comparte.</p><div class="backendStatus" id="backendStatus"><i></i><span>Comprobando backend…</span></div>
+function home(){shell(`<div class="brand">E-SKATE SUV</div><h1>Comunidad Rider</h1><p class="sub">Conecta, rueda y comparte.</p><div class="backendStatus" id="backendStatus"><i></i><span>Comprobando backend…</span></div><button class="mini accountBtn" id="account" aria-label="Mi cuenta">👤</button>
 ${[['🎙️','Rider Voz','Conversación entre riders durante la ruta.'],['📍','Riders en mi zona','Descubre riders activos y contactos cercanos.'],['🗺️','Rutas compartidas','Descubre y comparte rutas de la comunidad.'],['🏆','Retos','Retos de distancia, desnivel y exploración.'],['👤','Mi perfil Rider','Tu identidad dentro de la comunidad.']].map((x,i)=>`<button class="card menuCard" data-menu="${i}"><span class="row"><span class="icon">${x[0]}</span><span><strong>${x[1]}</strong><small>${x[2]}</small></span></span></button>`).join('')}`);
 supabaseStatus().then(s=>{const el=document.querySelector('#backendStatus');if(el){el.classList.toggle('ok',s.ok);el.querySelector('span').textContent=s.text}});document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile}
+  const account=document.querySelector('#account');if(account)account.onclick=accountScreen;
 function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`<div class="brand">RIDERS EN MI ZONA</div><h1>Privacidad primero</h1><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
 const sw=document.querySelector('#sw'), box=document.querySelector('#consent');
 sw.onclick=()=>{sw.classList.add('on');box.classList.remove('hidden')};document.querySelector('#accept').onclick=()=>{state.locationConsent=true;state.locationSharing=true;saveState();requestLocation(()=>map())};document.querySelector('#back').onclick=home}
