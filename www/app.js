@@ -220,10 +220,10 @@ async function chat(r){
   document.querySelector('#send').onclick=send;
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   let chatActive=true,retryingPending=false;
-  document.querySelector('#voice').onclick=()=>{cleanupChat();voiceInvite(r)};
-  const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent&&chatActive)chat(r)}finally{retryingPending=false}};
-  const onVisible=()=>{if(document.visibilityState==='visible')retryPending()};
   const cleanupChat=()=>{chatActive=false;window.removeEventListener('online',retryPending);document.removeEventListener('visibilitychange',onVisible)};
+  const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent&&chatActive){cleanupChat();chat(r)}}finally{retryingPending=false}};
+  const onVisible=()=>{if(document.visibilityState==='visible')retryPending()};
+  document.querySelector('#voice').onclick=()=>{cleanupChat();voiceInvite(r)};
   const backBtn=document.querySelector('#back');backBtn.onclick=()=>{cleanupChat();profile(r.id)};
   window.addEventListener('online',retryPending);
   document.addEventListener('visibilitychange',onVisible);
