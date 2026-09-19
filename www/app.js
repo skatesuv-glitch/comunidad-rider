@@ -39,10 +39,20 @@ async function sendRemoteMessage(riderId,text){
 async function flushPendingMessages(riderId){
   const pending=savedMessages(riderId).filter(m=>m.pending);
   if(!pending.length)return 0;
-  let sentCount=0;
-  for(const msg of pending){const sent=await sendRemoteMessage(riderId,msg.text);if(!sent)break;msg.pending=false;sentCount++}
-  const db=dbLoad();if(db.messages?.[riderId]){db.messages[riderId]=db.messages[riderId].filter(m=>m.pending!==false);dbSave(db)}
-  return sentCount;
+  const sentKeys=new Set();
+  for(const msg of pending){
+    const sent=await sendRemoteMessage(riderId,msg.text);
+    if(!sent)break;
+    sentKeys.add(msg.at);
+  }
+  if(sentKeys.size){
+    const db=dbLoad();
+    if(db.messages?.[riderId]){
+      db.messages[riderId]=db.messages[riderId].filter(m=>!sentKeys.has(m.at));
+      dbSave(db);
+    }
+  }
+  return sentKeys.size;
 }
 function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
 function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
