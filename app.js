@@ -80,6 +80,30 @@ const riders=[
 {id:3,name:'Dani',city:'Sevilla',status:'Activo ahora',state:'green',left:'27%',top:'58%',board:'eSkate',km:'2.105 km'}];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
+async function getSession(){
+  if(!supabase)return null;
+  try{const {data}=await supabase.auth.getSession();return data?.session||null}catch{return null}
+}
+function authScreen(){
+  shell(`<div class="brand">E-SKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra o crea tu cuenta para conectar con la comunidad.</p><label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn" id="login">Entrar</button><button class="btn secondary" id="signup">Crear cuenta</button><p class="sub center" id="authMsg"></p>`);
+  const email=document.querySelector('#authEmail'),pass=document.querySelector('#authPass'),msg=document.querySelector('#authMsg');
+  const values=()=>({email:email.value.trim(),password:pass.value});
+  document.querySelector('#login').onclick=async()=>{msg.textContent='Entrando…';const {error}=await supabase.auth.signInWithPassword(values());if(error){msg.textContent=error.message;return}home()};
+  document.querySelector('#signup').onclick=async()=>{msg.textContent='Creando cuenta…';const {data,error}=await supabase.auth.signUp(values());if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
+}
+async function ensureProfile(){
+  const uid=await currentUserId();if(!uid||!supabase)return;
+  try{
+    const {data}=await supabase.from('profiles').select('id').eq('id',uid).maybeSingle();
+    if(!data)await supabase.from('profiles').insert({id:uid,alias:'Rider'});
+  }catch{}
+}
+async function boot(){
+  if(!supabase){home();return}
+  const session=await getSession();
+  if(!session){authScreen();return}
+  await ensureProfile();home();
+}
 function home(){shell(`<div class="brand">E-SKATE SUV</div><h1>Comunidad Rider</h1><p class="sub">Conecta, rueda y comparte.</p><div class="backendStatus" id="backendStatus"><i></i><span>Comprobando backend…</span></div>
 ${[['🎙️','Rider Voz','Conversación entre riders durante la ruta.'],['📍','Riders en mi zona','Descubre riders activos y contactos cercanos.'],['🗺️','Rutas compartidas','Descubre y comparte rutas de la comunidad.'],['🏆','Retos','Retos de distancia, desnivel y exploración.'],['👤','Mi perfil Rider','Tu identidad dentro de la comunidad.']].map((x,i)=>`<button class="card menuCard" data-menu="${i}"><span class="row"><span class="icon">${x[0]}</span><span><strong>${x[1]}</strong><small>${x[2]}</small></span></span></button>`).join('')}`);
 supabaseStatus().then(s=>{const el=document.querySelector('#backendStatus');if(el){el.classList.toggle('ok',s.ok);el.querySelector('span').textContent=s.text}});document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile}
@@ -136,4 +160,4 @@ function challengeDetail(id){const pool=window.communityChallenges||challengeDat
 function privacy(){shell('<div class="brand">PRIVACIDAD</div><button class="mini" id="back">‹ Mapa</button><h1>Ubicación</h1><div class="card"><h3>Compartir mi ubicación</h3><p id="shareStatus">'+(state.locationSharing?'Activada':'Desactivada')+'</p><button class="btn secondary" id="toggleShare">'+(state.locationSharing?'Desactivar':'Activar')+'</button></div><p class="sub">Al desactivarla dejas de compartir nuevas posiciones. El módulo queda preparado para aplicar después la caducidad de la última ubicación en el servidor.</p>');document.querySelector('#back').onclick=map;document.querySelector('#toggleShare').onclick=()=>{state.locationSharing=!state.locationSharing;saveState();privacy()}}
 function myProfile(){const db=dbLoad(),p=db.profile||{alias:'',city:'',board:'eSkate SUV',bio:''};shell('<div class="brand">MI PERFIL RIDER</div><button class="mini" id="back">‹ Comunidad</button><div class="profileAvatar">🛹</div><label class="field">Alias<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Tabla<input id="board" maxlength="40" value="'+esc(p.board||'')+'" placeholder="eSkate SUV"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');document.querySelector('#back').onclick=home;document.querySelector('#saveProfile').onclick=()=>{const db=dbLoad();db.profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),board:document.querySelector('#board').value.trim(),bio:document.querySelector('#bio').value.trim()};dbSave(db);document.querySelector('#saved').textContent='✓ Perfil guardado en este dispositivo'}}
 function riderVoice(){shell('<div class="brand">RIDER VOZ</div><div class="row spread"><h1>Conexión de voz</h1><button class="mini" id="back">‹</button></div><p class="sub">Habla con otros riders mientras ruedas. Las invitaciones requieren aceptación.</p><div class="card"><div class="row"><div class="voiceOrb">🎙️</div><div><h3>Sin conexión activa</h3><p>Selecciona un rider para enviar una invitación de voz.</p></div></div></div><button class="btn" id="find">📍 Buscar riders</button><div class="card"><h3>Controles previstos</h3><p>Micrófono · silenciar · volumen · finalizar conexión.</p></div>');document.querySelector('#back').onclick=home;document.querySelector('#find').onclick=consent}
-home();
+boot();
