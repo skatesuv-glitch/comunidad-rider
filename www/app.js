@@ -219,7 +219,7 @@ async function myProfile(){
     const db=dbLoad();db.profile=profile;dbSave(db);
     let remote=false;
     if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
-    document.querySelector('#saved').textContent=remote?'✓ Perfil sincronizado':'✓ Perfil guardado en este dispositivo';
+    document.querySelector('#saved').textContent=remote?'Perfil sincronizado':'Perfil guardado en este dispositivo';
   };
 }
 async function riderVoice(){
