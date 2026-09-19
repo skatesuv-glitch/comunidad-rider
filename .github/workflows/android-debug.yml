@@ -31,7 +31,8 @@ jobs:
           test -s www/app.js
           test -s www/styles.css
           node --check www/app.js
-          grep -q "Arranque Android OK" www/index.html
+          ! grep -q "Arranque Android OK" www/index.html
+          ! grep -q "Cargando aplicación" www/index.html
       - name: Bundle Supabase SDK locally
         run: |
           cp node_modules/@supabase/supabase-js/dist/umd/supabase.js www/supabase.js
