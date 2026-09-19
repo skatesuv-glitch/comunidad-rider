@@ -72,7 +72,7 @@ async function fetchChallenges(){
   try{
     const {data,error}=await supabaseClient.from('challenges').select('*').limit(50);
     if(error||!data||!data.length)return challengeData;
-    return data.map((x,i)=>({id:x.id,icon:'🏆',name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
+    return data.map((x,i)=>({id:x.id,name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
   }catch{return challengeData}
 }
 const riders=[
@@ -197,7 +197,7 @@ async function sharedRoutes(){
   document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeDetail(b.dataset.route));
 }
 function routeDetail(id){const pool=window.communityRoutes||routes;const r=pool.find(x=>String(x.id)===String(id))||routes.find(x=>String(x.id)===String(id));shell(topbar('RUTA COMPARTIDA',true)+'<div class="routePreview routeCanvas"><span class="routeLine"></span></div><h1>'+esc(r.name)+'</h1><p class="sub">'+esc(r.city)+' · por '+esc(r.author)+'</p><div class="stats"><div><b>'+r.km+'</b><small>km</small></div><div><b>'+esc(r.time)+'</b><small>duración</small></div><div><b>'+esc(r.level)+'</b><small>nivel</small></div></div><button class="btn" id="openRoute">Abrir ruta</button><button class="btn secondary" id="fav">♡ Guardar en favoritas</button>');document.querySelector('#back').onclick=sharedRoutes;const fav=document.querySelector('#fav');if(isFavorite(r.id))fav.textContent='♥ Guardada en favoritas';fav.onclick=e=>{const on=toggleFavorite(r.id);e.currentTarget.textContent=on?'♥ Guardada en favoritas':'♡ Guardar en favoritas'};document.querySelector('#openRoute').onclick=e=>{e.currentTarget.textContent='✓ Ruta preparada';e.currentTarget.disabled=true}}
-const challengeData=[{id:1,icon:'⚡',name:'50 km esta semana',desc:'Acumula 50 km en cualquier número de salidas.',progress:32,target:50,unit:'km'},{id:2,icon:'⛰️',name:'Cazador de desnivel',desc:'Suma 1.000 m de desnivel positivo.',progress:640,target:1000,unit:'m'},{id:3,icon:'🧭',name:'Explorador',desc:'Completa 3 rutas nuevas.',progress:1,target:3,unit:'rutas'}];
+const challengeData=[{id:1,name:'50 km esta semana',desc:'Acumula 50 km en cualquier número de salidas.',progress:32,target:50,unit:'km'},{id:2,name:'Cazador de desnivel',desc:'Suma 1.000 m de desnivel positivo.',progress:640,target:1000,unit:'m'},{id:3,name:'Explorador',desc:'Completa 3 rutas nuevas.',progress:1,target:3,unit:'rutas'}];
 async function challenges(){
   const liveChallenges=await fetchChallenges();
   window.communityChallenges=liveChallenges;
