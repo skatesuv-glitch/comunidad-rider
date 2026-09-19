@@ -192,7 +192,7 @@ const routes=[{id:1,name:'Casa de Campo Loop',city:'Madrid',km:'18,4',time:'1 h 
 async function sharedRoutes(){
   const liveRoutes=await fetchSharedRoutes();
   window.communityRoutes=liveRoutes;
-  shell(topbar('RUTAS COMPARTIDAS',true)+'<div class="screenHero routeHero"><div><small>DESCUBRE · GUARDA · RUEDA</small><h1>Descubrir rutas</h1><p>Rutas publicadas por la comunidad.</p></div></div>'+liveRoutes.map(r=>'<button class="card menuCard communityListCard" data-route="'+r.id+'"><strong>🗺️ '+esc(r.name)+'</strong><small>📍 '+esc(r.city)+' · '+r.km+' km · '+esc(r.level)+'</small><small>🛹 '+esc(r.author)+' · ♥ '+r.likes+'</small></button>').join(''));
+  shell(topbar('RUTAS COMPARTIDAS',true)+'<div class="screenHero routeHero"><div><small>RUTAS DE LA COMUNIDAD</small><h1>Descubrir rutas</h1><p>Explora y guarda rutas compartidas por otros Riders.</p></div></div><div class="routeList">'+liveRoutes.map(r=>'<button class="routeCard" data-route="'+r.id+'"><span class="routeThumb"><i></i></span><span class="routeCardCopy"><small>'+esc(r.city||'RUTA RIDER')+'</small><strong>'+esc(r.name)+'</strong><em>'+r.km+' km · '+esc(r.level)+' · '+esc(r.author)+'</em></span><b>›</b></button>').join('')+'</div>');
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeDetail(b.dataset.route));
 }
@@ -201,7 +201,7 @@ const challengeData=[{id:1,icon:'⚡',name:'50 km esta semana',desc:'Acumula 50 
 async function challenges(){
   const liveChallenges=await fetchChallenges();
   window.communityChallenges=liveChallenges;
-  shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>OBJETIVOS RIDER</small><h1>Esta semana</h1><p>Una excusa más para sacar la tabla.</p></div></div>'+liveChallenges.map(x=>{const pct=Math.min(100,Math.round(x.progress/x.target*100));return '<button class="card menuCard communityListCard" data-challenge="'+x.id+'"><strong>'+x.icon+' '+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><small>'+x.progress+' / '+x.target+' '+esc(x.unit)+' · '+pct+'%</small></button>'}).join(''));
+  shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>RETOS DE LA COMUNIDAD</small><h1>Retos</h1><p>Objetivos, progreso y participación Rider.</p></div></div><div class="challengeList">'+liveChallenges.map(x=>{const pct=Math.min(100,Math.round(x.progress/x.target*100));return '<button class="challengeCard" data-challenge="'+x.id+'"><span class="challengePct">'+pct+'%</span><span class="challengeCopy"><strong>'+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><em>'+x.progress+' / '+x.target+' '+esc(x.unit)+'</em></span><b>›</b></button>'}).join('')+'</div>');
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-challenge]').forEach(b=>b.onclick=()=>challengeDetail(b.dataset.challenge));
 }
@@ -212,7 +212,7 @@ async function myProfile(){
   let p={...local};
   const uid=await currentUserId();
   if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();if(data)p={...p,...data}}catch{}}
-  shell(topbar('MI PERFIL RIDER',true)+'<div class="profileHead"><span class="profileMark profileMarkBig">R</span><div><small>RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><label class="field">Seudónimo<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
+  shell(topbar('MI PERFIL RIDER',true)+'<div class="myProfileCover"><div class="profileMark profileMarkBig">'+esc((p.alias||'R').slice(0,1).toUpperCase())+'</div></div><div class="profileHead profileHeadOwn"><div><small>RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1><p>Tu foto circular es tu identidad en Comunidad.</p></div></div><label class="field">Seudónimo<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
   document.querySelector('#back').onclick=home;
   document.querySelector('#saveProfile').onclick=async()=>{
     const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),bio:document.querySelector('#bio').value.trim()};
