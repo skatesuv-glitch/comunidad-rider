@@ -117,3 +117,6 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .voiceInviteGlyph{display:block;width:34px;height:34px;border:2px solid #13cfff;border-radius:50%;position:relative;margin:auto}
 .voiceInviteGlyph:before,.voiceInviteGlyph:after{content:"";position:absolute;left:50%;top:50%;border-radius:999px;transform:translate(-50%,-50%)}
 .voiceInviteGlyph:before{width:7px;height:18px;background:#13cfff}.voiceInviteGlyph:after{width:20px;height:20px;border:1px solid rgba(19,207,255,.45)}
+
+body.pickerOpen{overflow:hidden}
+body.pickerOpen .phone{overscroll-behavior:none}
