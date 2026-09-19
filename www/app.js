@@ -234,7 +234,7 @@ function riderVoice(){
   document.querySelector('#find').onclick=()=>picker.classList.remove('hidden');
   document.querySelector('#closePicker').onclick=()=>picker.classList.add('hidden');
   document.querySelectorAll('[data-add-rider]').forEach(b=>b.onclick=()=>{const r=selectable.find(x=>String(x.id)===String(b.dataset.addRider));if(r){selected.set(String(r.id),r);renderGroup();b.classList.add('selected');b.querySelector('b').textContent='✓'}});
-  document.querySelector('#mute').onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Micrófono OFF':'Micrófono ON'};
+  document.querySelector('#mute').onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Micrófono OFF':'Micrófono ON'};const volume=document.querySelector('#volume');volume.onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Audio OFF':'Volumen'};
   leave.onclick=()=>{selected.clear();renderGroup()};
   renderGroup();
 }
