@@ -125,3 +125,5 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .mapFooter .mapHint{margin:0;text-align:right}
 .mapLiveState{display:flex;align-items:center;gap:7px;color:#9eb4c2;white-space:nowrap}
 .mapLiveState i{width:7px;height:7px;border-radius:50%;background:#19e58c;box-shadow:0 0 10px rgba(25,229,140,.7)}
+
+.bubble.pending{opacity:.72}.messageState{display:block;margin-top:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.68}
