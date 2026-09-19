@@ -35,3 +35,13 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .communityListCard{padding:15px 16px;min-height:92px;text-align:left}
 .communityListCard strong{display:block;margin-bottom:7px}.communityListCard small{display:block;margin-top:4px}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:11px;color:#bdd0dc}
+
+/* Portada Comunidad: composición visual aprobada */
+.heroCard{min-height:224px;background-size:cover;background-position:center;justify-content:flex-end}
+.hero-voice{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/rider-voice.jpg')}
+.hero-nearby{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/riders-nearby.jpg')}
+.hero-routes{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/shared-routes.jpg')}
+.hero-challenges{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/challenges.jpg')}
+.heroCopy strong{font-size:17px;line-height:1.08}.heroCopy small{font-size:12px;line-height:1.25}
+.profileMark{width:34px;height:34px;border:1px solid var(--eskate-cyan);border-radius:50%;display:grid;place-items:center;color:var(--eskate-cyan);font-weight:900;background:#061b28}
+.profileMarkBig{width:86px;height:86px;font-size:32px;margin:auto}
