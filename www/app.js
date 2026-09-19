@@ -131,7 +131,8 @@ async function accountScreen(){
     const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
   }catch{}
   const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
-  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountHero"><span class="profileMark profileMarkBig">R</span><div><small>SESIÓN ACTIVA</small><h1>${esc(alias)}</h1></div></div><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
+  const initial=esc(alias.slice(0,1).toUpperCase());
+  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountHero"><span class="profileMark profileMarkBig">${initial}</span><div><small>SESIÓN ACTIVA</small><h1>${esc(alias)}</h1></div></div><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
   document.querySelector('#back').onclick=home;
   document.querySelector('#logout').onclick=signOutRider;
 }
