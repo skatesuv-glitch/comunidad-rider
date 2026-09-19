@@ -11,3 +11,10 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .photoCard{min-height:190px;background-position:center;background-size:cover}
 .photoCard:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 25%,rgba(1,8,13,.94) 100%);pointer-events:none}
 .photoCard>*{position:relative;z-index:1}
+
+.communityHeader{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:4px 0 18px}
+.communityHeader small{font-size:10px;letter-spacing:.14em;color:#9ec6dc;text-align:right}
+.brandLogo{display:flex;flex-direction:column;line-height:.9}
+.brandLogo strong{font-size:25px;font-style:italic;letter-spacing:-.05em;color:#fff;text-shadow:0 0 18px rgba(0,170,255,.18)}
+.brandLogo span{margin-top:8px;font-size:11px;letter-spacing:.42em;color:var(--eskate-cyan);font-weight:800}
+@media(max-width:430px){.communityHeader small{display:none}.brandLogo strong{font-size:22px}}
