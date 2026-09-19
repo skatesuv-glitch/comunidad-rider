@@ -1,1 +1,20 @@
-{"name":"comunidad-rider","version":"0.1.0","private":true,"scripts":{"sync":"npx cap sync","android":"npx cap open android","ios":"npx cap open ios"},"dependencies":{"@capacitor/android":"latest","@capacitor/core":"latest","@capacitor/ios":"latest"},"devDependencies":{"@capacitor/cli":"latest"}}
+{
+  "name": "comunidad-rider",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "sync": "npx cap sync",
+    "android:add": "npx cap add android",
+    "android": "npx cap open android",
+    "ios:add": "npx cap add ios",
+    "ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.0.2",
+    "@capacitor/core": "8.0.2",
+    "@capacitor/ios": "8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.0.2"
+  }
+}
