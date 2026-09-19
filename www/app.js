@@ -192,7 +192,7 @@ async function chat(r){
     input.value='';input.disabled=false;if(sendBtn)sendBtn.disabled=false;input.focus();
   };
   document.querySelector('#send').onclick=send;
-  input.onkeydown=e=>{if(e.key==='Enter')send()};
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   document.querySelector('#voice').onclick=()=>voiceInvite(r);
 }
 function voiceInvite(r){if(!r||r.state!=='green'){if(r?.id)profile(r.id);else map();return}shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>INVITACIÓN DE VOZ</small><h1>Invitar a '+esc(r.name)+'</h1><p>La conversación comienza cuando el Rider acepta.</p><div class="inviteRider"><span class="profileMark">'+esc((r.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(r.name)+'</strong><small class="online">● En línea</small></span></div><button class="btn" id="invite">Enviar invitación</button><button class="btn secondary" id="cancel">Cancelar</button><p class="sub center" id="inviteStatus"></p></div>');const go=()=>chat(r);document.querySelector('#back').onclick=go;document.querySelector('#cancel').onclick=go;document.querySelector('#invite').onclick=e=>{e.currentTarget.textContent='Invitación enviada';e.currentTarget.disabled=true;document.querySelector('#inviteStatus').textContent='Esperando respuesta del Rider.'}}
