@@ -1,10 +1,10 @@
-const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabase.co';
+const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabaseClient.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_7GinSOXWplq3vLmtQmKMAw_xom0bg3A';
-const supabase=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY):null;
+const supabaseClient=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY):null;
 async function supabaseStatus(){
-  if(!supabase)return {ok:false,text:'Supabase no disponible'};
+  if(!supabaseClient)return {ok:false,text:'Supabase no disponible'};
   try{
-    const {error}=await supabase.from('profiles').select('id',{head:true,count:'exact'}).limit(1);
+    const {error}=await supabaseClient.from('profiles').select('id',{head:true,count:'exact'}).limit(1);
     return error?{ok:false,text:'Backend pendiente'}:{ok:true,text:'Backend conectado'};
   }catch{return {ok:false,text:'Sin conexión al backend'}}
 }
@@ -14,14 +14,14 @@ const KEY='comunidad_rider_v1';
 function dbLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}}
 function dbSave(db){localStorage.setItem(KEY,JSON.stringify(db))}
 async function currentUserId(){
-  if(!supabase)return null;
-  try{const {data}=await supabase.auth.getUser();return data?.user?.id||null}catch{return null}
+  if(!supabaseClient)return null;
+  try{const {data}=await supabaseClient.auth.getUser();return data?.user?.id||null}catch{return null}
 }
 async function fetchMessages(riderId){
   const me=await currentUserId();
-  if(!supabase||!me)return null;
+  if(!supabaseClient||!me)return null;
   try{
-    const {data,error}=await supabase.from('messages').select('*')
+    const {data,error}=await supabaseClient.from('messages').select('*')
       .or(`and(sender_id.eq.${me},receiver_id.eq.${riderId}),and(sender_id.eq.${riderId},receiver_id.eq.${me})`)
       .order('created_at',{ascending:true}).limit(100);
     if(error)return null;
@@ -30,9 +30,9 @@ async function fetchMessages(riderId){
 }
 async function sendRemoteMessage(riderId,text){
   const me=await currentUserId();
-  if(!supabase||!me)return false;
+  if(!supabaseClient||!me)return false;
   try{
-    const {error}=await supabase.from('messages').insert({sender_id:me,receiver_id:riderId,body:text});
+    const {error}=await supabaseClient.from('messages').insert({sender_id:me,receiver_id:riderId,body:text});
     return !error;
   }catch{return false}
 }
@@ -45,9 +45,9 @@ function joinChallenge(id){const db=dbLoad();db.joinedChallenges=db.joinedChalle
 function saveState(){localStorage.setItem('cr_location_consent',state.locationConsent?'yes':'no');localStorage.setItem('cr_location_sharing',state.locationSharing?'yes':'no')}
 function requestLocation(done){if(!navigator.geolocation){done&&done(null);return}navigator.geolocation.getCurrentPosition(p=>done&&done({lat:p.coords.latitude,lng:p.coords.longitude}),()=>done&&done(null),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})}
 async function fetchCommunityRiders(){
-  if(!supabase)return riders;
+  if(!supabaseClient)return riders;
   try{
-    const {data,error}=await supabase.from('profiles').select('*').limit(50);
+    const {data,error}=await supabaseClient.from('profiles').select('*').limit(50);
     if(error||!data||!data.length)return riders;
     return data.map((p,i)=>({
       id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
@@ -59,17 +59,17 @@ async function fetchCommunityRiders(){
   }catch{return riders}
 }
 async function fetchSharedRoutes(){
-  if(!supabase)return routes;
+  if(!supabaseClient)return routes;
   try{
-    const {data,error}=await supabase.from('routes').select('*').limit(50);
+    const {data,error}=await supabaseClient.from('routes').select('*').limit(50);
     if(error||!data||!data.length)return routes;
     return data.map((r,i)=>({id:r.id,name:r.name||'Ruta Rider',city:r.city||'',km:String(r.distance_km??r.km??'—'),time:r.duration||'—',level:r.level||'—',author:r.author_name||'Rider',likes:r.likes||0}));
   }catch{return routes}
 }
 async function fetchChallenges(){
-  if(!supabase)return challengeData;
+  if(!supabaseClient)return challengeData;
   try{
-    const {data,error}=await supabase.from('challenges').select('*').limit(50);
+    const {data,error}=await supabaseClient.from('challenges').select('*').limit(50);
     if(error||!data||!data.length)return challengeData;
     return data.map((x,i)=>({id:x.id,icon:'🏆',name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
   }catch{return challengeData}
@@ -81,38 +81,38 @@ const riders=[
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
 async function getSession(){
-  if(!supabase)return null;
-  try{const {data}=await supabase.auth.getSession();return data?.session||null}catch{return null}
+  if(!supabaseClient)return null;
+  try{const {data}=await supabaseClient.auth.getSession();return data?.session||null}catch{return null}
 }
 function authScreen(){
   shell(`<div class="brand">E-SKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra o crea tu cuenta para conectar con la comunidad.</p><label class="field">Seudónimo Rider<input id="authAlias" autocomplete="nickname" maxlength="24" placeholder="Tu nombre en la comunidad"></label><label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn" id="login">Entrar</button><button class="btn secondary" id="signup">Crear cuenta</button><p class="sub center" id="authMsg"></p>`);
   const alias=document.querySelector('#authAlias'),email=document.querySelector('#authEmail'),pass=document.querySelector('#authPass'),msg=document.querySelector('#authMsg');
   const values=()=>({email:email.value.trim(),password:pass.value});
-  document.querySelector('#login').onclick=async()=>{msg.textContent='Entrando…';const {error}=await supabase.auth.signInWithPassword(values());if(error){msg.textContent=error.message;return}home()};
-  document.querySelector('#signup').onclick=async()=>{const nick=alias.value.trim();if(nick.length<3){msg.textContent='El seudónimo debe tener al menos 3 caracteres.';return}msg.textContent='Creando cuenta…';const v=values();v.options={data:{alias:nick}};const {data,error}=await supabase.auth.signUp(v);if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
+  document.querySelector('#login').onclick=async()=>{msg.textContent='Entrando…';const {error}=await supabaseClient.auth.signInWithPassword(values());if(error){msg.textContent=error.message;return}home()};
+  document.querySelector('#signup').onclick=async()=>{const nick=alias.value.trim();if(nick.length<3){msg.textContent='El seudónimo debe tener al menos 3 caracteres.';return}msg.textContent='Creando cuenta…';const v=values();v.options={data:{alias:nick}};const {data,error}=await supabaseClient.auth.signUp(v);if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
 }
 async function ensureProfile(){
-  const uid=await currentUserId();if(!uid||!supabase)return;
+  const uid=await currentUserId();if(!uid||!supabaseClient)return;
   try{
-    const {data:userData}=await supabase.auth.getUser();
+    const {data:userData}=await supabaseClient.auth.getUser();
     const alias=userData?.user?.user_metadata?.alias||'Rider';
-    const {data}=await supabase.from('profiles').select('id,alias').eq('id',uid).maybeSingle();
-    if(!data)await supabase.from('profiles').insert({id:uid,alias});
-    else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabase.from('profiles').update({alias}).eq('id',uid);
+    const {data}=await supabaseClient.from('profiles').select('id,alias').eq('id',uid).maybeSingle();
+    if(!data)await supabaseClient.from('profiles').insert({id:uid,alias});
+    else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabaseClient.from('profiles').update({alias}).eq('id',uid);
   }catch{}
 }
 async function signOutRider(){
-  if(!supabase)return;
-  try{await supabase.auth.signOut()}catch{}
+  if(!supabaseClient)return;
+  try{await supabaseClient.auth.signOut()}catch{}
   authScreen();
 }
 async function accountScreen(){
   const uid=await currentUserId();
-  if(!uid||!supabase){authScreen();return}
+  if(!uid||!supabaseClient){authScreen();return}
   let user=null,profile=null;
   try{
-    const {data:u}=await supabase.auth.getUser();user=u?.user||null;
-    const {data:p}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
+    const {data:u}=await supabaseClient.auth.getUser();user=u?.user||null;
+    const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
   }catch{}
   const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
   shell(`<div class="brand">MI CUENTA RIDER</div><div class="row spread"><h1>${esc(alias)}</h1><button class="mini" id="back">‹</button></div><div class="card"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary" id="logout">Cerrar sesión</button>`);
@@ -121,7 +121,7 @@ async function accountScreen(){
 }
 
 async function boot(){
-  if(!supabase){home();return}
+  if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
   await ensureProfile();home();
@@ -186,14 +186,14 @@ async function myProfile(){
   const db=dbLoad(),local=db.profile||{alias:'',city:'',board:'eSkate SUV',bio:''};
   let p={...local};
   const uid=await currentUserId();
-  if(uid&&supabase){try{const {data}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle();if(data)p={...p,...data}}catch{}}
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();if(data)p={...p,...data}}catch{}}
   shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">👤</span><div><small>MI PERFIL RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><button class="mini" id="back">‹</button></div><div class="profileAvatar profileHero">🛹</div><label class="field">Seudónimo<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Tabla<input id="board" maxlength="40" value="'+esc(p.board||'eSkate SUV')+'" placeholder="eSkate SUV"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
   document.querySelector('#back').onclick=home;
   document.querySelector('#saveProfile').onclick=async()=>{
     const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),board:document.querySelector('#board').value.trim(),bio:document.querySelector('#bio').value.trim()};
     const db=dbLoad();db.profile=profile;dbSave(db);
     let remote=false;
-    if(uid&&supabase){try{const {error}=await supabase.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
+    if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
     document.querySelector('#saved').textContent=remote?'✓ Perfil sincronizado':'✓ Perfil guardado en este dispositivo';
   };
 }
