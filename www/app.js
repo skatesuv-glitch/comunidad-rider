@@ -182,7 +182,9 @@ function profile(id){
   }
 }
 async function chat(r){
-  if(!r||r.state!=='green'){if(r?.id)profile(r.id);else map();return}
+  const current=(window.communityRiders||riders).find(x=>String(x.id)===String(r?.id));
+  if(!r||!current||current.state!=='green'){if(r?.id)profile(r.id);else map();return}
+  r=current;
   await flushPendingMessages(r.id);
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
