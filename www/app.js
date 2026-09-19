@@ -180,12 +180,13 @@ async function chat(r){
   shell(`${topbar('CHAT PRIVADO',true)}<div class="chatHead"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><div><small>CONVERSACIÓN CON</small><h2>${esc(r.name)}</h2></div></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+'">'+esc(m.text)+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes.</p>'}</div><button class="btn voice" id="voice">Invitar a Rider Voz</button><div class="composer"><input id="msg" placeholder="Escribe un mensaje..."><button id="send" aria-label="Enviar"><span class="sendGlyph"></span></button></div>`);
   document.querySelector('#back').onclick=()=>profile(r.id);
   const input=document.querySelector('#msg');
+  const chatBox=document.querySelector('#chat');if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
   const send=async()=>{
     const value=input.value.trim();if(!value||input.disabled)return;
     input.disabled=true;const sendBtn=document.querySelector('#send');if(sendBtn)sendBtn.disabled=true;
     const sent=await sendRemoteMessage(r.id,value);
     if(!sent)saveMessage(r.id,value);
-    const chatBox=document.querySelector('#chat');const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
+    const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
     chatBox?.insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);
     if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
     input.value='';input.disabled=false;if(sendBtn)sendBtn.disabled=false;input.focus();
