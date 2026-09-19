@@ -37,7 +37,8 @@ async function sendRemoteMessage(riderId,text){
   }catch{return false}
 }
 function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
-function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString()});dbSave(db)}
+function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
+function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
 function isFavorite(id){return (dbLoad().favoriteRoutes||[]).includes(id)}
 function toggleFavorite(id){const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];const i=db.favoriteRoutes.indexOf(id);i<0?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);return db.favoriteRoutes.includes(id)}
 function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).includes(id)}
@@ -177,7 +178,9 @@ async function chat(r){
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
   const remoteHistory=remote===null?[]:remote.map(m=>({text:m.body||m.text||'',from:String(m.sender_id)===String(r.id)?'them':'me',at:m.created_at||''}));
-  const history=remote===null?local:remoteHistory.concat(local.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text)));
+  if(remote!==null)clearSyncedLocalMessages(r.id,remoteHistory);
+  const currentLocal=savedMessages(r.id);
+  const history=remote===null?local:remoteHistory.concat(currentLocal.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text)));
   history.sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
   shell(`${topbar('CHAT PRIVADO',true)}<div class="chatHead"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><div><small>CONVERSACIÓN CON</small><h2>${esc(r.name)}</h2></div></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+'">'+esc(m.text)+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes.</p>'}</div><button class="btn voice" id="voice">Invitar a Rider Voz</button><div class="composer"><input id="msg" maxlength="1000" autocomplete="off" enterkeyhint="send" placeholder="Escribe un mensaje..."><button id="send" aria-label="Enviar"><span class="sendGlyph"></span></button></div>`);
   document.querySelector('#back').onclick=()=>profile(r.id);
