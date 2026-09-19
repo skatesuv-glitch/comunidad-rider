@@ -216,11 +216,11 @@ async function myProfile(){
   let p={...local};
   const uid=await currentUserId();
   if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();if(data)p={...p,...data}}catch{}}
-  shell(topbar('MI PERFIL RIDER',true)+'<div class="myProfileCover"><div class="profileMark profileMarkBig">'+esc((p.alias||'R').slice(0,1).toUpperCase())+'</div></div><div class="profileHead profileHeadOwn"><div><small>RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><label class="field">Seudónimo<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
+  shell(topbar('MI PERFIL RIDER',true)+'<div class="myProfileCover"><div class="profileMark profileMarkBig">'+esc((p.alias||'R').slice(0,1).toUpperCase())+'</div></div><div class="profileHead profileHeadOwn"><div><small>RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><label class="field">Seudónimo<input id="alias" maxlength="24" autocomplete="nickname" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
   document.querySelector('#back').onclick=home;
   document.querySelector('#saveProfile').onclick=async()=>{
     const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),bio:document.querySelector('#bio').value.trim()};
-    if(!profile.alias){document.querySelector('#saved').textContent='El seudónimo es obligatorio';document.querySelector('#alias').focus();return}
+    if(!profile.alias){document.querySelector('#saved').textContent='El seudónimo es obligatorio';document.querySelector('#alias').focus();return}if(profile.alias.length<3){document.querySelector('#saved').textContent='Usa al menos 3 caracteres';document.querySelector('#alias').focus();return}
     const db=dbLoad();db.profile=profile;dbSave(db);
     let remote=false;
     if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
