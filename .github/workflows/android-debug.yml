@@ -25,6 +25,13 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm install
+      - name: Validate web bundle
+        run: |
+          test -s www/index.html
+          test -s www/app.js
+          test -s www/styles.css
+          node --check www/app.js
+          grep -q "Arranque Android OK" www/index.html
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build debug APK
