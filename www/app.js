@@ -1,6 +1,6 @@
 const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabaseClient.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_7GinSOXWplq3vLmtQmKMAw_xom0bg3A';
-const supabaseClient=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY):null;
+const supabaseClient=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},global:{fetch:window.fetch.bind(window)}}):null;
 async function supabaseStatus(){
   if(!supabaseClient)return {ok:false,text:'Supabase no disponible'};
   try{
