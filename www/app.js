@@ -151,7 +151,17 @@ async function map(){
   document.querySelector('#privacy').onclick=privacy;
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
 }
-function profile(id){const pool=window.communityRiders||riders;const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));shell(`${topbar('PERFIL RIDER',true)}<div class="riderProfileHero"><span class="profileMark profileMarkBig">R</span><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${r.state==='green'?'online':'offline'}">● ${esc(r.status)}</p></div></div><div class="card riderData"><small>UBICACIÓN</small><strong>${esc(r.city)}</strong><small>TABLA</small><strong>${esc(r.board)}</strong><small>DISTANCIA COMPARTIDA</small><strong>${esc(r.km)}</strong></div><button class="btn" id="message">Enviar mensaje</button>`);document.querySelector('#back').onclick=map;document.querySelector('#message').onclick=()=>chat(r)}
+function profile(id){
+  const pool=window.communityRiders||riders;
+  const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));
+  const online=r.state==='green';
+  shell(`${topbar('PERFIL RIDER',true)"}<div class="riderCover"><div class="riderAvatar"><span>R</span></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${esc(r.city||'—')}</b><small>ZONA</small></div><div><b>0</b><small>RUTAS</small></div><div><b>0</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${esc(r.bio||'Rider de la comunidad eSKATE SUV.')}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
+  document.querySelector('#back').onclick=map;
+  if(online){
+    document.querySelector('#message').onclick=()=>chat(r);
+    document.querySelector('#voiceProfile').onclick=()=>voiceInvite(r);
+  }
+}
 async function chat(r){
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
