@@ -181,12 +181,14 @@ async function chat(r){
   document.querySelector('#back').onclick=()=>profile(r.id);
   const input=document.querySelector('#msg');
   const send=async()=>{
-    const value=input.value.trim();if(!value)return;
-    input.disabled=true;
+    const value=input.value.trim();if(!value||input.disabled)return;
+    input.disabled=true;const sendBtn=document.querySelector('#send');if(sendBtn)sendBtn.disabled=true;
     const sent=await sendRemoteMessage(r.id,value);
     if(!sent)saveMessage(r.id,value);
-    document.querySelector('#chat').insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);
-    input.value='';input.disabled=false;input.focus();
+    const chatBox=document.querySelector('#chat');const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
+    chatBox?.insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);
+    if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
+    input.value='';input.disabled=false;if(sendBtn)sendBtn.disabled=false;input.focus();
   };
   document.querySelector('#send').onclick=send;
   input.onkeydown=e=>{if(e.key==='Enter')send()};
