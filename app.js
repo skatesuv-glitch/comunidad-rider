@@ -94,8 +94,11 @@ function authScreen(){
 async function ensureProfile(){
   const uid=await currentUserId();if(!uid||!supabase)return;
   try{
-    const {data}=await supabase.from('profiles').select('id').eq('id',uid).maybeSingle();
-    if(!data)await supabase.from('profiles').insert({id:uid,alias:'Rider'});
+    const {data:userData}=await supabase.auth.getUser();
+    const alias=userData?.user?.user_metadata?.alias||'Rider';
+    const {data}=await supabase.from('profiles').select('id,alias').eq('id',uid).maybeSingle();
+    if(!data)await supabase.from('profiles').insert({id:uid,alias});
+    else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabase.from('profiles').update({alias}).eq('id',uid);
   }catch{}
 }
 async function boot(){
