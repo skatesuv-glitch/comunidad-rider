@@ -13,6 +13,29 @@ const state={locationConsent:localStorage.getItem('cr_location_consent')==='yes'
 const KEY='comunidad_rider_v1';
 function dbLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}}
 function dbSave(db){localStorage.setItem(KEY,JSON.stringify(db))}
+async function currentUserId(){
+  if(!supabase)return null;
+  try{const {data}=await supabase.auth.getUser();return data?.user?.id||null}catch{return null}
+}
+async function fetchMessages(riderId){
+  const me=await currentUserId();
+  if(!supabase||!me)return null;
+  try{
+    const {data,error}=await supabase.from('messages').select('*')
+      .or(`and(sender_id.eq.${me},receiver_id.eq.${riderId}),and(sender_id.eq.${riderId},receiver_id.eq.${me})`)
+      .order('created_at',{ascending:true}).limit(100);
+    if(error)return null;
+    return data||[];
+  }catch{return null}
+}
+async function sendRemoteMessage(riderId,text){
+  const me=await currentUserId();
+  if(!supabase||!me)return false;
+  try{
+    const {error}=await supabase.from('messages').insert({sender_id:me,receiver_id:riderId,body:text});
+    return !error;
+  }catch{return false}
+}
 function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
 function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString()});dbSave(db)}
 function isFavorite(id){return (dbLoad().favoriteRoutes||[]).includes(id)}
@@ -72,8 +95,25 @@ async function map(){
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
 }
 function profile(id){const pool=window.communityRiders||riders;const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));shell(`<div class="brand">RIDER</div><button class="mini" id="back">‹ Mapa</button><div class="profileAvatar">🛹</div><h1 class="center">${esc(r.name)}</h1><p class="center ${r.state==='green'?'online':'offline'}">● ${esc(r.status)}</p><div class="card"><h3>${esc(r.city)}</h3><p>Tabla: ${esc(r.board)}</p><p>Distancia compartida: ${esc(r.km)}</p></div><button class="btn" id="message">💬 Enviar mensaje</button>`);document.querySelector('#back').onclick=map;document.querySelector('#message').onclick=()=>chat(r)}
-function chat(r){const history=savedMessages(r.id);shell(`<div class="row spread"><div><div class="brand">CHAT PRIVADO</div><h2>${esc(r.name)}</h2></div><button class="mini" id="back">‹</button></div><div class="chat" id="chat"><div class="bubble them">¿Qué tal? ¿Sales hoy?</div><div class="bubble me">Sí, estaba mirando una ruta 👋</div>${history.map(m=>'<div class="bubble me">'+esc(m.text)+'</div>').join('')}</div><button class="btn voice" id="voice">🎙️ Invitar a Rider Voz</button><div class="composer"><input id="msg" placeholder="Escribe un mensaje..."><button id="send">➤</button></div>`);
-document.querySelector('#back').onclick=()=>profile(r.id);const input=document.querySelector('#msg');const send=()=>{const value=input.value.trim();if(!value)return;document.querySelector('#chat').insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);saveMessage(r.id,value);input.value='';};document.querySelector('#send').onclick=send;input.onkeydown=e=>{if(e.key==='Enter')send()};document.querySelector('#voice').onclick=()=>voiceInvite(r)}
+async function chat(r){
+  const remote=await fetchMessages(r.id);
+  const local=savedMessages(r.id);
+  const history=remote===null?local:remote.map(m=>({text:m.body||m.text||'',from:m.sender_id===r.id?'them':'me'}));
+  shell(`<div class="row spread"><div><div class="brand">CHAT PRIVADO</div><h2>${esc(r.name)}</h2></div><button class="mini" id="back">‹</button></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+'">'+esc(m.text)+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes. Estrena el chat 👋</p>'}</div><button class="btn voice" id="voice">🎙️ Invitar a Rider Voz</button><div class="composer"><input id="msg" placeholder="Escribe un mensaje..."><button id="send">➤</button></div>`);
+  document.querySelector('#back').onclick=()=>profile(r.id);
+  const input=document.querySelector('#msg');
+  const send=async()=>{
+    const value=input.value.trim();if(!value)return;
+    input.disabled=true;
+    const sent=await sendRemoteMessage(r.id,value);
+    if(!sent)saveMessage(r.id,value);
+    document.querySelector('#chat').insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);
+    input.value='';input.disabled=false;input.focus();
+  };
+  document.querySelector('#send').onclick=send;
+  input.onkeydown=e=>{if(e.key==='Enter')send()};
+  document.querySelector('#voice').onclick=()=>voiceInvite(r);
+}
 function voiceInvite(r){shell(`<div class="brand">RIDER VOZ</div><button class="mini" id="back">‹ Chat</button><div class="profileAvatar">🎙️</div><h1 class="center">Invitar a ${esc(r.name)}</h1><p class="sub center">La conversación de voz solo comienza si el otro rider acepta.</p><button class="btn" id="invite">Enviar invitación</button><button class="btn secondary" id="cancel">Cancelar</button>`);const go=()=>chat(r);document.querySelector('#back').onclick=go;document.querySelector('#cancel').onclick=go;document.querySelector('#invite').onclick=()=>{document.querySelector('#invite').textContent='✓ Invitación enviada';document.querySelector('#invite').disabled=true}}
 const routes=[{id:1,name:'Casa de Campo Loop',city:'Madrid',km:'18,4',time:'1 h 12 min',level:'Media',author:'Alex Rider',likes:34},{id:2,name:'Turia Night Ride',city:'Valencia',km:'14,8',time:'58 min',level:'Fácil',author:'Marta',likes:21},{id:3,name:'Sevilla Ribera',city:'Sevilla',km:'22,1',time:'1 h 31 min',level:'Media',author:'Dani',likes:47}];
 async function sharedRoutes(){
