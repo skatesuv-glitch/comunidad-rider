@@ -86,7 +86,7 @@ async function getSession(){
   try{const {data}=await supabaseClient.auth.getSession();return data?.session||null}catch{return null}
 }
 function authScreen(){
-  shell(`<div class="brand">eSKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra con tu cuenta o crea una nueva.</p><div class="authTabs"><button class="mini" id="showLogin">Entrar</button><button class="mini" id="showSignup">Crear cuenta</button></div><div id="authFields"></div><p class="sub center" id="authMsg"></p>`);
+  shell(`<div class="authBrand"><b>eSKATE SUV</b><span>COMUNIDAD</span></div><div class="authIntro"><small>BIENVENIDO RIDER</small><h1>Acceso Rider</h1><p>Tu comunidad, tus rutas y tu gente.</p></div><div class="authTabs"><button class="mini" id="showLogin">Entrar</button><button class="mini" id="showSignup">Crear cuenta</button></div><div id="authFields"></div><p class="sub center" id="authMsg"></p>`);
   const fields=document.querySelector('#authFields'),msg=document.querySelector('#authMsg');
   function loginForm(){
     fields.innerHTML=`<label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<div class="passwordWrap"><input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Tu contraseña"><button type="button" class="eyeBtn" data-eye="authPass">👁</button></div></label><button class="btn" id="login">Entrar</button>`;
@@ -124,7 +124,7 @@ async function accountScreen(){
     const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
   }catch{}
   const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
-  shell(`<div class="brand">MI CUENTA RIDER</div><div class="row spread"><h1>${esc(alias)}</h1><button class="mini" id="back">‹</button></div><div class="card"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary" id="logout">Cerrar sesión</button>`);
+  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountHero"><span class="profileMark profileMarkBig">R</span><div><small>SESIÓN ACTIVA</small><h1>${esc(alias)}</h1></div></div><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
   document.querySelector('#back').onclick=home;
   document.querySelector('#logout').onclick=signOutRider;
 }
@@ -140,7 +140,7 @@ supabaseStatus().then(s=>{const el=document.querySelector('#backendStatus');if(e
 document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile;
 const account=document.querySelector('#account');if(account)account.onclick=accountScreen;
 }
-function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`<div class="brand">RIDERS EN MI ZONA</div><h1>Privacidad primero</h1><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
+function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`${topbar('RIDERS EN MI ZONA',true)}<div class="screenHero privacyHero"><div><small>ANTES DE APARECER EN EL MAPA</small><h1>Privacidad primero</h1><p>Tú controlas cuándo compartes tu ubicación.</p></div></div><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
 const sw=document.querySelector('#sw'), box=document.querySelector('#consent');
 sw.onclick=()=>{sw.classList.add('on');box.classList.remove('hidden')};document.querySelector('#accept').onclick=()=>{state.locationConsent=true;state.locationSharing=true;saveState();requestLocation(()=>map())};document.querySelector('#back').onclick=home}
 async function map(){
