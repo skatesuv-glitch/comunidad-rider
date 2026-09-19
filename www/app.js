@@ -192,7 +192,7 @@ async function chat(r){
   const history=remote===null?local:remoteHistory.concat(currentLocal.filter(l=>!remoteHistory.some(m=>m.from===l.from&&m.text===l.text)));
   history.sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
   shell(`${topbar('CHAT PRIVADO',true)}<div class="chatHead"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><div><small>CONVERSACIÓN CON</small><h2>${esc(r.name)}</h2></div></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+(m.pending?' pending':'')+'">'+esc(m.text)+(m.pending?'<small class="messageState">Pendiente</small>':'')+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes.</p>'}</div><button class="btn voice" id="voice">Invitar a Rider Voz</button><div class="composer"><input id="msg" maxlength="1000" autocomplete="off" enterkeyhint="send" placeholder="Escribe un mensaje..."><button id="send" aria-label="Enviar"><span class="sendGlyph"></span></button></div>`);
-  document.querySelector('#back').onclick=()=>profile(r.id);
+  
   const input=document.querySelector('#msg');
   const chatBox=document.querySelector('#chat');if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
   const send=async()=>{
@@ -208,8 +208,10 @@ async function chat(r){
   document.querySelector('#send').onclick=send;
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   document.querySelector('#voice').onclick=()=>voiceInvite(r);
+  let chatActive=true;
+  const backBtn=document.querySelector('#back');backBtn.onclick=()=>{chatActive=false;profile(r.id)};
   let retryingPending=false;
-  const retryPending=async()=>{if(retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent)chat(r)}finally{retryingPending=false}};
+  const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent)chat(r)}finally{retryingPending=false}};
   window.addEventListener('online',retryPending,{once:true});
   const onVisible=()=>{if(document.visibilityState==='visible'){document.removeEventListener('visibilitychange',onVisible);retryPending()}};
   document.addEventListener('visibilitychange',onVisible);
