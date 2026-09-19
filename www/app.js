@@ -225,6 +225,7 @@ async function myProfile(){
     let remote=false;
     if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
     const mark=document.querySelector('.profileMarkBig');if(mark)mark.textContent=profile.alias.slice(0,1).toUpperCase();
+    const title=document.querySelector('.profileHeadOwn h1');if(title)title.textContent=profile.alias;
     document.querySelector('#saved').textContent=remote?'Perfil sincronizado':'Perfil guardado en este dispositivo';
   };
 }
