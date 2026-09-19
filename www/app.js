@@ -120,6 +120,7 @@ async function accountScreen(){
   document.querySelector('#logout').onclick=signOutRider;
 }
 
+async function boot(){
   if(!supabase){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
