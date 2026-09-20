@@ -312,7 +312,7 @@ async function riderVoice(){
   };
   let localVoiceStream=null;
   const releaseVoiceMedia=()=>{
-    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
+    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
     document.querySelectorAll('audio[data-voice-rider]').forEach(a=>a.remove());
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
   };
@@ -358,7 +358,9 @@ async function riderVoice(){
         const refreshVoiceQuality=()=>{if(!voiceActive)return;const n=connectedCount();if(n)setVoiceState('active','Rider Voz conectado · '+n+' enlace'+(n===1?'':'s')+' de audio');};
         let healthMisses=0;
         const voiceHealthTimer=setInterval(()=>{if(!voiceActive)return;const total=peers.size,n=connectedCount();if(total&&n===0){healthMisses++;setVoiceState('active',healthMisses>=3?'Sin enlace de audio · revisa conexión':'Conectando audio Rider…')}else{healthMisses=0;if(n<total)setVoiceState('active','Rider Voz · '+n+'/'+total+' enlaces conectados');else if(n)setVoiceState('active','Rider Voz estable · '+n+'/'+total+' enlaces')}},5000);
-        window.riderVoiceRtc={channel,peers,me,voiceHealthTimer,refreshVoiceQuality};
+        const networkChanged=()=>{if(!voiceActive)return;if(!navigator.onLine){setVoiceState('active','Sin Internet · Rider Voz en pausa');return}setVoiceState('active','Red recuperada · reconectando voz…');for(const pc of peers.values()){try{pc.restartIce()}catch{}}};
+        window.addEventListener('offline',networkChanged);window.addEventListener('online',networkChanged);
+        window.riderVoiceRtc={channel,peers,me,voiceHealthTimer,refreshVoiceQuality,networkChanged};
         window.riderVoiceRtc={channel,peers};
       }
     }catch(err){
