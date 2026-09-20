@@ -141,8 +141,8 @@ async function ensureProfile(){
     else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabaseClient.from('profiles').update({alias}).eq('id',uid);
   }catch{}
 }
-async function signOutRider(){
-  if(!supabaseClient)return;
+async async function signOutRider(){
+  if(!supabaseClient){authScreen();return;}
   try{if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.channel.unsubscribe();window.riderVoiceRtc=null}if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');await supabaseClient.auth.signOut()}catch{}
   authScreen();
 }
