@@ -106,7 +106,7 @@ const riders=[
 ];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
-function topbar(label,back){return '<div class="appTop"><div class="miniBrand"><b>eSKATESUV</b><span>COMUNIDAD</span></div>'+(back?'<button class="backBtn" id="back" aria-label="Volver">‹</button>':'')+'</div>'+(label?'<div class="screenLabel">'+label+'</div>':'')}
+function topbar(label,back){return '<div class="appTop">'+(back?'<button class="backBtn" id="back" aria-label="Volver">‹</button>':'<span class="topSpacer"></span>')+'<div class="miniBrand"><b>eSKATESUV</b><span>COMUNIDAD</span></div><span class="topSpacer"></span></div>'+(label?'<div class="screenLabel">'+label+'</div>':'')}
 async function getSession(){
   if(!supabaseClient)return null;
   try{const {data}=await supabaseClient.auth.getSession();return data?.session||null}catch{return null}
