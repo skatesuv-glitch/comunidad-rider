@@ -314,6 +314,18 @@ async function riderVoice(){
     if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
     setVoiceState('active','Rider Voz activo · manos libres');
   };
+  const syncVoiceMembers=async()=>{
+    const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
+    const onlineIds=new Set(refreshed.filter(x=>x.state==='green').map(x=>String(x.id)));
+    let changed=false;
+    for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);changed=true}}
+    if(changed)renderGroup();
+    if(voiceActive&&!selected.size)setVoiceState('ready','Grupo finalizado · sin Riders disponibles');
+  };
+  const onVoiceVisible=()=>{if(document.visibilityState==='visible')syncVoiceMembers()};
+  const onVoiceOnline=()=>syncVoiceMembers();
+  document.addEventListener('visibilitychange',onVoiceVisible);
+  window.addEventListener('online',onVoiceOnline);
   const voiceStart=document.createElement('button');
   voiceStart.className='btn';
   voiceStart.id='startVoice';
@@ -321,7 +333,7 @@ async function riderVoice(){
   leave.parentNode.insertBefore(voiceStart,leave);
   voiceStart.onclick=startVoice;
   const voiceTimer=setInterval(checkVoiceCoverage,15000);
-  const stopVoiceWatch=()=>clearInterval(voiceTimer);
+  const stopVoiceWatch=()=>{clearInterval(voiceTimer);document.removeEventListener('visibilitychange',onVoiceVisible);window.removeEventListener('online',onVoiceOnline)};
   const originalBack=document.querySelector('#back').onclick;
   document.querySelector('#back').onclick=()=>{stopVoiceWatch();originalBack()};
   const originalLeave=leave.onclick;
