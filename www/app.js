@@ -284,7 +284,7 @@ async function myProfile(){
     document.querySelector('#saved').textContent=remote?'Perfil sincronizado':'Perfil guardado en este dispositivo';
   };
 }
-async function riderVoice(){
+async async function riderVoice(){
   const liveRiders=await fetchCommunityRiders();
   window.communityRiders=liveRiders;
   const pool=liveRiders;
@@ -294,7 +294,7 @@ async function riderVoice(){
   shell(`<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div><small class="voiceLabel">RIDER VOZ</small><h1 class="voiceTitle">Conexión de voz</h1></div><button class="mini" id="back">‹</button></div><div class="voiceCockpit"><div class="voiceRing"><div class="voiceWave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><strong>LISTO</strong><small id="voiceSpeaker">Sin grupo activo</small></div></div><div class="voiceParticipants" id="voiceParticipants"><small>GRUPO RIDER</small><div id="voiceGroup"><span class="emptyGroup">Añade Riders para crear el grupo</span></div></div><div class="voiceControls"><button class="voiceControl" id="mute"><span>MIC</span><small>Micrófono ON</small></button><button class="voiceControl primaryVoice" id="find"><span>+</span><small>Rider</small></button><button class="voiceControl" id="volume"><span>VOL</span><small>Volumen</small></button></div><div class="voiceStatus"><i></i><span>Manos libres · esperando grupo</span></div><button class="btn voiceExit hidden" id="leaveVoice">Salir del grupo</button><div class="riderPicker hidden" id="riderPicker"><div class="pickerHead"><div><small>AÑADIR AL GRUPO</small><h2>Riders</h2></div><button id="closePicker">×</button></div><div class="pickerList">${selectable.length?selectable.map(r=>`<button class="pickerRider" data-add-rider="${r.id}"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="online">● En línea</small></span><b>+</b></button>`).join(''):'<p class="pickerEmpty">No hay Riders conectados ahora mismo.</p>'}${offline.map(r=>`<div class="pickerRider unavailable"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="offline">● Fuera de cobertura</small></span><b>×</b></div>`).join('')}</div></div>`);
   document.querySelector('#back').onclick=()=>{document.body.classList.remove('pickerOpen');home()};
   const picker=document.querySelector('#riderPicker'),group=document.querySelector('#voiceGroup'),leave=document.querySelector('#leaveVoice');
-  const storedVoiceGroup=(dbLoad().voiceGroup||[]).map(String).filter(id=>availableIds.has(id));const selected=new Map(storedVoiceGroup.map(id=>{const r=selectable.find(x=>String(x.id)===id);return r?[id,r]:null}).filter(Boolean));
+  const invitedSession=sessionStorage.getItem('rider_voice_session');const invitedPeer=sessionStorage.getItem('rider_voice_peer');const storedVoiceGroup=(dbLoad().voiceGroup||[]).map(String).filter(id=>availableIds.has(id));if(invitedPeer&&availableIds.has(String(invitedPeer))&&!storedVoiceGroup.includes(String(invitedPeer)))storedVoiceGroup.push(String(invitedPeer));const selected=new Map(storedVoiceGroup.map(id=>{const r=selectable.find(x=>String(x.id)===id);return r?[id,r]:null}).filter(Boolean));
   const renderGroup=()=>{const db=dbLoad();db.voiceGroup=[...selected.keys()];dbSave(db);const speaker=document.querySelector('#voiceSpeaker'),status=document.querySelector('.voiceStatus span');if(speaker)speaker.textContent=selected.size?(selected.size===1?[...selected.values()][0].name:selected.size+' Riders en el grupo'):'Sin grupo activo';if(status)status.textContent=selected.size?'Grupo preparado · esperando conexión':'Manos libres · esperando grupo';group.innerHTML=selected.size?[...selected.values()].map(r=>`<button class="groupRider" data-remove-rider="${r.id}" title="Quitar Rider"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><small>${esc(r.name)}</small><b>×</b></button>`).join(''):'<span class="emptyGroup">Añade Riders para crear el grupo</span>';leave.classList.toggle('hidden',!selected.size);document.querySelectorAll('[data-remove-rider]').forEach(b=>b.onclick=()=>{selected.delete(String(b.dataset.removeRider));renderGroup()})};
   document.querySelector('#find').onclick=()=>{picker.classList.remove('hidden');document.body.classList.add('pickerOpen')};
   const closePicker=()=>{picker.classList.add('hidden');document.body.classList.remove('pickerOpen')};
@@ -350,7 +350,7 @@ async function riderVoice(){
       setVoiceState('active','Rider Voz activo · micrófono preparado');
       const me=await currentUserId();
       if(supabaseClient&&me){
-        const channel=supabaseClient.channel('rider-voice-'+[me,...selected.keys()].sort().join('-'),{config:{broadcast:{self:false}}});
+        const sessionId=sessionStorage.getItem('rider_voice_session');const channelKey=sessionId||[me,...selected.keys()].sort().join('-');const channel=supabaseClient.channel('rider-voice-'+channelKey,{config:{broadcast:{self:false}}});
         const peers=new Map();
         const makePeer=async(remoteId,initiator)=>{
           let pc=peers.get(remoteId);if(pc)return pc;
@@ -379,7 +379,7 @@ async function riderVoice(){
         const voiceHealthTimer=setInterval(()=>{if(!voiceActive)return;const total=peers.size,n=connectedCount();if(total&&n===0){healthMisses++;setVoiceState('active',healthMisses>=3?'Sin enlace de audio · revisa conexión':'Conectando audio Rider…')}else{healthMisses=0;if(n<total)setVoiceState('active','Rider Voz · '+n+'/'+total+' enlaces conectados');else if(n)refreshVoiceQuality()}},5000);
         const networkChanged=async()=>{if(!voiceActive)return;if(!navigator.onLine){setVoiceState('active','Sin Internet · Rider Voz en pausa');return}setVoiceState('active','Red recuperada · reconectando voz…');for(const [remoteId,pc] of peers){if(String(me)>=String(remoteId)||pc.signalingState!=='stable')continue;try{const offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);await channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}catch{setVoiceState('active','Red recuperada · reintentando audio…')}}};
         window.addEventListener('offline',networkChanged);window.addEventListener('online',networkChanged);
-        window.riderVoiceRtc={channel,peers,me,voiceHealthTimer,refreshVoiceQuality,networkChanged,voiceStats};
+        window.riderVoiceRtc={channel,peers,me,sessionId,voiceHealthTimer,refreshVoiceQuality,networkChanged,voiceStats};
       }
     }catch(err){
       releaseVoiceMedia();
