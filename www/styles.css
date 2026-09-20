@@ -176,3 +176,9 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .authSwitch,.authTerms{text-align:center;color:#7f98a7;font-size:11px;line-height:1.55}
 .authSwitch{margin:18px 0 0}.authTerms{margin:14px 18px 0}
 .authScreen #authMsg{min-height:20px;margin-top:12px}
+
+/* Mi cuenta Rider · referencia visual recuperada */
+.accountProfile{text-align:center;padding:20px 0 22px}.accountProfile .profileMarkBig{margin:0 auto 14px;width:92px;height:92px;display:grid;place-items:center;border-radius:50%;border:2px solid #16c9ff;background:#092332;box-shadow:0 0 24px rgba(19,207,255,.2)}.accountProfile h1{margin:0;font-size:25px}.accountProfile small{display:block;margin-top:6px;color:#6d8999;font-size:9px;font-weight:900;letter-spacing:.18em}
+.accountFields{margin-bottom:18px}.accountFields .accountData{margin:10px 0;border-radius:14px;background:#07141e}
+.accountMenu{border-top:1px solid #123246;border-bottom:1px solid #123246}.accountMenu button{width:100%;min-height:54px;padding:0 6px;border:0;border-bottom:1px solid #102b3c;background:transparent;color:#eaf7ff;display:flex;align-items:center;justify-content:space-between;text-align:left;font:inherit;cursor:pointer}.accountMenu button:last-child{border-bottom:0}.accountMenu button span{padding-left:13px;border-left:3px solid #10c9ff;font-weight:750}.accountMenu button b{color:#16c9ff;font-size:24px;font-weight:300}.accountMenu button.selected{background:rgba(19,207,255,.06)}
+.dangerBtn{border:1px solid #c43c4b!important;background:transparent!important;color:#ff6878!important;box-shadow:none!important}
