@@ -182,3 +182,13 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .accountFields{margin-bottom:18px}.accountFields .accountData{margin:10px 0;border-radius:14px;background:#07141e}
 .accountMenu{border-top:1px solid #123246;border-bottom:1px solid #123246}.accountMenu button{width:100%;min-height:54px;padding:0 6px;border:0;border-bottom:1px solid #102b3c;background:transparent;color:#eaf7ff;display:flex;align-items:center;justify-content:space-between;text-align:left;font:inherit;cursor:pointer}.accountMenu button:last-child{border-bottom:0}.accountMenu button span{padding-left:13px;border-left:3px solid #10c9ff;font-weight:750}.accountMenu button b{color:#16c9ff;font-size:24px;font-weight:300}.accountMenu button.selected{background:rgba(19,207,255,.06)}
 .dangerBtn{border:1px solid #c43c4b!important;background:transparent!important;color:#ff6878!important;box-shadow:none!important}
+
+/* Home Comunidad · cierre de cascada sobre la base visual bloqueada */
+.communityHeader{align-items:center;margin:0 0 8px}
+.communityTag{margin:12px 0 22px;color:#6ddfff;font-size:12px;font-weight:900;letter-spacing:.13em}
+.communityGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.heroCard{min-height:238px;border-radius:14px;border:1px solid #124d70;padding:0;position:relative;isolation:isolate;overflow:hidden;background:#06131d;text-align:left;display:flex;flex-direction:column;justify-content:flex-end}
+.heroCard .heroVisual{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover;transform:none}
+.heroCard:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(1,8,13,.02) 12%,rgba(1,8,13,.14) 44%,rgba(1,8,13,.96) 100%)}
+.heroCopy{padding:0 46px 17px 15px}.heroCopy strong{font-size:17px;line-height:1.02;letter-spacing:.015em}.heroCopy small{font-size:11px;line-height:1.25;color:#c5d5df}
+.heroArrow{right:13px;bottom:15px;width:32px;height:32px}
