@@ -318,7 +318,9 @@ async function riderVoice(){
   };
   const startVoice=async()=>{
     if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
+    if(voiceActive||localVoiceStream){setVoiceState('active','Rider Voz ya está iniciado');return}
     if(!navigator.mediaDevices?.getUserMedia){setVoiceState('ready','Micrófono no disponible en este dispositivo');return}
+    const startBtn=document.querySelector('#startVoice');if(startBtn){startBtn.disabled=true;startBtn.textContent='Conectando…'}
     try{
       setVoiceState('ready','Solicitando acceso al micrófono…');
       localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
@@ -362,6 +364,8 @@ async function riderVoice(){
     }catch(err){
       releaseVoiceMedia();
       setVoiceState('ready',err?.name==='NotAllowedError'?'Permiso de micrófono denegado':'No se pudo activar el micrófono');
+    }finally{
+      if(startBtn){startBtn.disabled=false;startBtn.textContent=voiceActive?'Rider Voz activo':'Iniciar Rider Voz'}
     }
   };
   const syncVoiceMembers=async()=>{
