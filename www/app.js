@@ -353,7 +353,8 @@ async function riderVoice(){
         window.riderVoiceRtc={channel,peers,me};
         const connectedCount=()=>[...peers.values()].filter(pc=>pc.connectionState==='connected').length;
         const refreshVoiceQuality=()=>{if(!voiceActive)return;const n=connectedCount();if(n)setVoiceState('active','Rider Voz conectado · '+n+' enlace'+(n===1?'':'s')+' de audio');};
-        const voiceHealthTimer=setInterval(()=>{if(!voiceActive)return;const total=peers.size,n=connectedCount();if(total&&n===0)setVoiceState('active','Conectando audio Rider…');else if(n<total)setVoiceState('active','Rider Voz · '+n+'/'+total+' enlaces conectados');else if(n)setVoiceState('active','Rider Voz estable · '+n+'/'+total+' enlaces')},5000);
+        let healthMisses=0;
+        const voiceHealthTimer=setInterval(()=>{if(!voiceActive)return;const total=peers.size,n=connectedCount();if(total&&n===0){healthMisses++;setVoiceState('active',healthMisses>=3?'Sin enlace de audio · revisa conexión':'Conectando audio Rider…')}else{healthMisses=0;if(n<total)setVoiceState('active','Rider Voz · '+n+'/'+total+' enlaces conectados');else if(n)setVoiceState('active','Rider Voz estable · '+n+'/'+total+' enlaces')}},5000);
         window.riderVoiceRtc={channel,peers,me,voiceHealthTimer,refreshVoiceQuality};
         window.riderVoiceRtc={channel,peers};
       }
