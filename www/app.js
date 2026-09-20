@@ -54,8 +54,8 @@ async function flushPendingMessages(riderId){
   }
   return sentKeys.size;
 }
-function savedMessages(id){const db=dbLoad(),list=(db.messages||{})[id]||[];let changed=false,seq=0;for(const m of list){if(m.pending&&!m.id){m.id='local-'+(m.at||Date.now())+'-'+(++seq);changed=true}}if(changed)dbSave(db);return list}
-function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
+function savedMessages(id){const db=dbLoad(),messages=db.messages||{};let key=Object.keys(messages).find(k=>String(k)===String(id));if(key==null)key=String(id);const list=messages[key]||[];let changed=false,seq=0;for(const m of list){if(m.pending&&!m.id){m.id='local-'+(m.at||Date.now())+'-'+(++seq);changed=true}}if(changed)dbSave(db);return list}
+function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};let key=Object.keys(db.messages).find(k=>String(k)===String(id));if(key==null)key=String(id);db.messages[key]=db.messages[key]||[];db.messages[key].push({id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
 function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>l.pending||!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
 function isFavorite(id){return (dbLoad().favoriteRoutes||[]).map(String).includes(String(id))}
 function toggleFavorite(id){const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];const i=db.favoriteRoutes.findIndex(x=>String(x)===String(id));i<0?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);return db.favoriteRoutes.map(String).includes(String(id))}
