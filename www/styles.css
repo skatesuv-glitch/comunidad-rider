@@ -216,3 +216,11 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .appTop{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px}
 .appTop .miniBrand{text-align:center;align-items:center}
 .topSpacer{width:44px;height:42px}
+
+/* Rider Voz · controles propios, sin abreviaturas provisionales */
+.voiceControl>span{position:relative;display:block;width:27px;height:27px;margin:auto}
+.voiceMicGlyph:before{content:"";position:absolute;left:8px;top:1px;width:9px;height:15px;border:2px solid currentColor;border-radius:8px}
+.voiceMicGlyph:after{content:"";position:absolute;left:5px;top:9px;width:15px;height:11px;border:2px solid currentColor;border-top:0;border-radius:0 0 10px 10px;box-shadow:0 5px 0 -3px currentColor}
+.voiceVolumeGlyph:before{content:"";position:absolute;left:2px;top:9px;width:7px;height:9px;border:2px solid currentColor;border-right:0;border-radius:2px}
+.voiceVolumeGlyph:after{content:"";position:absolute;left:8px;top:5px;width:12px;height:17px;border-right:2px solid currentColor;border-radius:0 50% 50% 0;box-shadow:4px 0 0 -2px currentColor}
+.voiceAddGlyph{display:grid!important;place-items:center;font-size:28px;font-weight:300;line-height:1}
