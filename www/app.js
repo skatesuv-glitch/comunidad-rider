@@ -310,9 +310,28 @@ async function riderVoice(){
       }
     }finally{voiceChecking=false}
   };
-  const startVoice=()=>{
+  let localVoiceStream=null;
+  const releaseVoiceMedia=()=>{
+    if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
+  };
+  const startVoice=async()=>{
     if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
-    setVoiceState('active','Rider Voz activo · manos libres');
+    if(!navigator.mediaDevices?.getUserMedia){setVoiceState('ready','Micrófono no disponible en este dispositivo');return}
+    try{
+      setVoiceState('ready','Solicitando acceso al micrófono…');
+      localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+      const audioTrack=localVoiceStream.getAudioTracks()[0];
+      const muteBtn=document.querySelector('#mute');
+      if(muteBtn&&audioTrack){
+        muteBtn.classList.remove('muted');
+        muteBtn.querySelector('small').textContent='Micrófono ON';
+        muteBtn.onclick=e=>{audioTrack.enabled=!audioTrack.enabled;e.currentTarget.classList.toggle('muted',!audioTrack.enabled);e.currentTarget.querySelector('small').textContent=audioTrack.enabled?'Micrófono ON':'Micrófono OFF'};
+      }
+      setVoiceState('active','Rider Voz activo · micrófono preparado');
+    }catch(err){
+      releaseVoiceMedia();
+      setVoiceState('ready',err?.name==='NotAllowedError'?'Permiso de micrófono denegado':'No se pudo activar el micrófono');
+    }
   };
   const syncVoiceMembers=async()=>{
     const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
@@ -333,7 +352,7 @@ async function riderVoice(){
   leave.parentNode.insertBefore(voiceStart,leave);
   voiceStart.onclick=startVoice;
   const voiceTimer=setInterval(checkVoiceCoverage,15000);
-  const stopVoiceWatch=()=>{clearInterval(voiceTimer);document.removeEventListener('visibilitychange',onVoiceVisible);window.removeEventListener('online',onVoiceOnline)};
+  const stopVoiceWatch=()=>{clearInterval(voiceTimer);releaseVoiceMedia();document.removeEventListener('visibilitychange',onVoiceVisible);window.removeEventListener('online',onVoiceOnline)};
   const originalBack=document.querySelector('#back').onclick;
   document.querySelector('#back').onclick=()=>{stopVoiceWatch();originalBack()};
   const originalLeave=leave.onclick;
