@@ -231,7 +231,7 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .launchShade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,6,11,.82) 0%,rgba(0,7,12,.34) 31%,rgba(0,7,12,.04) 61%,rgba(0,7,12,.64) 100%)}
 .launchBrand{position:absolute;top:max(6.5vh,48px);left:7vw;right:7vw;text-align:center;filter:drop-shadow(0 4px 14px #000)}
 .launchMark{width:92px;height:92px;margin:0 auto 13px;border:5px solid #20d9f5;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 22px rgba(32,217,245,.38)}
-.launchMark span{font-size:65px;line-height:1;color:#20d9f5;font-weight:900;transform:translateY(-2px)}
+.launchS{position:absolute;left:24px;width:43px;height:25px;border:7px solid #20d9f5;transform:skewX(-22deg);filter:drop-shadow(0 0 5px rgba(32,217,245,.28))}.launchSOne{top:18px;border-left-color:transparent;border-bottom-color:transparent;border-radius:7px 10px 3px 7px}.launchSTwo{bottom:18px;border-right-color:transparent;border-top-color:transparent;border-radius:3px 7px 7px 10px}
 .launchWord{font-size:clamp(40px,12vw,66px);font-weight:900;font-style:italic;letter-spacing:-.075em;white-space:nowrap}
 .launchWord span{display:inline-block;opacity:0;transform:translateY(9px) scale(.96);animation:launchLetter .22s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(.34s + var(--i)*.075s)}
 .launchWord span:nth-child(n+7){color:#18bff0}.launchTag{margin-top:8px;font-size:clamp(11px,3vw,16px);letter-spacing:.31em;font-weight:500;opacity:0;animation:launchTag .35s ease 1.08s forwards}.launchTag b{color:#20d9f5}
