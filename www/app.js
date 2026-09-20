@@ -150,14 +150,15 @@ async function accountScreen(){
   const uid=await currentUserId();
   if(!uid||!supabaseClient){authScreen();return}
   let user=null,profile=null;
-  try{
-    const {data:u}=await supabaseClient.auth.getUser();user=u?.user||null;
-    const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
-  }catch{}
+  try{const {data:u}=await supabaseClient.auth.getUser();user=u?.user||null;const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null}catch{}
   const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
   const initial=esc(alias.slice(0,1).toUpperCase());
-  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountHero"><span class="profileMark profileMarkBig">${initial}</span><div><small>SESIÓN ACTIVA</small><h1>${esc(alias)}</h1></div></div><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
+  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountProfile"><div class="profileMark profileMarkBig">${initial}</div><h1>${esc(alias)}</h1><small>RIDER eSKATE SUV</small></div><div class="accountFields"><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO ELECTRÓNICO</small><strong>${esc(user?.email||'')}</strong></div></div><div class="accountMenu"><button id="editProfile"><span>Editar perfil</span><b>›</b></button><button id="notifications"><span>Notificaciones</span><b>›</b></button><button id="privacyAccount"><span>Privacidad</span><b>›</b></button><button id="helpAccount"><span>Ayuda</span><b>›</b></button></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
   document.querySelector('#back').onclick=home;
+  document.querySelector('#editProfile').onclick=myProfile;
+  document.querySelector('#notifications').onclick=()=>{document.querySelector('#notifications').classList.toggle('selected')};
+  document.querySelector('#privacyAccount').onclick=privacy;
+  document.querySelector('#helpAccount').onclick=()=>{document.querySelector('#helpAccount').classList.toggle('selected')};
   document.querySelector('#logout').onclick=signOutRider;
 }
 
