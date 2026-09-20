@@ -312,6 +312,8 @@ async function riderVoice(){
   };
   let localVoiceStream=null;
   const releaseVoiceMedia=()=>{
+    if(window.riderVoiceRtc){for(const pc of window.riderVoiceRtc.peers.values())pc.close();window.riderVoiceRtc.channel.unsubscribe();window.riderVoiceRtc=null}
+    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>a.remove());
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
   };
   const startVoice=async()=>{
@@ -328,6 +330,25 @@ async function riderVoice(){
         muteBtn.onclick=e=>{audioTrack.enabled=!audioTrack.enabled;e.currentTarget.classList.toggle('muted',!audioTrack.enabled);e.currentTarget.querySelector('small').textContent=audioTrack.enabled?'Micrófono ON':'Micrófono OFF'};
       }
       setVoiceState('active','Rider Voz activo · micrófono preparado');
+      const me=await currentUserId();
+      if(supabaseClient&&me){
+        const channel=supabaseClient.channel('rider-voice-'+[me,...selected.keys()].sort().join('-'),{config:{broadcast:{self:false}}});
+        const peers=new Map();
+        const makePeer=async(remoteId,initiator)=>{
+          let pc=peers.get(remoteId);if(pc)return pc;
+          pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});peers.set(remoteId,pc);
+          localVoiceStream.getTracks().forEach(track=>pc.addTrack(track,localVoiceStream));
+          pc.ontrack=e=>{let audio=document.querySelector('audio[data-voice-rider="'+remoteId+'"]');if(!audio){audio=document.createElement('audio');audio.autoplay=true;audio.dataset.voiceRider=remoteId;document.body.appendChild(audio)}audio.srcObject=e.streams[0]};
+          pc.onicecandidate=e=>{if(e.candidate)channel.send({type:'broadcast',event:'ice',payload:{from:me,to:remoteId,candidate:e.candidate}})};
+          if(initiator){const offer=await pc.createOffer();await pc.setLocalDescription(offer);channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}
+          return pc;
+        };
+        channel.on('broadcast',{event:'offer'},async({payload})=>{if(payload?.to!==me)return;const pc=await makePeer(payload.from,false);await pc.setRemoteDescription(payload.sdp);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);channel.send({type:'broadcast',event:'answer',payload:{from:me,to:payload.from,sdp:answer}})})
+          .on('broadcast',{event:'answer'},async({payload})=>{if(payload?.to!==me)return;const pc=peers.get(payload.from);if(pc)await pc.setRemoteDescription(payload.sdp)})
+          .on('broadcast',{event:'ice'},async({payload})=>{if(payload?.to!==me)return;const pc=peers.get(payload.from);if(pc&&payload.candidate)await pc.addIceCandidate(payload.candidate)})
+          .subscribe(async status=>{if(status==='SUBSCRIBED'){for(const remoteId of selected.keys())await makePeer(remoteId,true)}});
+        window.riderVoiceRtc={channel,peers};
+      }
     }catch(err){
       releaseVoiceMedia();
       setVoiceState('ready',err?.name==='NotAllowedError'?'Permiso de micrófono denegado':'No se pudo activar el micrófono');
