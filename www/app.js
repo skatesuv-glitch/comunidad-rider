@@ -312,8 +312,8 @@ async function riderVoice(){
   };
   let localVoiceStream=null;
   const releaseVoiceMedia=()=>{
-    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
-    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>a.remove());
+    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
+    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});document.querySelectorAll('.voiceQualityBadge').forEach(x=>x.remove());document.querySelectorAll('[data-voice-quality]').forEach(x=>{delete x.dataset.voiceQuality;x.classList.remove('speaking')});
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
   };
   const startVoice=async()=>{
