@@ -46,10 +46,11 @@ async function flushPendingMessages(riderId){
     sentKeys.add(msg.id||msg.at);
   }
   if(sentKeys.size){
-    const db=dbLoad();
-    if(db.messages?.[riderId]){
-      db.messages[riderId]=db.messages[riderId].filter(m=>!sentKeys.has(m.id||m.at));
-      dbSave(db);
+    const db=dbLoad(),messages=db.messages||{};
+    const key=Object.keys(messages).find(k=>String(k)===String(riderId));
+    if(key!=null&&messages[key]){
+      messages[key]=messages[key].filter(m=>!sentKeys.has(m.id||m.at));
+      db.messages=messages;dbSave(db);
     }
   }
   return sentKeys.size;
