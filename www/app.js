@@ -322,7 +322,7 @@ async async function riderVoice(){
       for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);removed++}}
       if(removed){
         renderGroup();
-        if(!selected.size){setVoiceState('ready','Grupo finalizado · Riders fuera de cobertura')}
+        if(!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · Riders fuera de cobertura')}
         else setVoiceState('active',removed+' Rider fuera de cobertura · voz continúa');
       }
     }finally{voiceChecking=false}
@@ -397,7 +397,7 @@ async async function riderVoice(){
     let changed=false;
     for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);changed=true}}
     if(changed)renderGroup();
-    if(voiceActive&&!selected.size)setVoiceState('ready','Grupo finalizado · sin Riders disponibles');
+    if(voiceActive&&!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · sin Riders disponibles')}
   };
   const onVoiceVisible=()=>{if(document.visibilityState==='visible')syncVoiceMembers()};
   const onVoiceOnline=()=>syncVoiceMembers();
