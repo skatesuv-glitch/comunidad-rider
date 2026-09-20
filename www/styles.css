@@ -211,3 +211,8 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .card{border-color:#14394f;background:#07141e}
 .backBtn,.mini{transition:transform .14s ease,border-color .14s ease}.backBtn:active,.mini:active{transform:scale(.94)}
 @media (max-width:370px){.heroCard{min-height:205px}.heroCopy strong{font-size:15px}.communityGrid{gap:8px}.communityTag{font-size:10px}}
+
+/* Cabecera interior Comunidad · marca centrada */
+.appTop{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px}
+.appTop .miniBrand{text-align:center;align-items:center}
+.topSpacer{width:44px;height:42px}
