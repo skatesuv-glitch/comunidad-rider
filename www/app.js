@@ -187,7 +187,7 @@ async function enterAppAfterSplash(){
 }
 function splashScreen(){
   const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
-  app.innerHTML=`<section class="launchSplash" aria-label="eSkateSUV"><div class="launchShade"></div><div class="launchBrand"><div class="launchMark" aria-hidden="true"><span>§</span></div><div class="launchWord" aria-label="eSkateSUV">${letters}</div><div class="launchTag">RIDE <b>·</b> EXPLORE <b>·</b> CONNECT</div></div><div class="launchLoad"><i></i><small>CARGANDO TU PRÓXIMA AVENTURA</small></div></section>`;
+  app.innerHTML=`<section class="launchSplash" aria-label="eSkateSUV"><div class="launchShade"></div><div class="launchBrand"><div class="launchMark" aria-hidden="true"><span class="launchS launchSOne"></span><span class="launchS launchSTwo"></span></div><div class="launchWord" aria-label="eSkateSUV">${letters}</div><div class="launchTag">RIDE <b>·</b> EXPLORE <b>·</b> CONNECT</div></div><div class="launchLoad"><i></i><small>CARGANDO TU PRÓXIMA AVENTURA</small></div></section>`;
   requestAnimationFrame(()=>document.querySelector('.launchSplash')?.classList.add('is-in'));
   setTimeout(()=>document.querySelector('.launchSplash')?.classList.add('is-out'),2200);
   setTimeout(()=>enterAppAfterSplash(),2850);
