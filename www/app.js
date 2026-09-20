@@ -220,7 +220,7 @@ async function map(){
   const activeCount=liveRiders.filter(r=>r.state==='green').length;
   shell(`${topbar('RIDERS EN MI ZONA',true)}<div class="mapToolbar"><div><small>COMUNIDAD CERCANA</small><h1>Riders en mi zona</h1></div><button class="mapPrivacy" id="privacy" aria-label="Privacidad"><span class="privacyGlyph"></span></button></div><div class="mapLegend"><span><i class="legendDot green"></i>Activo${activeCount?' · '+activeCount:''}</span><span><i class="legendDot red"></i>Fuera de cobertura</span><span><i class="legendDot cyan"></i>Tú</span></div><div class="riderMap"><div class="mapRoad roadA"></div><div class="mapRoad roadB"></div><div class="mapRoad roadC"></div>${liveRiders.map(r=>`<button aria-label="${esc(r.name)}" class="riderPin ${r.state}" data-rider="${r.id}" style="left:${r.left};top:${r.top}"><span>${esc((r.name||'R').slice(0,1).toUpperCase())}</span></button>`).join('')}<i class="riderPin cyan mePin" style="left:52%;top:56%"><span>TÚ</span></i><div class="mapFocus"></div></div><div class="mapFooter"><span class="mapLiveState"><i></i>${activeCount?activeCount+' Rider'+(activeCount===1?'':'s')+' conectado'+(activeCount===1?'':'s'):'Sin Riders conectados ahora'}</span><span class="mapHint">Toca un Rider para ver su perfil</span></div>`);
   document.querySelector('#back').onclick=home;
-  document.querySelector('#privacy').onclick=privacy;
+  document.querySelector('#privacy').onclick=()=>privacy(map);
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
 }
 function profile(id){
