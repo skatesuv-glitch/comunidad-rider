@@ -77,15 +77,26 @@ async function clearRiderLocation(){
 async function fetchCommunityRiders(){
   if(!supabaseClient)return riders;
   try{
-    const {data,error}=await supabaseClient.from('profiles').select('*').limit(50);
-    if(error||!data||!data.length)return riders;
-    const real=data.map((p,i)=>({
-      id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
-      status:p.is_active?'Activo ahora':'Fuera de cobertura',
-      state:p.is_active?'green':'red',
-      left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
-      bio:p.bio||'Sin descripción.'
-    }));
+    const [{data:profiles,error:profileError},{data:presence},{data:locations}]=await Promise.all([
+      supabaseClient.from('profiles').select('*').limit(50),
+      supabaseClient.from('presence').select('profile_id,is_online,last_seen').limit(50),
+      supabaseClient.from('active_shared_locations').select('profile_id,latitude,longitude,accuracy_m,updated_at').limit(50)
+    ]);
+    if(profileError||!profiles||!profiles.length)return riders;
+    const presenceById=new Map((presence||[]).map(x=>[String(x.profile_id),x]));
+    const locationById=new Map((locations||[]).map(x=>[String(x.profile_id),x]));
+    const real=profiles.map((p,i)=>{
+      const pr=presenceById.get(String(p.id)),loc=locationById.get(String(p.id));
+      const online=Boolean(pr?.is_online);
+      return {
+        id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
+        status:online?'Activo ahora':'Fuera de cobertura',
+        state:online?'green':'red',
+        left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
+        latitude:loc?.latitude??null,longitude:loc?.longitude??null,accuracy:loc?.accuracy_m??null,
+        bio:p.bio||'Sin descripción.'
+      };
+    });
     const ids=new Set(real.map(r=>String(r.id)));return real.concat(riders.filter(r=>!ids.has(String(r.id))));
   }catch{return riders}
 }
