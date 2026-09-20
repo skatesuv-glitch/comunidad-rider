@@ -192,3 +192,11 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .heroCard:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(1,8,13,.02) 12%,rgba(1,8,13,.14) 44%,rgba(1,8,13,.96) 100%)}
 .heroCopy{padding:0 46px 17px 15px}.heroCopy strong{font-size:17px;line-height:1.02;letter-spacing:.015em}.heroCopy small{font-size:11px;line-height:1.25;color:#c5d5df}
 .heroArrow{right:13px;bottom:15px;width:32px;height:32px}
+
+/* Rider Voz · estados de audio medidos */
+.groupRider{position:relative}
+.groupRider.speaking{border-color:#16d7ff!important;box-shadow:0 0 18px rgba(22,215,255,.3)}
+.voiceQualityBadge{position:absolute;right:7px;top:6px;font-size:7px!important;font-weight:900;letter-spacing:.08em;color:#6f8795;background:#06131d;border:1px solid #29404d;border-radius:9px;padding:3px 5px;pointer-events:none}
+.groupRider[data-voice-quality="good"] .voiceQualityBadge{color:#70efb2;border-color:#187a56}
+.groupRider[data-voice-quality="medium"] .voiceQualityBadge{color:#ffd36a;border-color:#80661e}
+.groupRider[data-voice-quality="weak"] .voiceQualityBadge{color:#ff7180;border-color:#8b2f3a}
