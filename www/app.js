@@ -288,6 +288,44 @@ async function riderVoice(){
   document.querySelector('#mute').onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Micrófono OFF':'Micrófono ON'};const volume=document.querySelector('#volume');volume.onclick=e=>{e.currentTarget.classList.toggle('muted');e.currentTarget.querySelector('small').textContent=e.currentTarget.classList.contains('muted')?'Audio OFF':'Volumen'};
   leave.onclick=()=>{selected.clear();document.querySelectorAll('[data-add-rider]').forEach(b=>{b.classList.remove('selected');const mark=b.querySelector('b');if(mark)mark.textContent='+'});closePicker();renderGroup()};
   picker.addEventListener('click',e=>{if(e.target===picker)closePicker()});
+  let voiceActive=false,voiceChecking=false;
+  const voiceRing=document.querySelector('.voiceRing');
+  const setVoiceState=(mode,text)=>{
+    voiceActive=mode==='active';
+    if(voiceRing){voiceRing.classList.toggle('active',voiceActive);const strong=voiceRing.querySelector('strong');if(strong)strong.textContent=voiceActive?'EN VOZ':'LISTO'}
+    const status=document.querySelector('.voiceStatus span');if(status)status.textContent=text;
+  };
+  const checkVoiceCoverage=async()=>{
+    if(!voiceActive||voiceChecking)return;
+    voiceChecking=true;
+    try{
+      const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
+      const onlineIds=new Set(refreshed.filter(x=>x.state==='green').map(x=>String(x.id)));
+      let removed=0;
+      for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);removed++}}
+      if(removed){
+        renderGroup();
+        if(!selected.size){setVoiceState('ready','Grupo finalizado · Riders fuera de cobertura')}
+        else setVoiceState('active',removed+' Rider fuera de cobertura · voz continúa');
+      }
+    }finally{voiceChecking=false}
+  };
+  const startVoice=()=>{
+    if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
+    setVoiceState('active','Rider Voz activo · manos libres');
+  };
+  const voiceStart=document.createElement('button');
+  voiceStart.className='btn';
+  voiceStart.id='startVoice';
+  voiceStart.textContent='Iniciar Rider Voz';
+  leave.parentNode.insertBefore(voiceStart,leave);
+  voiceStart.onclick=startVoice;
+  const voiceTimer=setInterval(checkVoiceCoverage,15000);
+  const stopVoiceWatch=()=>clearInterval(voiceTimer);
+  const originalBack=document.querySelector('#back').onclick;
+  document.querySelector('#back').onclick=()=>{stopVoiceWatch();originalBack()};
+  const originalLeave=leave.onclick;
+  leave.onclick=()=>{voiceActive=false;stopVoiceWatch();originalLeave();setVoiceState('ready','Manos libres · esperando grupo')};
   renderGroup();
 }
 boot();
