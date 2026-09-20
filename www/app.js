@@ -156,11 +156,26 @@ async function accountScreen(){
   document.querySelector('#logout').onclick=signOutRider;
 }
 
+let voiceInboxChannel=null;
+async function ensureVoiceInbox(){
+  if(!supabaseClient||voiceInboxChannel)return;
+  const me=await currentUserId();if(!me)return;
+  const channel=supabaseClient.channel('rider-voice-inbox-'+me,{config:{broadcast:{self:false}}});
+  channel.on('broadcast',{event:'voice-invite'},({payload})=>{
+    if(!payload||String(payload.to)!==String(me)||!payload.sessionId)return;
+    const pool=window.communityRiders||riders;
+    const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:'Rider'};
+    shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
+    const reply=async accepted=>{await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,accepted}});if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()};
+    document.querySelector('#back').onclick=()=>reply(false);document.querySelector('#rejectVoice').onclick=()=>reply(false);document.querySelector('#acceptVoice').onclick=e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Entrando…';reply(true)};
+  }).subscribe();
+  voiceInboxChannel=channel;
+}
 async function boot(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
-  await ensureProfile();home();
+  await ensureProfile();await ensureVoiceInbox();home();
 }
 function home(){const p=dbLoad().profile||{};const initial=esc((p.alias||'R').slice(0,1).toUpperCase());const alias=esc(p.alias||'Rider');shell(`<div class="communityHeader"><div class="brandLogo"><strong>eSKATE SUV</strong><span>COMUNIDAD</span></div><button class="accountBtn profileBubble" id="account" aria-label="Mi cuenta"><span>${initial}</span></button></div><p class="communityTag">RIDERS · RUTAS · EXPERIENCIAS</p><div class="communityGrid">${[['voice','RIDER VOZ','Conexión Rider'],['nearby','RIDERS EN MI ZONA','Comunidad cercana'],['routes','RUTAS COMPARTIDAS','Rutas de la comunidad'],['challenges','RETOS','Desafíos Rider']].map((x,i)=>`<button class="menuCard heroCard hero-${x[0]}" data-menu="${i}"><span class="heroVisual"></span><span class="heroCopy"><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="heroArrow">›</span></button>`).join('')}</div><button class="profileStrip" data-menu="4"><span class="profileMark">${initial}</span><span><strong>${alias}</strong><small>Mi perfil Rider · Privacidad</small></span><b>›</b></button>`);
 document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile;
