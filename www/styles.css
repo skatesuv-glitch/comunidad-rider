@@ -127,3 +127,17 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .mapLiveState i{width:7px;height:7px;border-radius:50%;background:#19e58c;box-shadow:0 0 10px rgba(25,229,140,.7)}
 
 .bubble.pending{opacity:.72}.messageState{display:block;margin-top:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.68}
+
+
+/* BASE VISUAL BLOQUEADA · COMUNIDAD */
+.communityTag{color:#6ddfff!important;font-size:12px!important;font-weight:900!important;letter-spacing:.13em!important}
+.communityGrid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important}
+.heroCard{min-height:238px!important;border-radius:14px!important;border:1px solid #124d70!important}
+.heroCopy strong{font-size:17px!important;line-height:1.02!important;letter-spacing:.015em}.heroCopy small{font-size:11px!important;line-height:1.25!important}
+.communityNav{position:sticky;bottom:8px;z-index:20;margin:18px -5px 0;padding:9px 8px calc(7px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr 1.2fr 1fr 1fr;align-items:end;border:1px solid #123e59;border-radius:20px;background:rgba(2,11,18,.94);backdrop-filter:blur(14px);box-shadow:0 -8px 28px rgba(0,0,0,.38)}
+.communityNav button{border:0;background:transparent;color:#7394a8;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.communityNav button.active{color:#11bfff}.communityNav small{font-size:9px}.communityNav i{font-style:normal;display:block;position:relative}
+.navPlus{align-self:center!important}.communityNav .navPlus i{width:58px;height:58px;margin-top:-25px;border-radius:50%;display:grid;place-items:center;background:#079cf5;color:white;font-size:40px;font-weight:300;box-shadow:0 0 24px rgba(7,156,245,.45)}
+.navHome{width:19px;height:16px;background:currentColor;border-radius:2px}.navHome:before{content:"";position:absolute;width:14px;height:14px;background:currentColor;left:2px;top:-6px;transform:rotate(45deg);border-radius:2px}
+.navMap{width:20px;height:18px;border:2px solid currentColor;border-radius:4px;transform:skewY(-8deg)}
+.navBell{width:17px;height:17px;border:2px solid currentColor;border-radius:9px 9px 5px 5px}.navBell:after{content:"";position:absolute;width:5px;height:2px;background:currentColor;left:4px;bottom:-5px;border-radius:3px}
+.navProfile{width:18px;height:18px;border:2px solid currentColor;border-radius:50%}.navProfile:after{content:"";position:absolute;width:24px;height:12px;border:2px solid currentColor;border-bottom:0;border-radius:14px 14px 0 0;left:-5px;top:20px}
