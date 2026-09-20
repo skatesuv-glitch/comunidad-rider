@@ -179,7 +179,7 @@ async function ensureVoiceInbox(){
   }).subscribe();
   voiceInboxChannel=channel;
 }
-async async function enterAppAfterSplash(){
+async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
