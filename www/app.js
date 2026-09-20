@@ -11,8 +11,8 @@ async function supabaseStatus(){
 const app=document.querySelector('#app');
 const state={locationConsent:localStorage.getItem('cr_location_consent')==='yes',locationSharing:localStorage.getItem('cr_location_sharing')==='yes'};
 const KEY='comunidad_rider_v1';
-function dbLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}}
-function dbSave(db){localStorage.setItem(KEY,JSON.stringify(db))}
+function dbLoad(){try{const value=JSON.parse(localStorage.getItem(KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{}}catch{return {}}}
+function dbSave(db){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch{return false}}
 async function currentUserId(){
   if(!supabaseClient)return null;
   try{const {data}=await supabaseClient.auth.getUser();return data?.user?.id||null}catch{return null}
