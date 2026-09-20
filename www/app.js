@@ -312,7 +312,7 @@ async function riderVoice(){
   };
   let localVoiceStream=null;
   const releaseVoiceMedia=()=>{
-    if(window.riderVoiceRtc){for(const pc of window.riderVoiceRtc.peers.values())pc.close();window.riderVoiceRtc.channel.unsubscribe();window.riderVoiceRtc=null}
+    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
     document.querySelectorAll('audio[data-voice-rider]').forEach(a=>a.remove());
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
   };
@@ -340,13 +340,16 @@ async function riderVoice(){
           localVoiceStream.getTracks().forEach(track=>pc.addTrack(track,localVoiceStream));
           pc.ontrack=e=>{let audio=document.querySelector('audio[data-voice-rider="'+remoteId+'"]');if(!audio){audio=document.createElement('audio');audio.autoplay=true;audio.dataset.voiceRider=remoteId;document.body.appendChild(audio)}audio.srcObject=e.streams[0]};
           pc.onicecandidate=e=>{if(e.candidate)channel.send({type:'broadcast',event:'ice',payload:{from:me,to:remoteId,candidate:e.candidate}})};
+          pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='connected')setVoiceState('active','Rider Voz conectado · audio en directo');if(s==='failed'||s==='disconnected')setVoiceState('active','Conexión de voz inestable · reconectando…');if(s==='closed')peers.delete(remoteId)};
           if(initiator){const offer=await pc.createOffer();await pc.setLocalDescription(offer);channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}
           return pc;
         };
         channel.on('broadcast',{event:'offer'},async({payload})=>{if(payload?.to!==me)return;const pc=await makePeer(payload.from,false);await pc.setRemoteDescription(payload.sdp);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);channel.send({type:'broadcast',event:'answer',payload:{from:me,to:payload.from,sdp:answer}})})
           .on('broadcast',{event:'answer'},async({payload})=>{if(payload?.to!==me)return;const pc=peers.get(payload.from);if(pc)await pc.setRemoteDescription(payload.sdp)})
           .on('broadcast',{event:'ice'},async({payload})=>{if(payload?.to!==me)return;const pc=peers.get(payload.from);if(pc&&payload.candidate)await pc.addIceCandidate(payload.candidate)})
+          .on('broadcast',{event:'leave'},({payload})=>{if(payload?.to&&payload.to!==me)return;const pc=peers.get(payload?.from);if(pc){pc.close();peers.delete(payload.from)}const audio=document.querySelector('audio[data-voice-rider="'+payload?.from+'"]');if(audio)audio.remove()})
           .subscribe(async status=>{if(status==='SUBSCRIBED'){for(const remoteId of selected.keys())await makePeer(remoteId,true)}});
+        window.riderVoiceRtc={channel,peers,me};
         window.riderVoiceRtc={channel,peers};
       }
     }catch(err){
