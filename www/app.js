@@ -356,7 +356,7 @@ async async function riderVoice(){
         const sessionId=sessionStorage.getItem('rider_voice_session');const channelKey=sessionId||[me,...selected.keys()].sort().join('-');const channel=supabaseClient.channel('rider-voice-'+channelKey,{config:{broadcast:{self:false}}});
         const peers=new Map();
         const makePeer=async(remoteId,initiator)=>{
-          let pc=peers.get(remoteId);if(pc)return pc;
+          remoteId=String(remoteId);let pc=peers.get(remoteId);if(pc)return pc;
           pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});peers.set(remoteId,pc);
           localVoiceStream.getTracks().forEach(track=>pc.addTrack(track,localVoiceStream));
           pc.ontrack=e=>{let audio=document.querySelector('audio[data-voice-rider="'+remoteId+'"]');if(!audio){audio=document.createElement('audio');audio.autoplay=true;audio.playsInline=true;audio.dataset.voiceRider=remoteId;document.body.appendChild(audio)}audio.srcObject=e.streams[0];audio.onplaying=()=>{const card=document.querySelector('[data-remove-rider="'+remoteId+'"]');if(card)card.classList.add('speaking')};audio.onpause=audio.onended=()=>{const card=document.querySelector('[data-remove-rider="'+remoteId+'"]');if(card)card.classList.remove('speaking')};audio.play().catch(()=>setVoiceState('active','Audio recibido · toca Volumen para escucharlo'))};
@@ -369,11 +369,11 @@ async async function riderVoice(){
           return pc;
         };
         const flushIce=async pc=>{if(!pc?.remoteDescription)return;for(const candidate of (pc._pendingIce||[]).splice(0)){try{await pc.addIceCandidate(candidate)}catch{}}};
-        channel.on('broadcast',{event:'offer'},async({payload})=>{if(payload?.to!==me)return;const pc=await makePeer(payload.from,false);if(pc.signalingState!=='stable')return;await pc.setRemoteDescription(payload.sdp);await flushIce(pc);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);channel.send({type:'broadcast',event:'answer',payload:{from:me,to:payload.from,sdp:answer}})})
-          .on('broadcast',{event:'answer'},async({payload})=>{if(payload?.to!==me)return;const pc=peers.get(payload.from);if(pc&&pc.signalingState==='have-local-offer'){await pc.setRemoteDescription(payload.sdp);await flushIce(pc)}})
-          .on('broadcast',{event:'ice'},async({payload})=>{if(payload?.to!==me)return;const pc=await makePeer(payload.from,false);if(pc&&payload.candidate){if(pc.remoteDescription){try{await pc.addIceCandidate(payload.candidate)}catch{}}else{(pc._pendingIce||(pc._pendingIce=[])).push(payload.candidate)}}})
+        channel.on('broadcast',{event:'offer'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=await makePeer(payload.from,false);if(pc.signalingState!=='stable')return;await pc.setRemoteDescription(payload.sdp);await flushIce(pc);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);channel.send({type:'broadcast',event:'answer',payload:{from:me,to:payload.from,sdp:answer}})})
+          .on('broadcast',{event:'answer'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=peers.get(String(payload.from))||peers.get(payload.from);if(pc&&pc.signalingState==='have-local-offer'){await pc.setRemoteDescription(payload.sdp);await flushIce(pc)}})
+          .on('broadcast',{event:'ice'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=await makePeer(payload.from,false);if(pc&&payload.candidate){if(pc.remoteDescription){try{await pc.addIceCandidate(payload.candidate)}catch{}}else{(pc._pendingIce||(pc._pendingIce=[])).push(payload.candidate)}}})
           .on('broadcast',{event:'leave'},({payload})=>{if(payload?.to&&String(payload.to)!==String(me))return;const id=String(payload?.from||'');const pc=peers.get(id)||peers.get(payload?.from);if(pc){pc.close();peers.delete(id);peers.delete(payload?.from)}voiceStats.delete(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio)audio.remove();const card=document.querySelector('[data-remove-rider="'+id+'"]');if(card){card.classList.remove('speaking');delete card.dataset.voiceQuality;card.querySelector('.voiceQualityBadge')?.remove()}setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)})
-          .subscribe(async status=>{if(status==='SUBSCRIBED'){for(const remoteId of selected.keys())await makePeer(remoteId,String(me)<String(remoteId))}});
+          .subscribe(async status=>{if(status==='SUBSCRIBED'){for(const remoteId of selected.keys())await makePeer(String(remoteId),String(me)<String(remoteId))}});
         const connectedCount=()=>[...peers.values()].filter(pc=>pc.connectionState==='connected').length;
         const voiceStats=new Map();
         let qualityBusy=false;
