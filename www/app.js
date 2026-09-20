@@ -146,6 +146,19 @@ async function signOutRider(){
   try{if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.channel.unsubscribe();window.riderVoiceRtc=null}if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');await supabaseClient.auth.signOut()}catch{}
   authScreen();
 }
+
+function notificationSettings(){
+  const db=dbLoad();db.settings=db.settings||{};
+  const current={voice:db.settings.notifyVoice!==false,chat:db.settings.notifyChat!==false,routes:db.settings.notifyRoutes!==false};
+  shell(`${topbar('NOTIFICACIONES',true)}<div class="settingsIntro"><small>AVISOS DE COMUNIDAD</small><h1>Tú decides qué suena</h1><p>Configura los avisos de Comunidad Rider sin afectar a los avisos de conducción de eSkateSUV.</p></div><div class="settingsList"><button class="settingToggle" data-setting="voice"><span><strong>Rider Voz</strong><small>Invitaciones y llamadas de voz</small></span><i class="switch ${current.voice?'on':''}"><span class="knob"></span></i></button><button class="settingToggle" data-setting="chat"><span><strong>Chat Rider</strong><small>Mensajes nuevos de otros Riders</small></span><i class="switch ${current.chat?'on':''}"><span class="knob"></span></i></button><button class="settingToggle" data-setting="routes"><span><strong>Rutas y retos</strong><small>Novedades de actividad de la comunidad</small></span><i class="switch ${current.routes?'on':''}"><span class="knob"></span></i></button></div>`);
+  document.querySelector('#back').onclick=accountScreen;
+  document.querySelectorAll('[data-setting]').forEach(btn=>btn.onclick=()=>{const key=btn.dataset.setting;current[key]=!current[key];btn.querySelector('.switch').classList.toggle('on',current[key]);const d=dbLoad();d.settings=d.settings||{};d.settings['notify'+key[0].toUpperCase()+key.slice(1)]=current[key];dbSave(d)});
+}
+function helpScreen(){
+  shell(`${topbar('AYUDA',true)}<div class="settingsIntro"><small>CENTRO RIDER</small><h1>¿En qué te ayudamos?</h1><p>Accesos rápidos para resolver los puntos habituales de Comunidad Rider.</p></div><div class="helpList"><div class="card"><strong>Rider Voz</strong><p>Comprueba permiso de micrófono, conexión a Internet y que el Rider siga disponible antes de iniciar la conversación.</p></div><div class="card"><strong>Ubicación y mapa</strong><p>Puedes activar o detener el uso de ubicación desde Privacidad. Tú decides cuándo aparecer en el mapa.</p></div><div class="card"><strong>Cuenta Rider</strong><p>Edita seudónimo, ciudad y descripción desde Mi cuenta Rider. La contraseña se recupera desde la pantalla de acceso.</p></div></div>`);
+  document.querySelector('#back').onclick=accountScreen;
+}
+
 async function accountScreen(){
   const uid=await currentUserId();
   if(!uid||!supabaseClient){authScreen();return}
@@ -156,9 +169,9 @@ async function accountScreen(){
   shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountProfile"><div class="profileMark profileMarkBig">${initial}</div><h1>${esc(alias)}</h1><small>RIDER eSKATE SUV</small></div><div class="accountFields"><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO ELECTRÓNICO</small><strong>${esc(user?.email||'')}</strong></div></div><div class="accountMenu"><button id="editProfile"><span>Editar perfil</span><b>›</b></button><button id="notifications"><span>Notificaciones</span><b>›</b></button><button id="privacyAccount"><span>Privacidad</span><b>›</b></button><button id="helpAccount"><span>Ayuda</span><b>›</b></button></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
   document.querySelector('#back').onclick=home;
   document.querySelector('#editProfile').onclick=myProfile;
-  document.querySelector('#notifications').onclick=()=>{document.querySelector('#notifications').classList.toggle('selected')};
+  document.querySelector('#notifications').onclick=notificationSettings;
   document.querySelector('#privacyAccount').onclick=privacy;
-  document.querySelector('#helpAccount').onclick=()=>{document.querySelector('#helpAccount').classList.toggle('selected')};
+  document.querySelector('#helpAccount').onclick=helpScreen;
   document.querySelector('#logout').onclick=signOutRider;
 }
 
