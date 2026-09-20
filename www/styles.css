@@ -145,3 +145,15 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .communityNav{position:sticky;bottom:8px;z-index:20;margin:18px -5px 0;padding:9px 8px calc(7px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr 1.2fr 1fr 1fr;align-items:end;border:1px solid #123e59;border-radius:20px;background:rgba(2,11,18,.94);backdrop-filter:blur(14px);box-shadow:0 -8px 28px rgba(0,0,0,.38)}
 .communityNav button{border:0;background:transparent;color:#7394a8;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.communityNav button.active{color:#11bfff}.communityNav small{font-size:9px}.communityNav i{font-style:normal;display:block;position:relative}
 .navPlus{align-self:center!important}.communityNav .navPlus i{width:58px;height:58px;margin-top:-25px;border-radius:50%;display:grid;place-items:center;background:#079cf5;color:white;font-size:40px;font-weight:300;box-shadow:0 0 24px rgba(7,156,245,.45)}
+
+/* Navegación Comunidad · iconos CSS sin emoji */
+.communityNav .navHome{width:18px;height:15px;border:2px solid currentColor;border-top:0;border-radius:2px;margin-top:5px}
+.communityNav .navHome:before{content:"";position:absolute;width:12px;height:12px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);left:1px;top:-6px;border-radius:1px}
+.communityNav .navMap{width:18px;height:18px;border:2px solid currentColor;border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.communityNav .navMap:after{content:"";position:absolute;width:5px;height:5px;border:2px solid currentColor;border-radius:50%;left:4.5px;top:4.5px}
+.communityNav .navBell{width:16px;height:16px;border:2px solid currentColor;border-radius:9px 9px 5px 5px;border-bottom-width:1px}
+.communityNav .navBell:before{content:"";position:absolute;width:4px;height:2px;border-radius:50%;background:currentColor;left:4px;top:-4px}
+.communityNav .navBell:after{content:"";position:absolute;width:5px;height:2px;border-radius:0 0 5px 5px;background:currentColor;left:3.5px;bottom:-5px}
+.communityNav .navProfile{width:18px;height:18px;border:2px solid currentColor;border-radius:50%}
+.communityNav .navProfile:before{content:"";position:absolute;width:5px;height:5px;border:2px solid currentColor;border-radius:50%;left:4.5px;top:2px}
+.communityNav .navProfile:after{content:"";position:absolute;width:9px;height:5px;border:2px solid currentColor;border-bottom:0;border-radius:8px 8px 0 0;left:2.5px;bottom:1px}
