@@ -179,12 +179,20 @@ async function ensureVoiceInbox(){
   }).subscribe();
   voiceInboxChannel=channel;
 }
-async function boot(){
+async async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
   await ensureProfile();await ensureVoiceInbox();home();
 }
+function splashScreen(){
+  const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
+  app.innerHTML=`<section class="launchSplash" aria-label="eSkateSUV"><div class="launchShade"></div><div class="launchBrand"><div class="launchMark" aria-hidden="true"><span>§</span></div><div class="launchWord" aria-label="eSkateSUV">${letters}</div><div class="launchTag">RIDE <b>·</b> EXPLORE <b>·</b> CONNECT</div></div><div class="launchLoad"><i></i><small>CARGANDO TU PRÓXIMA AVENTURA</small></div></section>`;
+  requestAnimationFrame(()=>document.querySelector('.launchSplash')?.classList.add('is-in'));
+  setTimeout(()=>document.querySelector('.launchSplash')?.classList.add('is-out'),2200);
+  setTimeout(()=>enterAppAfterSplash(),2850);
+}
+function boot(){splashScreen()}
 function home(){const p=dbLoad().profile||{};const initial=esc((p.alias||'R').slice(0,1).toUpperCase());const alias=esc(p.alias||'Rider');shell(`<div class="communityHeader"><div class="brandLogo"><strong>eSKATESUV</strong><span>COMUNIDAD</span></div><button class="accountBtn profileBubble" id="account" aria-label="Mi cuenta"><span>${initial}</span></button></div><p class="communityTag">TU GENTE. TUS RUTAS. TU RIDE.</p><div class="communityGrid">${[['voice','RIDER VOZ','Habla. Comparte. Conecta.'],['nearby','RIDERS EN MI ZONA','Encuentra riders cerca de ti.'],['routes','RUTAS COMPARTIDAS','Descubre. Guarda. Disfruta.'],['challenges','RETOS','Supera tus límites.']].map((x,i)=>`<button class="menuCard heroCard hero-${x[0]}" data-menu="${i}"><span class="heroVisual"></span><span class="heroCopy"><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="heroArrow">›</span></button>`).join('')}</div><nav class="communityNav"><button class="active" data-nav="home"><i class="navHome"></i><small>Inicio</small></button><button data-nav="map"><i class="navMap"></i><small>Mapa</small></button><button class="navPlus" data-nav="plus"><i>+</i></button><button data-nav="activity"><i class="navBell"></i><small>Actividad</small></button><button data-menu="4"><i class="navProfile"></i><small>Perfil</small></button></nav>`);
 document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile;document.querySelector('[data-nav="map"]').onclick=consent;document.querySelector('[data-nav="plus"]').onclick=sharedRoutes;document.querySelector('[data-nav="activity"]').onclick=challenges;
 const account=document.querySelector('#account');if(account){account.title=alias;account.onclick=accountScreen}
