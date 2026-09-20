@@ -224,3 +224,16 @@ body.pickerOpen .phone{overscroll-behavior:none}
 .voiceVolumeGlyph:before{content:"";position:absolute;left:2px;top:9px;width:7px;height:9px;border:2px solid currentColor;border-right:0;border-radius:2px}
 .voiceVolumeGlyph:after{content:"";position:absolute;left:8px;top:5px;width:12px;height:17px;border-right:2px solid currentColor;border-radius:0 50% 50% 0;box-shadow:4px 0 0 -2px currentColor}
 .voiceAddGlyph{display:grid!important;place-items:center;font-size:28px;font-weight:300;line-height:1}
+
+/* Portada eSkateSUV · secuencia aprobada */
+.launchSplash{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#02070b url('assets/app-cover.jpg') center/cover no-repeat;color:#fff;opacity:0;transition:opacity .42s ease}
+.launchSplash.is-in{opacity:1}.launchSplash.is-out{opacity:0;pointer-events:none}
+.launchShade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,6,11,.82) 0%,rgba(0,7,12,.34) 31%,rgba(0,7,12,.04) 61%,rgba(0,7,12,.64) 100%)}
+.launchBrand{position:absolute;top:max(6.5vh,48px);left:7vw;right:7vw;text-align:center;filter:drop-shadow(0 4px 14px #000)}
+.launchMark{width:92px;height:92px;margin:0 auto 13px;border:5px solid #20d9f5;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 22px rgba(32,217,245,.38)}
+.launchMark span{font-size:65px;line-height:1;color:#20d9f5;font-weight:900;transform:translateY(-2px)}
+.launchWord{font-size:clamp(40px,12vw,66px);font-weight:900;font-style:italic;letter-spacing:-.075em;white-space:nowrap}
+.launchWord span{display:inline-block;opacity:0;transform:translateY(9px) scale(.96);animation:launchLetter .22s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(.34s + var(--i)*.075s)}
+.launchWord span:nth-child(n+7){color:#18bff0}.launchTag{margin-top:8px;font-size:clamp(11px,3vw,16px);letter-spacing:.31em;font-weight:500;opacity:0;animation:launchTag .35s ease 1.08s forwards}.launchTag b{color:#20d9f5}
+.launchLoad{position:absolute;left:13vw;right:13vw;bottom:max(7vh,38px);text-align:center}.launchLoad:before{content:"";display:block;width:42%;height:3px;margin:0 auto 18px;background:rgba(255,255,255,.18);border-radius:3px}.launchLoad i{position:absolute;top:0;left:29%;width:0;height:3px;background:#20d9f5;border-radius:3px;animation:launchProgress 1.7s ease .45s forwards}.launchLoad small{font-size:10px;letter-spacing:.26em}
+@keyframes launchLetter{to{opacity:1;transform:none}}@keyframes launchTag{to{opacity:1}}@keyframes launchProgress{to{width:42%}}
