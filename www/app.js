@@ -426,7 +426,7 @@ async function riderVoice(){
     const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
     const onlineIds=new Set(refreshed.filter(x=>x.state==='green').map(x=>String(x.id)));
     let changed=false;
-    for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);changed=true}}
+    for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);const rtc=window.riderVoiceRtc;if(rtc){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:id}})}catch{}const pc=rtc.peers.get(id);if(pc){pc.close();rtc.peers.delete(id)}rtc.voiceStats?.delete?.(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio){try{audio.pause();audio.srcObject=null}catch{}audio.remove()}}changed=true}}
     if(changed)renderGroup();
     if(voiceActive&&!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · sin Riders disponibles')}
   };
