@@ -363,11 +363,13 @@ async function riderVoice(){
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
     sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
   };
+  let voiceStarting=false;
   const startVoice=async()=>{
+    if(voiceStarting){setVoiceState('ready','Conectando Rider Voz…');return}
     if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
     if(voiceActive||localVoiceStream){setVoiceState('active','Rider Voz ya está iniciado');return}
     if(!navigator.mediaDevices?.getUserMedia){setVoiceState('ready','Micrófono no disponible en este dispositivo');return}
-    const startBtn=document.querySelector('#startVoice');if(startBtn){startBtn.disabled=true;startBtn.textContent='Conectando…'}
+    const startBtn=document.querySelector('#startVoice');voiceStarting=true;if(startBtn){startBtn.disabled=true;startBtn.textContent='Conectando…'}
     try{
       setVoiceState('ready','Solicitando acceso al micrófono…');
       localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
@@ -419,6 +421,7 @@ async function riderVoice(){
       releaseVoiceMedia();
       setVoiceState('ready',err?.name==='NotAllowedError'?'Permiso de micrófono denegado':'No se pudo activar el micrófono');
     }finally{
+      voiceStarting=false;
       if(startBtn){startBtn.disabled=false;startBtn.textContent=voiceActive?'Rider Voz activo':'Iniciar Rider Voz'}
     }
   };
