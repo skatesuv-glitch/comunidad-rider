@@ -59,8 +59,8 @@ function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.m
 function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad();const list=db.messages?.[id];if(!list?.length)return;const remaining=list.filter(l=>l.pending||!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;db.messages[id]=remaining;dbSave(db)}
 function isFavorite(id){return (dbLoad().favoriteRoutes||[]).includes(id)}
 function toggleFavorite(id){const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];const i=db.favoriteRoutes.indexOf(id);i<0?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);return db.favoriteRoutes.includes(id)}
-function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).includes(id)}
-function joinChallenge(id){const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];if(!db.joinedChallenges.includes(id))db.joinedChallenges.push(id);dbSave(db)}
+function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).map(String).includes(String(id))}
+function joinChallenge(id){const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];if(!db.joinedChallenges.map(String).includes(String(id)))db.joinedChallenges.push(id);dbSave(db)}
 function saveState(){localStorage.setItem('cr_location_consent',state.locationConsent?'yes':'no');localStorage.setItem('cr_location_sharing',state.locationSharing?'yes':'no')}
 function requestLocation(done){if(!navigator.geolocation){done&&done(null);return}navigator.geolocation.getCurrentPosition(p=>done&&done({lat:p.coords.latitude,lng:p.coords.longitude}),()=>done&&done(null),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})}
 async function fetchCommunityRiders(){
