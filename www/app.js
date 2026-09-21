@@ -208,29 +208,29 @@ async function ensureProfile(){
     else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabaseClient.from('profiles').update({alias}).eq('id',uid);
   }catch{}
 }
+async function cleanupRiderSessionResources({markOffline=false,clearLocation=false}={}){
+  stopRiderPresenceHeartbeat();
+  if(screenCleanup){const cleanup=screenCleanup;screenCleanup=null;try{cleanup()}catch{}}
+  const closingSession=sessionStorage.getItem('rider_voice_session');
+  if(closingSession)await endVoiceInviteSession(closingSession).catch(()=>false);
+  if(window.riderVoiceRtc){
+    const rtc=window.riderVoiceRtc;
+    if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);
+    if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}
+    for(const remoteId of rtc.peers.keys()){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}})}catch{}}
+    for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();
+    try{await rtc.channel.unsubscribe()}catch{}window.riderVoiceRtc=null
+  }
+  document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});
+  if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
+  if(voiceInboxChannel){try{await voiceInboxChannel.unsubscribe()}catch{}voiceInboxChannel=null}
+  pendingVoiceResponses.clear();sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
+  if(clearLocation)await clearRiderLocation().catch(()=>false);if(markOffline)await setRiderPresence(false).catch(()=>false)
+}
 async function signOutRider(){
-  if(!supabaseClient){authScreen();return;}
-  try{
-    stopRiderPresenceHeartbeat();
-    const closingSession=sessionStorage.getItem('rider_voice_session');
-    if(closingSession)await endVoiceInviteSession(closingSession);
-    if(window.riderVoiceRtc){
-      const rtc=window.riderVoiceRtc;
-      if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);
-      if(rtc.readyTimer)clearInterval(rtc.readyTimer);
-      if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}
-      for(const remoteId of rtc.peers.keys()){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}})}catch{}}
-      for(const pc of rtc.peers.values())pc.close();
-      rtc.peers.clear();rtc.voiceStats?.clear?.();await rtc.channel.unsubscribe();window.riderVoiceRtc=null
-    }
-    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});
-    if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
-    if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}
-    pendingVoiceResponses.clear();
-    sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
-    await clearRiderLocation();await setRiderPresence(false);await supabaseClient.auth.signOut()
-  }catch{}
-  authScreen();
+  if(!supabaseClient){authScreen();return}
+  try{await cleanupRiderSessionResources({markOffline:true,clearLocation:true});await supabaseClient.auth.signOut()}catch{}
+  authScreen()
 }
 
 function notificationSettings(){
@@ -339,7 +339,16 @@ function splashScreen(){
   setTimeout(()=>document.querySelector('.launchSplash')?.classList.add('is-out'),2200);
   setTimeout(()=>enterAppAfterSplash(),2850);
 }
-function boot(){splashScreen()}
+let authStateCleanupRunning=false;
+function watchAuthState(){
+  if(!supabaseClient)return;
+  supabaseClient.auth.onAuthStateChange((event)=>{
+    if(event!=='SIGNED_OUT'||authStateCleanupRunning)return;
+    authStateCleanupRunning=true;
+    cleanupRiderSessionResources().catch(()=>{}).finally(()=>{authStateCleanupRunning=false;authScreen()})
+  })
+}
+function boot(){watchAuthState();splashScreen()}
 async function activityScreen(){
   const db=dbLoad();let fav=new Set((db.favoriteRoutes||[]).map(String)).size,joined=new Set((db.joinedChallenges||[]).map(String)).size;
   const group=new Set((db.voiceGroup||[]).map(String)).size;
