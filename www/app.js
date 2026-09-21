@@ -226,6 +226,7 @@ async function signOutRider(){
     document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});
     if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
     if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}
+    pendingVoiceResponses.clear();
     sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
     await clearRiderLocation();await setRiderPresence(false);await supabaseClient.auth.signOut()
   }catch{}
