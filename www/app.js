@@ -332,7 +332,7 @@ async function showVoiceInvite(payload,channel){
   if(!me||!payload||String(payload.to)!==String(me)||!payload.sessionId)return false;
   if(payload.createdAt&&Date.now()-Number(payload.createdAt)>30000){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'expired');return false}
   if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'declined');await sendVoiceInviteResponse(payload,false,'busy');return false}
-  const pool=window.communityRiders||riders;
+  const pool=window.communityRiders||[];
   const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:payload.senderName||'Rider'};
   shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
   let answered=false;
