@@ -255,27 +255,51 @@ async function updateVoiceInviteRecord(inviteId,status){
 }
 
 let voiceInboxChannel=null;
+async function showVoiceInvite(payload,channel){
+  const me=await currentUserId();
+  if(!me||!payload||String(payload.to)!==String(me)||!payload.sessionId)return false;
+  if(payload.createdAt&&Date.now()-Number(payload.createdAt)>30000){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'expired');return false}
+  if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'declined');if(channel)await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted:false,reason:'busy'}});return false}
+  const pool=window.communityRiders||riders;
+  const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:payload.senderName||'Rider'};
+  shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
+  let answered=false;
+  const reply=async accepted=>{
+    if(answered)return;answered=true;
+    const accept=document.querySelector('#acceptVoice'),reject=document.querySelector('#rejectVoice');if(accept)accept.disabled=true;if(reject)reject.disabled=true;
+    try{
+      if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');
+      if(channel)await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted}});
+      if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()
+    }catch{answered=false;if(accept)accept.disabled=false;if(reject)reject.disabled=false;const status=document.querySelector('#inviteStatus');if(status)status.textContent='No se pudo responder · revisa la conexión.'}
+  };
+  document.querySelector('#back').onclick=()=>reply(false);document.querySelector('#rejectVoice').onclick=()=>reply(false);document.querySelector('#acceptVoice').onclick=e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Entrando…';reply(true)};
+  return true
+}
+async function recoverPendingVoiceInvite(){
+  if(!supabaseClient)return false;
+  const me=await currentUserId();if(!me)return false;
+  try{
+    const now=new Date().toISOString();
+    const {data,error}=await supabaseClient.from('voice_invites').select('id,sender_id,created_at,expires_at').eq('recipient_id',me).eq('status','pending').gt('expires_at',now).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(error||!data)return false;
+    const createdAt=new Date(data.created_at).getTime();
+    const sessionId=[String(data.sender_id),String(me)].sort().join('-')+'-'+createdAt;
+    return await showVoiceInvite({from:data.sender_id,to:me,sessionId,inviteId:data.id,createdAt},voiceInboxChannel)
+  }catch{return false}
+}
 async function ensureVoiceInbox(){
   if(!supabaseClient||voiceInboxChannel)return;
   const me=await currentUserId();if(!me)return;
   const channel=supabaseClient.channel('rider-voice-inbox-'+me,{config:{broadcast:{self:false}}});
-  channel.on('broadcast',{event:'voice-invite'},({payload})=>{
-    if(!payload||String(payload.to)!==String(me)||!payload.sessionId)return;
-    if(payload.createdAt&&Date.now()-Number(payload.createdAt)>30000)return;
-    if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)updateVoiceInviteRecord(payload.inviteId,'declined');channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted:false,reason:'busy'}});return}
-    const pool=window.communityRiders||riders;
-    const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:'Rider'};
-    shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
-    let answered=false;const reply=async accepted=>{if(answered)return;answered=true;const accept=document.querySelector('#acceptVoice'),reject=document.querySelector('#rejectVoice');if(accept)accept.disabled=true;if(reject)reject.disabled=true;try{if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted}});if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()}catch{answered=false;if(accept)accept.disabled=false;if(reject)reject.disabled=false;const status=document.querySelector('#inviteStatus');if(status)status.textContent='No se pudo responder · revisa la conexión.'}};
-    document.querySelector('#back').onclick=()=>reply(false);document.querySelector('#rejectVoice').onclick=()=>reply(false);document.querySelector('#acceptVoice').onclick=e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Entrando…';reply(true)};
-  }).subscribe();
+  channel.on('broadcast',{event:'voice-invite'},({payload})=>{showVoiceInvite(payload,channel)}).subscribe();
   voiceInboxChannel=channel;
 }
 async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
-  await ensureProfile();await setRiderPresence(true);await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});home();
+  await ensureProfile();await setRiderPresence(true);await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});const recovered=await recoverPendingVoiceInvite();if(!recovered)home();
 }
 function splashScreen(){
   const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
