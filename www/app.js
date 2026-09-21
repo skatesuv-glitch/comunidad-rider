@@ -74,18 +74,27 @@ function isFavorite(id){return (dbLoad().favoriteRoutes||[]).map(String).include
 async function toggleFavorite(id){
   const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];
   const i=db.favoriteRoutes.findIndex(x=>String(x)===String(id)),adding=i<0;
-  adding?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);
-  const uid=await currentUserId();
-  if(uid&&supabaseClient){try{if(adding)await supabaseClient.from('route_favorites').upsert({route_id:id,profile_id:uid},{onConflict:'route_id,profile_id'});else await supabaseClient.from('route_favorites').delete().eq('route_id',id).eq('profile_id',uid)}catch{}}
-  return adding
+  const uid=await currentUserId();if(!uid||!supabaseClient)return null;
+  try{
+    const result=adding
+      ?await supabaseClient.from('route_favorites').upsert({route_id:id,profile_id:uid},{onConflict:'route_id,profile_id'})
+      :await supabaseClient.from('route_favorites').delete().eq('route_id',id).eq('profile_id',uid);
+    if(result.error)return null;
+    adding?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);
+    return adding
+  }catch{return null}
 }
 function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).map(String).includes(String(id))}
 async function joinChallenge(id){
-  const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];
-  if(!db.joinedChallenges.map(String).includes(String(id)))db.joinedChallenges.push(id);
-  dbSave(db);
+  if(joinedChallenge(id))return true;
   const uid=await currentUserId();if(!uid||!supabaseClient)return false;
-  try{const {error}=await supabaseClient.from('challenge_members').upsert({challenge_id:id,profile_id:uid},{onConflict:'challenge_id,profile_id'});return !error}catch{return false}
+  try{
+    const {error}=await supabaseClient.from('challenge_members').upsert({challenge_id:id,profile_id:uid},{onConflict:'challenge_id,profile_id'});
+    if(error)return false;
+    const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];
+    if(!db.joinedChallenges.map(String).includes(String(id)))db.joinedChallenges.push(id);
+    dbSave(db);return true
+  }catch{return false}
 }
 function saveState(){localStorage.setItem('cr_location_consent',state.locationConsent?'yes':'no');localStorage.setItem('cr_location_sharing',state.locationSharing?'yes':'no')}
 function requestLocation(done){if(!navigator.geolocation){done&&done(null);return}navigator.geolocation.getCurrentPosition(p=>done&&done({lat:p.coords.latitude,lng:p.coords.longitude}),()=>done&&done(null),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})}
