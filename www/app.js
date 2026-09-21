@@ -172,7 +172,7 @@ async function fetchChallenges(){
 }
 const riders=[];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
+let screenCleanup=null;function shell(body){if(screenCleanup){const cleanup=screenCleanup;screenCleanup=null;try{cleanup()}catch{}}app.innerHTML='<section class="phone">'+body+'</section>'}
 function topbar(label,back){return '<div class="appTop">'+(back?'<button class="backBtn" id="back" aria-label="Volver">‹</button>':'<span class="topSpacer"></span>')+'<div class="miniBrand"><b>eSKATESUV</b><span>COMUNIDAD</span></div><span class="topSpacer"></span></div>'+(label?'<div class="screenLabel">'+label+'</div>':'')}
 async function getSession(){
   if(!supabaseClient)return null;
@@ -426,7 +426,7 @@ async function chat(r){
   document.querySelector('#send').onclick=send;
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
   let chatActive=true,retryingPending=false;
-  const cleanupChat=()=>{chatActive=false;window.removeEventListener('online',retryPending);document.removeEventListener('visibilitychange',onVisible)};
+  const cleanupChat=()=>{chatActive=false;window.removeEventListener('online',retryPending);document.removeEventListener('visibilitychange',onVisible);if(screenCleanup===cleanupChat)screenCleanup=null};screenCleanup=cleanupChat;
   const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent&&chatActive){cleanupChat();chat(r)}}finally{retryingPending=false}};
   const onVisible=()=>{if(document.visibilityState==='visible')retryPending()};
   document.querySelector('#voice').onclick=()=>{cleanupChat();voiceInvite(r)};
