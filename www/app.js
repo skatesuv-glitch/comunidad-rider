@@ -91,6 +91,11 @@ async function refreshSharedLocation(){
   if(!state.locationConsent||!state.locationSharing)return false;
   return await new Promise(resolve=>requestLocation(pos=>{if(!pos){resolve(false);return}publishRiderLocation(pos).then(resolve).catch(()=>resolve(false))}))
 }
+async function setRiderPresence(isOnline){
+  if(!supabaseClient)return false;
+  const uid=await currentUserId();if(!uid)return false;
+  try{const {error}=await supabaseClient.from('presence').upsert({profile_id:uid,is_online:Boolean(isOnline),last_seen:new Date().toISOString()},{onConflict:'profile_id'});return !error}catch{return false}
+}
 async function fetchCommunityRiders(){
   if(!supabaseClient)return riders;
   try{
@@ -187,7 +192,7 @@ async function ensureProfile(){
 }
 async function signOutRider(){
   if(!supabaseClient){authScreen();return;}
-  try{if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.channel.unsubscribe();window.riderVoiceRtc=null}if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');await supabaseClient.auth.signOut()}catch{}
+  try{if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.channel.unsubscribe();window.riderVoiceRtc=null}if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');await setRiderPresence(false);await supabaseClient.auth.signOut()}catch{}
   authScreen();
 }
 
@@ -240,7 +245,7 @@ async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
-  await ensureProfile();await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});home();
+  await ensureProfile();await setRiderPresence(true);await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});home();
 }
 function splashScreen(){
   const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
