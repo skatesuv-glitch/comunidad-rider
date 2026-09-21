@@ -227,7 +227,7 @@ async function signOutRider(){
     if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
     if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}
     sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
-    await setRiderPresence(false);await supabaseClient.auth.signOut()
+    await clearRiderLocation();await setRiderPresence(false);await supabaseClient.auth.signOut()
   }catch{}
   authScreen();
 }
