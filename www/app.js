@@ -666,4 +666,5 @@ async function riderVoice(){
   leave.onclick=()=>{voiceActive=false;stopVoiceWatch();originalLeave();setVoiceState('ready','Manos libres · esperando grupo')};
   renderGroup();
 }
-boot();
+// PREVIEW TEMPORAL: acceso directo para revisar Comunidad sin registro.
+home();
