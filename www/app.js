@@ -136,14 +136,14 @@ function riderPresenceIsFresh(pr){
   return Number.isFinite(seen)&&Date.now()-seen<120000
 }
 async function fetchCommunityRiders(){
-  if(!supabaseClient)return riders;
+  if(!supabaseClient)return [];
   try{
     const [{data:profiles,error:profileError},{data:presence},{data:locations}]=await Promise.all([
       supabaseClient.from('profiles').select('*').limit(50),
       supabaseClient.from('presence').select('profile_id,is_online,last_seen').limit(50),
       supabaseClient.from('active_shared_locations').select('profile_id,latitude,longitude,accuracy_m,updated_at').limit(50)
     ]);
-    if(profileError||!profiles||!profiles.length)return riders;
+    if(profileError||!profiles||!profiles.length)return [];
     const presenceById=new Map((presence||[]).map(x=>[String(x.profile_id),x]));
     const locationById=new Map((locations||[]).map(x=>[String(x.profile_id),x]));
     const real=profiles.map((p,i)=>{
@@ -158,20 +158,20 @@ async function fetchCommunityRiders(){
         bio:p.bio||'Sin descripción.'
       };
     });
-    const ids=new Set(real.map(r=>String(r.id)));return real.concat(riders.filter(r=>!ids.has(String(r.id))));
-  }catch{return riders}
+    return real;
+  }catch{return []}
 }
 async function fetchSharedRoutes(){
-  if(!supabaseClient)return routes;
+  if(!supabaseClient)return [];
   try{
     const {data,error}=await supabaseClient.from('routes').select('*').limit(50);
-    if(error||!data||!data.length)return routes;
+    if(error||!data||!data.length)return [];
     const authorIds=[...new Set(data.map(r=>r.author_id).filter(Boolean))];
     let authors=new Map();
     if(authorIds.length){const {data:profiles}=await supabaseClient.from('profiles').select('id,alias').in('id',authorIds);authors=new Map((profiles||[]).map(p=>[String(p.id),p.alias||'Rider']))}
     const formatDuration=seconds=>{const n=Number(seconds);if(!Number.isFinite(n)||n<0)return '—';const h=Math.floor(n/3600),m=Math.floor((n%3600)/60);return h?h+' h '+String(m).padStart(2,'0')+' min':m+' min'};
     return data.map(r=>({id:r.id,name:r.name||'Ruta Rider',city:r.city||'',km:String(r.distance_km??'—'),time:formatDuration(r.duration_seconds),elevation:Number.isFinite(Number(r.elevation_gain_m))?Number(r.elevation_gain_m):null,author:authors.get(String(r.author_id))||'Rider'}));
-  }catch{return routes}
+  }catch{return []}
 }
 async function fetchChallenges(){
   if(!supabaseClient)return [];
