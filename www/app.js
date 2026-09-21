@@ -340,8 +340,8 @@ async function showVoiceInvite(payload,channel){
     if(answered)return;answered=true;
     const accept=document.querySelector('#acceptVoice'),reject=document.querySelector('#rejectVoice');if(accept)accept.disabled=true;if(reject)reject.disabled=true;
     try{
-      if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');
       const responseSent=await sendVoiceInviteResponse(payload,accepted);if(!responseSent)throw new Error('voice-response-failed');
+      if(payload.inviteId){const stored=await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');if(!stored)throw new Error('voice-status-failed')}
       if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()
     }catch{answered=false;if(accept)accept.disabled=false;if(reject)reject.disabled=false;const status=document.querySelector('#inviteStatus');if(status)status.textContent='No se pudo responder · revisa la conexión.'}
   };
