@@ -254,6 +254,15 @@ async function updateVoiceInviteRecord(inviteId,status){
   try{const {error}=await supabaseClient.from('voice_invites').update({status}).eq('id',inviteId);return !error}catch{return false}
 }
 
+async function endVoiceInviteSession(sessionId){
+  if(!supabaseClient||!sessionId)return false;
+  try{
+    const me=await currentUserId();if(!me)return false;
+    const {error}=await supabaseClient.from('voice_invites').update({status:'ended'}).eq('session_id',sessionId).eq('status','accepted').or('sender_id.eq.'+me+',recipient_id.eq.'+me);
+    return !error
+  }catch{return false}
+}
+
 let voiceInboxChannel=null;
 async function showVoiceInvite(payload,channel){
   const me=await currentUserId();
@@ -470,6 +479,8 @@ async function riderVoice(){
   };
   let localVoiceStream=null;
   const releaseVoiceMedia=()=>{
+    const closingSession=sessionStorage.getItem('rider_voice_session');
+    if(closingSession)endVoiceInviteSession(closingSession).catch(()=>{});
     if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
     document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});document.querySelectorAll('.voiceQualityBadge').forEach(x=>x.remove());document.querySelectorAll('[data-voice-quality]').forEach(x=>{delete x.dataset.voiceQuality;x.classList.remove('speaking')});
     if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
