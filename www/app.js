@@ -438,10 +438,9 @@ async function chat(r){
   const send=async()=>{
     const value=input.value.trim();if(!value||input.disabled||!chatActive)return;
     input.disabled=true;const sendBtn=document.querySelector('#send');if(sendBtn)sendBtn.disabled=true;
-    const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
-    const live=refreshed.find(x=>String(x.id)===String(r.id));
-    if(!live||live.state!=='green'){input.disabled=false;if(sendBtn)sendBtn.disabled=false;cleanupChat();profile(r.id);return}
-    const sent=await sendRemoteMessage(r.id,value);
+    let live=null;
+    if(navigator.onLine){const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;live=refreshed.find(x=>String(x.id)===String(r.id))}
+    const sent=(navigator.onLine&&live?.state==='green')?await sendRemoteMessage(r.id,value):null;
     if(!sent)saveMessage(r.id,value);
     const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
     chatBox?.insertAdjacentHTML('beforeend',`<div class="bubble me${sent?'':' pending'}">${esc(value)}${sent?'':'<small class="messageState">Pendiente</small>'}</div>`);
