@@ -610,7 +610,7 @@ async function riderVoice(){
   voiceStart.onclick=startVoice;
   if(invitedSession&&invitedPeer&&selected.has(String(invitedPeer))){setVoiceState('ready','Invitación aceptada · conectando Rider Voz…');setTimeout(()=>startVoice(),150)}
   const voiceTimer=setInterval(checkVoiceCoverage,15000);
-  const stopVoiceWatch=()=>{clearInterval(voiceTimer);releaseVoiceMedia();document.removeEventListener('visibilitychange',onVoiceVisible);window.removeEventListener('online',onVoiceOnline)};
+  const stopVoiceWatch=()=>{clearInterval(voiceTimer);releaseVoiceMedia();document.removeEventListener('visibilitychange',onVoiceVisible);window.removeEventListener('online',onVoiceOnline);if(screenCleanup===stopVoiceWatch)screenCleanup=null};screenCleanup=stopVoiceWatch;
   const originalBack=document.querySelector('#back').onclick;
   document.querySelector('#back').onclick=()=>{stopVoiceWatch();originalBack()};
   const originalLeave=leave.onclick;
