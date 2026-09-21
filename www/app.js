@@ -329,6 +329,8 @@ async function voiceInvite(r){const current=(window.communityRiders||riders).fin
 const routes=[{id:1,name:'Casa de Campo Loop',city:'Madrid',km:'18,4',time:'1 h 12 min',level:'Media',author:'Alex Rider',likes:34},{id:2,name:'Turia Night Ride',city:'Valencia',km:'14,8',time:'58 min',level:'Fácil',author:'Marta',likes:21},{id:3,name:'Sevilla Ribera',city:'Sevilla',km:'22,1',time:'1 h 31 min',level:'Media',author:'Dani',likes:47}];
 async function sharedRoutes(){
   const liveRoutes=await fetchSharedRoutes();
+  const uid=await currentUserId();
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('route_favorites').select('route_id').eq('profile_id',uid);if(data){const db=dbLoad();db.favoriteRoutes=data.map(x=>x.route_id);dbSave(db)}}catch{}}
   window.communityRoutes=liveRoutes;
   shell(topbar('RUTAS COMPARTIDAS',true)+'<div class="screenHero routeHero"><div><small>RUTAS DE LA COMUNIDAD</small><h1>Descubrir rutas</h1><p>Explora y guarda rutas compartidas por otros Riders.</p></div></div><div class="routeList">'+liveRoutes.map(r=>'<button class="routeCard" data-route="'+r.id+'"><span class="routeThumb"><i></i></span><span class="routeCardCopy"><small>'+esc(r.city||'RUTA RIDER')+'</small><strong>'+esc(r.name)+'</strong><em>'+r.km+' km · '+esc(r.level)+' · '+esc(r.author)+'</em></span><b>›</b></button>').join('')+'</div>');
   document.querySelector('#back').onclick=home;
@@ -338,6 +340,8 @@ function routeDetail(id){const pool=window.communityRoutes||routes;const r=pool.
 const challengeData=[{id:1,name:'50 km esta semana',desc:'Acumula 50 km en cualquier número de salidas.',progress:32,target:50,unit:'km'},{id:2,name:'Cazador de desnivel',desc:'Suma 1.000 m de desnivel positivo.',progress:640,target:1000,unit:'m'},{id:3,name:'Explorador',desc:'Completa 3 rutas nuevas.',progress:1,target:3,unit:'rutas'}];
 async function challenges(){
   const liveChallenges=await fetchChallenges();
+  const uid=await currentUserId();
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('challenge_members').select('challenge_id').eq('profile_id',uid);if(data){const db=dbLoad();db.joinedChallenges=data.map(x=>x.challenge_id);dbSave(db)}}catch{}}
   window.communityChallenges=liveChallenges;
   shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>RETOS DE LA COMUNIDAD</small><h1>Retos</h1><p>Objetivos, progreso y participación Rider.</p></div></div><div class="challengeList">'+liveChallenges.map(x=>{const target=Math.max(1,Number(x.target)||1),progress=Math.max(0,Number(x.progress)||0);const pct=Math.min(100,Math.round(progress/target*100));return '<button class="challengeCard" data-challenge="'+x.id+'"><span class="challengePct">'+pct+'%</span><span class="challengeCopy"><strong>'+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><em>'+progress+' / '+target+' '+esc(x.unit)+'</em></span><b>›</b></button>'}).join('')+'</div>');
   document.querySelector('#back').onclick=home;
