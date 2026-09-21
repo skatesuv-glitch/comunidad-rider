@@ -42,11 +42,11 @@ async function fetchMessages(riderId){
 }
 async function sendRemoteMessage(riderId,text){
   const me=await currentUserId(),conversationId=await getPrivateConversation(riderId);
-  if(!supabaseClient||!me||!conversationId)return false;
+  if(!supabaseClient||!me||!conversationId)return null;
   try{
-    const {error}=await supabaseClient.from('messages').insert({conversation_id:conversationId,sender_id:me,body:text});
-    return !error;
-  }catch{return false}
+    const {data,error}=await supabaseClient.from('messages').insert({conversation_id:conversationId,sender_id:me,body:text}).select('id,created_at').single();
+    return error||!data?.id?null:data;
+  }catch{return null}
 }
 async function flushPendingMessages(riderId){
   const pending=savedMessages(riderId).filter(m=>m.pending);
