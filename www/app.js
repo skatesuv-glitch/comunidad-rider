@@ -17,22 +17,34 @@ async function currentUserId(){
   if(!supabaseClient)return null;
   try{const {data}=await supabaseClient.auth.getUser();return data?.user?.id||null}catch{return null}
 }
-async function fetchMessages(riderId){
+const conversationCache=new Map();
+async function getPrivateConversation(riderId){
   const me=await currentUserId();
-  if(!supabaseClient||!me)return null;
+  if(!supabaseClient||!me||!riderId)return null;
+  const key=String(riderId);if(conversationCache.has(key))return conversationCache.get(key);
   try{
-    const {data,error}=await supabaseClient.from('messages').select('*')
-      .or(`and(sender_id.eq.${me},receiver_id.eq.${riderId}),and(sender_id.eq.${riderId},receiver_id.eq.${me})`)
+    const {data,error}=await supabaseClient.rpc('get_or_create_private_conversation',{other_profile:riderId});
+    if(error||!data)return null;
+    const id=Array.isArray(data)?data[0]:data;
+    if(id){conversationCache.set(key,id);return id}
+  }catch{}
+  return null
+}
+async function fetchMessages(riderId){
+  const conversationId=await getPrivateConversation(riderId);
+  if(!conversationId)return null;
+  try{
+    const {data,error}=await supabaseClient.from('messages').select('*').eq('conversation_id',conversationId)
       .order('created_at',{ascending:true}).limit(100);
     if(error)return null;
     return data||[];
   }catch{return null}
 }
 async function sendRemoteMessage(riderId,text){
-  const me=await currentUserId();
-  if(!supabaseClient||!me)return false;
+  const me=await currentUserId(),conversationId=await getPrivateConversation(riderId);
+  if(!supabaseClient||!me||!conversationId)return false;
   try{
-    const {error}=await supabaseClient.from('messages').insert({sender_id:me,receiver_id:riderId,body:text});
+    const {error}=await supabaseClient.from('messages').insert({conversation_id:conversationId,sender_id:me,body:text});
     return !error;
   }catch{return false}
 }
