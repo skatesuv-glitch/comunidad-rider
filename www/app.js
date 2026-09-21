@@ -74,6 +74,10 @@ async function clearRiderLocation(){
   const uid=await currentUserId();if(!uid)return false;
   try{const {error}=await supabaseClient.from('shared_locations').delete().eq('profile_id',uid);return !error}catch{return false}
 }
+async function refreshSharedLocation(){
+  if(!state.locationConsent||!state.locationSharing)return false;
+  return await new Promise(resolve=>requestLocation(pos=>{if(!pos){resolve(false);return}publishRiderLocation(pos).then(resolve).catch(()=>resolve(false))}))
+}
 async function fetchCommunityRiders(){
   if(!supabaseClient)return riders;
   try{
@@ -218,7 +222,7 @@ async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
-  await ensureProfile();await ensureVoiceInbox();home();
+  await ensureProfile();await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});home();
 }
 function splashScreen(){
   const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
@@ -237,6 +241,7 @@ function consent(){if(state.locationConsent&&state.locationSharing){map();return
 const sw=document.querySelector('#sw'), box=document.querySelector('#consent');
 sw.onclick=()=>{const on=sw.classList.toggle('on');box.classList.toggle('hidden',!on)};document.querySelector('#accept').onclick=()=>{const btn=document.querySelector('#accept');if(btn){btn.disabled=true;btn.textContent='ACTIVANDO UBICACIÓN…'}requestLocation(pos=>{if(!pos){state.locationConsent=false;state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='ACEPTO Y ACTIVAR'}const note=document.querySelector('#consent .sub');if(note)note.textContent='No se pudo obtener la ubicación. Revisa el permiso de ubicación del dispositivo e inténtalo de nuevo.';return}state.locationConsent=true;state.locationSharing=true;saveState();publishRiderLocation(pos).finally(()=>map())})};document.querySelector('#back').onclick=home}
 async function map(){
+  if(state.locationConsent&&state.locationSharing)await refreshSharedLocation();
   const liveRiders=await fetchCommunityRiders();
   window.communityRiders=liveRiders;
   const activeCount=liveRiders.filter(r=>r.state==='green').length;
