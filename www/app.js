@@ -158,17 +158,17 @@ async function fetchSharedRoutes(){
   }catch{return routes}
 }
 async function fetchChallenges(){
-  if(!supabaseClient)return challengeData;
+  if(!supabaseClient)return [];
   try{
     const uid=await currentUserId();
     const [{data,error},{data:members}]=await Promise.all([
       supabaseClient.from('challenges').select('*').limit(50),
       uid?supabaseClient.from('challenge_members').select('challenge_id,progress').eq('profile_id',uid):Promise.resolve({data:[]})
     ]);
-    if(error||!data||!data.length)return challengeData;
+    if(error||!data||!data.length)return [];
     const progressById=new Map((members||[]).map(x=>[String(x.challenge_id),Number(x.progress)||0]));
     return data.map(x=>({id:x.id,name:x.name||'Reto',desc:x.description||'',progress:progressById.get(String(x.id))||0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
-  }catch{return challengeData}
+  }catch{return []}
 }
 const riders=[];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -445,13 +445,14 @@ async function sharedRoutes(){
   document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeDetail(b.dataset.route));
 }
 function routeDetail(id){const pool=window.communityRoutes||routes;const r=pool.find(x=>String(x.id)===String(id))||routes.find(x=>String(x.id)===String(id));if(!r){sharedRoutes();return}shell(topbar('RUTA COMPARTIDA',true)+'<div class="routePreview routeCanvas"><span class="routeLine"></span></div><h1>'+esc(r.name)+'</h1><p class="sub">'+esc(r.city)+' · por '+esc(r.author)+'</p><div class="stats"><div><b>'+r.km+'</b><small>km</small></div><div><b>'+esc(r.time)+'</b><small>duración</small></div><div><b>'+(r.elevation!==null?'+'+r.elevation+' m':'—')+'</b><small>desnivel</small></div></div><button class="btn" id="openRoute">Abrir ruta</button><button class="btn secondary" id="fav">♡ Guardar en favoritas</button>');document.querySelector('#back').onclick=sharedRoutes;const fav=document.querySelector('#fav');if(isFavorite(r.id))fav.textContent='♥ Guardada en favoritas';fav.onclick=async e=>{e.currentTarget.disabled=true;const on=await toggleFavorite(r.id);e.currentTarget.textContent=on?'♥ Guardada en favoritas':'♡ Guardar en favoritas';e.currentTarget.disabled=false};document.querySelector('#openRoute').onclick=e=>{const btn=e.currentTarget;btn.textContent='Ruta guardada · lista para abrir';btn.disabled=true;const db=dbLoad();db.preparedRoute={id:r.id,name:r.name,city:r.city,km:r.km,preparedAt:new Date().toISOString()};dbSave(db)}}
-const challengeData=[{id:1,name:'50 km esta semana',desc:'Acumula 50 km en cualquier número de salidas.',progress:32,target:50,unit:'km'},{id:2,name:'Cazador de desnivel',desc:'Suma 1.000 m de desnivel positivo.',progress:640,target:1000,unit:'m'},{id:3,name:'Explorador',desc:'Completa 3 rutas nuevas.',progress:1,target:3,unit:'rutas'}];
+const challengeData=[];
 async function challenges(){
   const liveChallenges=await fetchChallenges();
   const uid=await currentUserId();
   if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('challenge_members').select('challenge_id').eq('profile_id',uid);if(data){const db=dbLoad();db.joinedChallenges=data.map(x=>x.challenge_id);dbSave(db)}}catch{}}
   window.communityChallenges=liveChallenges;
-  shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>RETOS DE LA COMUNIDAD</small><h1>Retos</h1><p>Objetivos, progreso y participación Rider.</p></div></div><div class="challengeList">'+liveChallenges.map(x=>{const target=Math.max(1,Number(x.target)||1),progress=Math.max(0,Number(x.progress)||0);const pct=Math.min(100,Math.round(progress/target*100));return '<button class="challengeCard" data-challenge="'+x.id+'"><span class="challengePct">'+pct+'%</span><span class="challengeCopy"><strong>'+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><em>'+progress+' / '+target+' '+esc(x.unit)+'</em></span><b>›</b></button>'}).join('')+'</div>');
+  const challengeCards=liveChallenges.length?liveChallenges.map(x=>{const target=Math.max(1,Number(x.target)||1),progress=Math.max(0,Number(x.progress)||0);const pct=Math.min(100,Math.round(progress/target*100));return '<button class="challengeCard" data-challenge="'+x.id+'"><span class="challengePct">'+pct+'%</span><span class="challengeCopy"><strong>'+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><em>'+progress+' / '+target+' '+esc(x.unit)+'</em></span><b>›</b></button>'}).join(''):'<p class="sub center">Todavía no hay retos disponibles.</p>';
+  shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>RETOS DE LA COMUNIDAD</small><h1>Retos</h1><p>Objetivos, progreso y participación Rider.</p></div></div><div class="challengeList">'+challengeCards+'</div>');
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-challenge]').forEach(b=>b.onclick=()=>challengeDetail(b.dataset.challenge));
 }
