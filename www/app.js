@@ -386,13 +386,15 @@ async function map(){
   document.querySelector('#privacy').onclick=()=>privacy(map);
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
 }
-function profile(id){
+async function profile(id){
   const pool=window.communityRiders||riders;
   const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));
   if(!r){map();return}
   const online=r.state==='green';
+  let routeCount=null;
+  if(supabaseClient&&r.id){try{const {count,error}=await supabaseClient.from('routes').select('id',{count:'exact',head:true}).eq('author_id',r.id);if(!error&&Number.isFinite(count))routeCount=count}catch{}}
   const city=esc(r.city||'—'),bio=esc(r.bio||'Rider de la comunidad eSKATESUV.');
-  shell(`${topbar('PERFIL RIDER',true)}<div class="riderCover communityProfileCover"><div class="riderAvatar userAvatar" title="Foto de perfil del Rider"><div class="avatarPortrait avatar-${String(r.id).replace(/[^a-z0-9-]/gi,'').toLowerCase()}"><span>${esc((r.name||'R').slice(0,1).toUpperCase())}</span></div></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${city}</b><small>ZONA</small></div><div><b>—</b><small>RUTAS</small></div><div><b>—</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${bio}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
+  shell(`${topbar('PERFIL RIDER',true)}<div class="riderCover communityProfileCover"><div class="riderAvatar userAvatar" title="Foto de perfil del Rider"><div class="avatarPortrait avatar-${String(r.id).replace(/[^a-z0-9-]/gi,'').toLowerCase()}"><span>${esc((r.name||'R').slice(0,1).toUpperCase())}</span></div></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${city}</b><small>ZONA</small></div><div><b>${routeCount===null?'—':routeCount}</b><small>RUTAS</small></div><div><b>—</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${bio}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
   document.querySelector('#back').onclick=map;
   if(online){
     document.querySelector('#message').onclick=()=>chat(r);
