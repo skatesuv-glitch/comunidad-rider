@@ -310,11 +310,28 @@ async function endVoiceInviteSession(sessionId){
 
 let voiceInboxChannel=null;
 const pendingVoiceResponses=new Map();
+async function sendVoiceInviteResponse(payload,accepted,reason=''){
+  if(!supabaseClient||!payload?.from||!payload?.sessionId)return false;
+  const me=await currentUserId();if(!me)return false;
+  const responseChannel=supabaseClient.channel('rider-voice-inbox-'+payload.from,{config:{broadcast:{self:false}}});
+  return await new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;try{responseChannel.unsubscribe()}catch{}resolve(value)};
+    const timer=setTimeout(()=>finish(false),5000);
+    responseChannel.subscribe(async status=>{
+      if(status!=='SUBSCRIBED')return;
+      try{
+        await responseChannel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted:Boolean(accepted),reason:reason||undefined}});
+        clearTimeout(timer);finish(true)
+      }catch{clearTimeout(timer);finish(false)}
+    })
+  })
+}
 async function showVoiceInvite(payload,channel){
   const me=await currentUserId();
   if(!me||!payload||String(payload.to)!==String(me)||!payload.sessionId)return false;
   if(payload.createdAt&&Date.now()-Number(payload.createdAt)>30000){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'expired');return false}
-  if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'declined');if(channel)await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted:false,reason:'busy'}});return false}
+  if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'declined');await sendVoiceInviteResponse(payload,false,'busy');return false}
   const pool=window.communityRiders||riders;
   const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:payload.senderName||'Rider'};
   shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
@@ -324,7 +341,7 @@ async function showVoiceInvite(payload,channel){
     const accept=document.querySelector('#acceptVoice'),reject=document.querySelector('#rejectVoice');if(accept)accept.disabled=true;if(reject)reject.disabled=true;
     try{
       if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');
-      if(channel)await channel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted}});
+      const responseSent=await sendVoiceInviteResponse(payload,accepted);if(!responseSent)throw new Error('voice-response-failed');
       if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()
     }catch{answered=false;if(accept)accept.disabled=false;if(reject)reject.disabled=false;const status=document.querySelector('#inviteStatus');if(status)status.textContent='No se pudo responder · revisa la conexión.'}
   };
