@@ -245,8 +245,16 @@ async function cleanupRiderSessionResources({markOffline=false,clearLocation=fal
 }
 async function signOutRider(){
   if(!supabaseClient){authScreen();return}
-  try{await cleanupRiderSessionResources({markOffline:true,clearLocation:true});await supabaseClient.auth.signOut()}catch{}
-  authScreen()
+  const btn=document.querySelector('#logout');if(btn){btn.disabled=true;btn.textContent='Cerrando sesión…'}
+  try{
+    await cleanupRiderSessionResources({markOffline:true,clearLocation:true});
+    const {error}=await supabaseClient.auth.signOut();
+    if(error)throw error;
+    authScreen()
+  }catch{
+    if(btn){btn.disabled=false;btn.textContent='Cerrar sesión'}
+    const menu=document.querySelector('.accountMenu');if(menu){let note=document.querySelector('#logoutError');if(!note){note=document.createElement('p');note.id='logoutError';note.className='sub center';menu.insertAdjacentElement('afterend',note)}note.textContent='No se pudo cerrar la sesión. Revisa la conexión e inténtalo de nuevo.'}
+  }
 }
 
 function notificationSettings(){
