@@ -115,9 +115,14 @@ async function fetchSharedRoutes(){
 async function fetchChallenges(){
   if(!supabaseClient)return challengeData;
   try{
-    const {data,error}=await supabaseClient.from('challenges').select('*').limit(50);
+    const uid=await currentUserId();
+    const [{data,error},{data:members}]=await Promise.all([
+      supabaseClient.from('challenges').select('*').limit(50),
+      uid?supabaseClient.from('challenge_members').select('challenge_id,progress').eq('profile_id',uid):Promise.resolve({data:[]})
+    ]);
     if(error||!data||!data.length)return challengeData;
-    return data.map((x,i)=>({id:x.id,name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
+    const progressById=new Map((members||[]).map(x=>[String(x.challenge_id),Number(x.progress)||0]));
+    return data.map(x=>({id:x.id,name:x.name||'Reto',desc:x.description||'',progress:progressById.get(String(x.id))||0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
   }catch{return challengeData}
 }
 const riders=[
