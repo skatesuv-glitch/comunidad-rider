@@ -208,7 +208,24 @@ async function ensureProfile(){
 }
 async function signOutRider(){
   if(!supabaseClient){authScreen();return;}
-  try{if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.channel.unsubscribe();window.riderVoiceRtc=null}if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');await setRiderPresence(false);await supabaseClient.auth.signOut()}catch{}
+  try{
+    const closingSession=sessionStorage.getItem('rider_voice_session');
+    if(closingSession)await endVoiceInviteSession(closingSession);
+    if(window.riderVoiceRtc){
+      const rtc=window.riderVoiceRtc;
+      if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);
+      if(rtc.readyTimer)clearInterval(rtc.readyTimer);
+      if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}
+      for(const remoteId of rtc.peers.keys()){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}})}catch{}}
+      for(const pc of rtc.peers.values())pc.close();
+      rtc.peers.clear();rtc.voiceStats?.clear?.();await rtc.channel.unsubscribe();window.riderVoiceRtc=null
+    }
+    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});
+    if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
+    if(voiceInboxChannel){await voiceInboxChannel.unsubscribe();voiceInboxChannel=null}
+    sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
+    await setRiderPresence(false);await supabaseClient.auth.signOut()
+  }catch{}
   authScreen();
 }
 
@@ -483,7 +500,7 @@ async function riderVoice(){
     if(closingSession)endVoiceInviteSession(closingSession).catch(()=>{});
     if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}for(const remoteId of rtc.peers.keys())rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}});for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();rtc.channel.unsubscribe();window.riderVoiceRtc=null}
     document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});document.querySelectorAll('.voiceQualityBadge').forEach(x=>x.remove());document.querySelectorAll('[data-voice-quality]').forEach(x=>{delete x.dataset.voiceQuality;x.classList.remove('speaking')});
-    if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}
+    if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}window.riderVoiceLocalStream=null
     sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
   };
   let voiceStarting=false;
@@ -495,7 +512,7 @@ async function riderVoice(){
     const startBtn=document.querySelector('#startVoice');voiceStarting=true;if(startBtn){startBtn.disabled=true;startBtn.textContent='Conectando…'}
     try{
       setVoiceState('ready','Solicitando acceso al micrófono…');
-      localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+      localVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});window.riderVoiceLocalStream=localVoiceStream;
       const audioTrack=localVoiceStream.getAudioTracks()[0];
       if(audioTrack){audioTrack.onmute=()=>{if(voiceActive)setVoiceState('active','Micrófono interrumpido · esperando audio…')};audioTrack.onunmute=()=>{if(voiceActive)setVoiceState('active','Micrófono recuperado · Rider Voz activo')};audioTrack.onended=()=>{voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Micrófono desconectado · vuelve a iniciar Rider Voz')};const settings=audioTrack.getSettings?.()||{};const requested=['echoCancellation','noiseSuppression','autoGainControl'];const enabled=requested.filter(k=>settings[k]===true);const unavailable=requested.filter(k=>settings[k]===false);const label=enabled.length===3?'Audio optimizado: eco · ruido · ganancia':enabled.length?'Audio optimizado: '+enabled.length+'/3 filtros activos':'Audio del dispositivo activo';setVoiceState('ready',label+(unavailable.length?' · '+unavailable.length+' no disponibles':''))}
       const muteBtn=document.querySelector('#mute');
