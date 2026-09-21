@@ -108,6 +108,17 @@ async function setRiderPresence(isOnline){
   const uid=await currentUserId();if(!uid)return false;
   try{const {error}=await supabaseClient.from('presence').upsert({profile_id:uid,is_online:Boolean(isOnline),last_seen:new Date().toISOString()},{onConflict:'profile_id'});return !error}catch{return false}
 }
+let riderPresenceTimer=null;
+function stopRiderPresenceHeartbeat(){if(riderPresenceTimer){clearInterval(riderPresenceTimer);riderPresenceTimer=null}}
+function startRiderPresenceHeartbeat(){
+  stopRiderPresenceHeartbeat();
+  riderPresenceTimer=setInterval(()=>{if(document.visibilityState==='visible'&&navigator.onLine)setRiderPresence(true).catch(()=>{})},45000)
+}
+function riderPresenceIsFresh(pr){
+  if(!pr?.is_online||!pr.last_seen)return false;
+  const seen=new Date(pr.last_seen).getTime();
+  return Number.isFinite(seen)&&Date.now()-seen<120000
+}
 async function fetchCommunityRiders(){
   if(!supabaseClient)return riders;
   try{
@@ -121,7 +132,7 @@ async function fetchCommunityRiders(){
     const locationById=new Map((locations||[]).map(x=>[String(x.profile_id),x]));
     const real=profiles.map((p,i)=>{
       const pr=presenceById.get(String(p.id)),loc=locationById.get(String(p.id));
-      const online=Boolean(pr?.is_online);
+      const online=riderPresenceIsFresh(pr);
       return {
         id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
         status:online?'Activo ahora':'Fuera de cobertura',
@@ -209,6 +220,7 @@ async function ensureProfile(){
 async function signOutRider(){
   if(!supabaseClient){authScreen();return;}
   try{
+    stopRiderPresenceHeartbeat();
     const closingSession=sessionStorage.getItem('rider_voice_session');
     if(closingSession)await endVoiceInviteSession(closingSession);
     if(window.riderVoiceRtc){
@@ -325,7 +337,7 @@ async function enterAppAfterSplash(){
   if(!supabaseClient){home();return}
   const session=await getSession();
   if(!session){authScreen();return}
-  await ensureProfile();await setRiderPresence(true);await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});const recovered=await recoverPendingVoiceInvite();if(!recovered)home();
+  await ensureProfile();await setRiderPresence(true);startRiderPresenceHeartbeat();await ensureVoiceInbox();if(state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{});const recovered=await recoverPendingVoiceInvite();if(!recovered)home();
 }
 function splashScreen(){
   const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
