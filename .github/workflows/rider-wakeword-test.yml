@@ -21,6 +21,13 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Download official sherpa Android AAR
+        working-directory: wakeword-test
+        run: |
+          set -euxo pipefail
+          mkdir -p app/libs
+          wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar -O app/libs/sherpa-onnx-1.13.8.aar
+
       - name: Download official KWS model
         working-directory: wakeword-test
         run: |
