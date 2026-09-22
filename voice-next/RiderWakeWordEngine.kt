@@ -13,18 +13,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /**
- * Nuevo detector de palabra de activación para Rider Voz.
+ * Detector local de la palabra de activación "Rider".
  *
- * Este motor NO usa SpeechRecognizer y NO reproduce tonos.
- * Su única responsabilidad en la fase 1 es detectar "Rider".
- *
- * La inicialización concreta del KeywordSpotter se inyecta desde la capa
- * Android de la app para mantener este módulo separado de WebRTC/VOX.
+ * No usa android.speech.SpeechRecognizer y no reproduce tonos.
+ * Fase 1: detectar únicamente la wake word.
  */
 class RiderWakeWordEngine(
     private val context: Context,
     private val keywordSpotter: KeywordSpotter,
-    private val keywordSpec: String,
     private val onWakeWord: () -> Unit,
     private val onError: (Throwable) -> Unit = {}
 ) {
@@ -45,16 +41,18 @@ class RiderWakeWordEngine(
                 context,
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return false
-        }
+        ) return false
 
         return try {
             val minBuffer = AudioRecord.getMinBufferSize(sampleRate, channel, encoding)
             if (minBuffer <= 0) return false
 
-            val localStream = keywordSpotter.createStream(keywordSpec)
-            if (localStream.ptr == 0L) return false
+            // keywordsFile ya está configurado en KeywordSpotterConfig.
+            val localStream = keywordSpotter.createStream()
+            if (localStream.ptr == 0L) {
+                localStream.release()
+                return false
+            }
 
             val localRecorder = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
@@ -144,6 +142,10 @@ class RiderWakeWordEngine(
         stream = null
         try {
             s?.release()
+        } catch (_: Throwable) {}
+
+        try {
+            keywordSpotter.release()
         } catch (_: Throwable) {}
     }
 }
