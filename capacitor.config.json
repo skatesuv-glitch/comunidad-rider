@@ -1,6 +1,6 @@
 {
-  "appId": "com.eskatesuv.comunidad",
-  "appName": "eSkate SUV Comunidad",
+  "appId": "com.eskatesuv.ridervoz",
+  "appName": "Rider Voz",
   "webDir": "www",
   "backgroundColor": "#03070c",
   "server": {
