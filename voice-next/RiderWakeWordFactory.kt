@@ -8,53 +8,53 @@ import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 
 /**
- * Configuración aislada del modelo KWS.
+ * Configuración del modelo KWS inglés de sherpa-onnx.
  *
- * Los assets todavía NO se añaden a la app estable hasta validar
- * tamaño/ABI y generar la tokenización exacta de "Rider".
+ * Para la primera prueba usamos GigaSpeech KWS 3.3M, pequeño y específico
+ * para palabras/frases en inglés. La wake word es "RIDER".
  */
 object RiderWakeWordFactory {
+    private const val MODEL_DIR =
+        "rider-kws/sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01"
 
-    private const val MODEL_DIR = "rider-kws"
-
-    // Se reemplazará por la salida exacta de sherpa-onnx-cli text2token.
-    // No se inventan tokens BPE a mano.
-    private const val RIDER_KEYWORD_SPEC_FILE = "rider-keyword.txt"
+    private const val ENCODER =
+        "encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
+    private const val DECODER =
+        "decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
+    private const val JOINER =
+        "joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx"
+    private const val TOKENS = "tokens.txt"
+    private const val KEYWORDS = "rider-keyword.txt"
 
     fun create(
         context: Context,
         onWakeWord: () -> Unit,
         onError: (Throwable) -> Unit
     ): RiderWakeWordEngine? {
-        if (!assetExists(context, "$MODEL_DIR/encoder.onnx") ||
-            !assetExists(context, "$MODEL_DIR/decoder.onnx") ||
-            !assetExists(context, "$MODEL_DIR/joiner.onnx") ||
-            !assetExists(context, "$MODEL_DIR/tokens.txt") ||
-            !assetExists(context, "$MODEL_DIR/$RIDER_KEYWORD_SPEC_FILE")
-        ) {
-            return null
-        }
+        val required = listOf(ENCODER, DECODER, JOINER, TOKENS, KEYWORDS)
+        if (required.any { !assetExists(context, "$MODEL_DIR/$it") }) return null
 
         val model = OnlineModelConfig(
             transducer = OnlineTransducerModelConfig(
-                encoder = "$MODEL_DIR/encoder.onnx",
-                decoder = "$MODEL_DIR/decoder.onnx",
-                joiner = "$MODEL_DIR/joiner.onnx"
+                encoder = "$MODEL_DIR/$ENCODER",
+                decoder = "$MODEL_DIR/$DECODER",
+                joiner = "$MODEL_DIR/$JOINER"
             ),
-            tokens = "$MODEL_DIR/tokens.txt",
+            tokens = "$MODEL_DIR/$TOKENS",
             numThreads = 1,
+            debug = false,
             provider = "cpu",
-            modelType = "zipformer2"
+            modelType = ""
         )
 
         val config = KeywordSpotterConfig(
             featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
             modelConfig = model,
             maxActivePaths = 4,
-            keywordsFile = "$MODEL_DIR/$RIDER_KEYWORD_SPEC_FILE",
+            keywordsFile = "$MODEL_DIR/$KEYWORDS",
             keywordsScore = 1.5f,
             keywordsThreshold = 0.25f,
-            numTrailingBlanks = 2
+            numTrailingBlanks = 1
         )
 
         val spotter = KeywordSpotter(
@@ -62,15 +62,9 @@ object RiderWakeWordFactory {
             config = config
         )
 
-        val spec = context.assets
-            .open("$MODEL_DIR/$RIDER_KEYWORD_SPEC_FILE")
-            .bufferedReader()
-            .use { it.readText().trim() }
-
         return RiderWakeWordEngine(
             context = context,
             keywordSpotter = spotter,
-            keywordSpec = spec,
             onWakeWord = onWakeWord,
             onError = onError
         )
