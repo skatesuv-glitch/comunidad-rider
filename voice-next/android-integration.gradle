@@ -1,0 +1,18 @@
+// Fragmento para android/app/build.gradle de la reconstrucción Rider Voz.
+// sherpa-onnx publica el AAR Android vía JitPack.
+dependencies {
+    implementation 'com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v1.13.8'
+}
+
+// Mantener minSdk >= 21.
+// No excluir libonnxruntime ni libsherpa-onnx-jni del empaquetado.
+//
+// Después:
+//   bash voice-next/prepare-rider-kws.sh
+//
+// Copiar las clases Kotlin de voice-next/ al paquete:
+//   android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
+//
+// Registrar RiderWakeWordPlugin en MainActivity.
+// NO registrar/eliminar RiderVoicePlugin viejo hasta que la APK estable se
+// haya reconstruido y comparado visual/funcionalmente.
