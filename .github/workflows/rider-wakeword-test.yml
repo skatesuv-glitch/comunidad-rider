@@ -1,0 +1,53 @@
+name: Rider wake-word test APK
+
+on:
+  push:
+    branches: [ rider-voz-stable-rebuild ]
+    paths:
+      - 'wakeword-test/**'
+      - '.github/workflows/rider-wakeword-test.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Download official KWS model
+        working-directory: wakeword-test
+        run: |
+          set -euxo pipefail
+          MODEL=sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+          URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/$MODEL.tar.bz2
+          wget -q "$URL" -O model.tar.bz2
+          tar -xjf model.tar.bz2
+          mkdir -p app/src/main/assets/rider-kws
+          mv "$MODEL" app/src/main/assets/rider-kws/
+
+      - name: Generate RIDER keyword tokens
+        working-directory: wakeword-test
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --quiet sherpa-onnx==1.13.8
+          MODEL=sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
+          DIR=app/src/main/assets/rider-kws/$MODEL
+          sherpa-onnx-cli text2token             --tokens "$DIR/tokens.txt"             --tokens-type phone+ppinyin             --lexicon "$DIR/en.phone"             keywords_raw.txt "$DIR/rider-keyword.txt"
+          cat "$DIR/rider-keyword.txt"
+
+      - name: Build APK
+        working-directory: wakeword-test
+        run: gradle --no-daemon :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rider-WakeWord-Test
+          path: wakeword-test/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
