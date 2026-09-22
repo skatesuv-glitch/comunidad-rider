@@ -36,7 +36,7 @@ jobs:
         working-directory: wakeword-test
         run: |
           set -euxo pipefail
-          python3 -m pip install --quiet sherpa-onnx==1.13.8
+          python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece
           MODEL=sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20
           DIR=app/src/main/assets/rider-kws/$MODEL
           sherpa-onnx-cli text2token             --tokens "$DIR/tokens.txt"             --tokens-type phone+ppinyin             --lexicon "$DIR/en.phone"             keywords_raw.txt "$DIR/rider-keyword.txt"
