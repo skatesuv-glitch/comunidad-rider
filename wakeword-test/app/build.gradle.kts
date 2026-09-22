@@ -30,5 +30,5 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.github.k2-fsa:sherpa-onnx:v1.13.8")
+    implementation(files("libs/sherpa-onnx-1.13.8.aar"))
 }
