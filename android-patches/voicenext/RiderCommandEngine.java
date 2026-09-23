@@ -37,7 +37,15 @@ public final class RiderCommandEngine {
         public void onBufferReceived(byte[] b){}
         public void onEndOfSpeech(){}
         public void onEvent(int e,Bundle p){}
-        public void onPartialResults(Bundle p){}
+        public void onPartialResults(Bundle p){
+          ArrayList<String> xs=p.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+          if(xs!=null&&!xs.isEmpty()){
+            String text=xs.get(0).trim();
+            if(!text.isEmpty() && looksLikeRiderCommand(text)){
+              cleanup(); onCommand.invoke(text);
+            }
+          }
+        }
         public void onError(int e){
           boolean was=running; cleanup();
           if(was) onError.invoke(new IllegalStateException("No he entendido el comando ("+e+")"));
@@ -55,11 +63,18 @@ public final class RiderCommandEngine {
       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"es-ES");
       i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,"es-ES");
       i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3);
-      i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,false);
+      i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true);
       running=true;
       recognizer.startListening(i);
       return true;
     }catch(Throwable t){ cleanup(); onError.invoke(t); return false; }
+  }
+  private boolean looksLikeRiderCommand(String raw){
+    String s=raw.toLowerCase(Locale.ROOT);
+    return s.contains("volumen")||s.contains("silenciar")||s.contains("sonido")||
+      s.contains("vox")||s.contains("rider voz")||s.contains("conectado")||
+      s.contains("cuantos")||s.contains("cuántos")||s.contains("repetir")||
+      s.contains("salir")||s.contains("emergencia")||s.equals("si")||s.equals("sí")||s.equals("no");
   }
   public void stop(){
     running=false;
