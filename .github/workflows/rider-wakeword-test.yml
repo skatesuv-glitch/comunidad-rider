@@ -13,10 +13,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
@@ -28,7 +30,7 @@ jobs:
           mkdir -p app/libs
           wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar -O app/libs/sherpa-onnx-1.13.8.aar
 
-      - name: Download official KWS model
+      - name: Download official English KWS model
         working-directory: wakeword-test
         run: |
           set -euxo pipefail
@@ -46,7 +48,12 @@ jobs:
           python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece
           MODEL=sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
           DIR=app/src/main/assets/rider-kws/$MODEL
-          sherpa-onnx-cli text2token             --tokens "$DIR/tokens.txt"             --tokens-type phone+ppinyin             --lexicon "$DIR/en.phone"             keywords_raw.txt "$DIR/rider-keyword.txt"
+          sherpa-onnx-cli text2token \
+            --tokens "$DIR/tokens.txt" \
+            --tokens-type bpe \
+            --bpe-model "$DIR/bpe.model" \
+            keywords_raw.txt "$DIR/rider-keyword.txt"
+          echo "Keyword file:"
           cat "$DIR/rider-keyword.txt"
 
       - name: Build APK
@@ -55,6 +62,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Rider-WakeWord-Test
+          name: Rider-WakeWord-Test-GigaSpeech
           path: wakeword-test/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
