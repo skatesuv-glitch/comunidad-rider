@@ -36,7 +36,7 @@ public class RiderVoicePlugin extends Plugin {
     private RiderCommandEngine commandEngine;
     private boolean keepListening = false;
     private long commandSessionUntil = 0L;
-    private static final long COMMAND_SESSION_MS = 25000L;
+    private static final long COMMAND_SESSION_MS = 25000L; // Rider stays command-active for 25 s after wake word
 
     @PluginMethod
     public void setAudioRoute(PluginCall call) {
