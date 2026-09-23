@@ -45,6 +45,7 @@ jobs:
           cp android-patches/*.java android/app/src/main/java/com/eskatesuv/ridervoz/
           mkdir -p android/app/src/main/java/com/eskatesuv/ridervoz/voicenext
           cp android-patches/voicenext/*.kt android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
+          cp android-patches/voicenext/*.java android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
           sed -i '/<application/i\\    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
           sed -i '/<\/application>/i\\        <service android:name=".RiderVoiceService" android:foregroundServiceType="microphone" android:exported="false" />' android/app/src/main/AndroidManifest.xml
       - name: Install sherpa voice engine
@@ -61,14 +62,13 @@ jobs:
           D=android/app/src/main/assets/rider-kws/$KWS
           sherpa-onnx-cli text2token --tokens "$D/tokens.txt" --tokens-type bpe --bpe-model "$D/bpe.model" /tmp/keywords_raw.txt "$D/rider-keyword.txt"
           mkdir -p android/app/src/main/assets/rider-asr
-          ASR=sherpa-onnx-streaming-zipformer-es-2023-04-13
+          ASR=sherpa-onnx-whisper-tiny
           wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/$ASR.tar.bz2 -O /tmp/asr.tar.bz2
           tar -xjf /tmp/asr.tar.bz2 -C /tmp
           A=/tmp/$ASR
-          cp "$(find "$A" -name "*encoder*.onnx" | head -1)" android/app/src/main/assets/rider-asr/encoder.onnx
-          cp "$(find "$A" -name "*decoder*.onnx" | head -1)" android/app/src/main/assets/rider-asr/decoder.onnx
-          cp "$(find "$A" -name "*joiner*.onnx" | head -1)" android/app/src/main/assets/rider-asr/joiner.onnx
-          cp "$(find "$A" -name tokens.txt | head -1)" android/app/src/main/assets/rider-asr/tokens.txt
+          cp "$A/tiny-encoder.int8.onnx" android/app/src/main/assets/rider-asr/tiny-encoder.int8.onnx
+          cp "$A/tiny-decoder.int8.onnx" android/app/src/main/assets/rider-asr/tiny-decoder.int8.onnx
+          cp "$A/tiny-tokens.txt" android/app/src/main/assets/rider-asr/tiny-tokens.txt
           sed -i '/dependencies {/a\    implementation files("libs/sherpa-onnx-1.13.8.aar")' android/app/build.gradle
           sed -i '/plugins {/a\    id "org.jetbrains.kotlin.android" version "2.1.0" apply false' android/build.gradle
           sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle
