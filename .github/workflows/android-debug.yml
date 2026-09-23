@@ -71,7 +71,8 @@ jobs:
           cp "$A/tiny-tokens.txt" android/app/src/main/assets/rider-asr/tiny-tokens.txt
           sed -i '/dependencies {/a\    implementation files("libs/sherpa-onnx-1.13.8.aar")' android/app/build.gradle
           sed -i '/dependencies {/a\        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"' android/build.gradle
-          sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle\n          sed -i '/android {/a\\    defaultConfig { ndk { abiFilters "arm64-v8a", "armeabi-v7a" } }' android/app/build.gradle
+          sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle
+          sed -i '/android {/a\\    defaultConfig { ndk { abiFilters "arm64-v8a", "armeabi-v7a" } }' android/app/build.gradle
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
@@ -81,4 +82,4 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-# integration build retry 280 - mobile ARM ABIs only
+# integration build retry 281 - mobile ARM ABIs only
