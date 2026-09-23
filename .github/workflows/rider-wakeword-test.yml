@@ -56,6 +56,20 @@ jobs:
           echo "Keyword file:"
           cat "$DIR/rider-keyword.txt"
 
+      - name: Strip unused model files
+        working-directory: wakeword-test
+        run: |
+          set -euxo pipefail
+          MODEL=sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
+          DIR=app/src/main/assets/rider-kws/$MODEL
+          rm -f "$DIR/encoder-epoch-12-avg-2-chunk-16-left-64.onnx"
+          rm -f "$DIR/decoder-epoch-12-avg-2-chunk-16-left-64.onnx"
+          rm -f "$DIR/joiner-epoch-12-avg-2-chunk-16-left-64.onnx"
+          rm -f "$DIR/bpe.model" "$DIR/configuration.json"
+          rm -f "$DIR/README.md" "$DIR/keywords.txt" "$DIR/keywords_raw.txt"
+          rm -rf "$DIR/test_wavs"
+          find "$DIR" -maxdepth 1 -type f -printf '%f %s bytes\n'
+
       - name: Build APK
         working-directory: wakeword-test
         run: gradle --no-daemon :app:assembleDebug
