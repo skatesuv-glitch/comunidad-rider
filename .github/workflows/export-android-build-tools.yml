@@ -1,0 +1,29 @@
+name: Export Android build tools
+
+on:
+  push:
+    branches: [ rider-voz-stable-rebuild ]
+    paths:
+      - '.github/workflows/export-android-build-tools.yml'
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v3
+      - name: Install official Android build tools
+        run: |
+          sdkmanager "build-tools;35.0.0"
+          mkdir -p out
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" out/
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/
+          chmod +x out/zipalign out/apksigner
+          ./out/zipalign -h >/dev/null
+          ./out/apksigner --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-build-tools-35
+          path: out/*
+          if-no-files-found: error
