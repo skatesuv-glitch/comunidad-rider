@@ -45,7 +45,7 @@ jobs:
         working-directory: wakeword-test
         run: |
           set -euxo pipefail
-          python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece
+          python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece pypinyin
           MODEL=sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
           DIR=app/src/main/assets/rider-kws/$MODEL
           sherpa-onnx-cli text2token \
