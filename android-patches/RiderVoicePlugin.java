@@ -11,9 +11,6 @@ import android.media.AudioDeviceInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
@@ -25,17 +22,18 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.getcapacitor.PermissionState;
-import java.util.ArrayList;
+import com.eskatesuv.ridervoz.voicenext.RiderWakeWordEngine;
+import com.eskatesuv.ridervoz.voicenext.RiderWakeWordFactory;
+import com.eskatesuv.ridervoz.voicenext.RiderCommandEngine;
 import java.util.Set;
-import java.util.Locale;
 
 @CapacitorPlugin(name = "RiderVoice", permissions = {
     @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
     @Permission(alias = "bluetooth", strings = { Manifest.permission.BLUETOOTH_CONNECT })
 })
-public class RiderVoicePlugin extends Plugin implements RecognitionListener {
-    private SpeechRecognizer recognizer;
-    private Intent recognizerIntent;
+public class RiderVoicePlugin extends Plugin {
+    private RiderWakeWordEngine wakeEngine;
+    private RiderCommandEngine commandEngine;
     private boolean keepListening = false;
 
     @PluginMethod
@@ -126,16 +124,57 @@ public class RiderVoicePlugin extends Plugin implements RecognitionListener {
 
     @PluginMethod
     public void startCommandListening(PluginCall call) {
-        if (!SpeechRecognizer.isRecognitionAvailable(getContext())) { call.reject("Reconocimiento de voz no disponible"); return; }
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionForAlias("microphone", call, "microphonePermissionResult"); return;
         }
-        keepListening = true; startRecognizer(); call.resolve();
+        keepListening = true;
+        if (!armWakeWord()) { keepListening = false; call.reject("No se pudo iniciar Rider con sherpa-onnx"); return; }
+        call.resolve();
     }
 
     @PluginMethod
     public void stopCommandListening(PluginCall call) {
-        keepListening = false; if (recognizer != null) recognizer.cancel(); call.resolve();
+        keepListening = false;
+        stopEngines();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void testVoiceCommand(PluginCall call) {
+        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionForAlias("microphone", call, "microphonePermissionResult"); return;
+        }
+        stopEngines();
+        startCommandCapture();
+        call.resolve();
+    }
+
+    private boolean armWakeWord() {
+        stopEngines();
+        wakeEngine = RiderWakeWordFactory.INSTANCE.create(getContext(),
+            () -> { if (keepListening) { if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; startCommandCapture(); } return kotlin.Unit.INSTANCE; },
+            error -> { emitVoiceError(error); return kotlin.Unit.INSTANCE; });
+        return wakeEngine != null && wakeEngine.start();
+    }
+
+    private void startCommandCapture() {
+        commandEngine = new RiderCommandEngine(getContext(),
+            text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> armWakeWord()); return kotlin.Unit.INSTANCE; },
+            error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> armWakeWord()); return kotlin.Unit.INSTANCE; });
+        if (!commandEngine.start()) emitVoiceError(new IllegalStateException("No se pudo iniciar el reconocimiento de comando"));
+    }
+
+    private void emitVoiceCommand(String text) {
+        JSObject data = new JSObject(); data.put("text", text); notifyListeners("voiceCommand", data);
+    }
+
+    private void emitVoiceError(Throwable error) {
+        JSObject data = new JSObject(); data.put("message", error.getMessage() == null ? "Error de voz" : error.getMessage()); notifyListeners("voiceCommandError", data);
+    }
+
+    private void stopEngines() {
+        if (wakeEngine != null) { wakeEngine.stop(); wakeEngine = null; }
+        if (commandEngine != null) { commandEngine.stop(); commandEngine = null; }
     }
 
     @PermissionCallback
@@ -160,28 +199,5 @@ public class RiderVoicePlugin extends Plugin implements RecognitionListener {
         else call.reject("Permiso de micrófono denegado");
     }
 
-    private void startRecognizer() {
-        getActivity().runOnUiThread(() -> {
-            if (recognizer == null) { recognizer = SpeechRecognizer.createSpeechRecognizer(getContext()); recognizer.setRecognitionListener(this); }
-            if (recognizerIntent == null) {
-                recognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-                recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-                recognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES");
-                recognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
-            }
-            try { recognizer.startListening(recognizerIntent); } catch (Exception ignored) {}
-        });
-    }
-
-    private void restart() { if (keepListening) getActivity().getWindow().getDecorView().postDelayed(this::startRecognizer, 450); }
-    @Override public void onResults(Bundle results) { ArrayList<String> lines = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION); if (lines != null && !lines.isEmpty()) { JSObject data = new JSObject(); data.put("text", lines.get(0)); notifyListeners("voiceCommand", data); } restart(); }
-    @Override public void onError(int error) { restart(); }
-    @Override public void onReadyForSpeech(Bundle params) {}
-    @Override public void onBeginningOfSpeech() {}
-    @Override public void onRmsChanged(float rmsdB) {}
-    @Override public void onBufferReceived(byte[] buffer) {}
-    @Override public void onEndOfSpeech() {}
-    @Override public void onPartialResults(Bundle partialResults) {}
-    @Override public void onEvent(int eventType, Bundle params) {}
-    @Override protected void handleOnDestroy() { keepListening = false; if (recognizer != null) { recognizer.destroy(); recognizer = null; } super.handleOnDestroy(); }
+    @Override protected void handleOnDestroy() { keepListening = false; stopEngines(); super.handleOnDestroy(); }
 }
