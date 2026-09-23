@@ -35,6 +35,8 @@ public class RiderVoicePlugin extends Plugin {
     private RiderWakeWordEngine wakeEngine;
     private RiderCommandEngine commandEngine;
     private boolean keepListening = false;
+    private long commandSessionUntil = 0L;
+    private static final long COMMAND_SESSION_MS = 25000L;
 
     @PluginMethod
     public void setAudioRoute(PluginCall call) {
@@ -135,6 +137,7 @@ public class RiderVoicePlugin extends Plugin {
     @PluginMethod
     public void stopCommandListening(PluginCall call) {
         keepListening = false;
+        commandSessionUntil = 0L;
         stopEngines();
         call.resolve();
     }
@@ -152,15 +155,15 @@ public class RiderVoicePlugin extends Plugin {
     private boolean armWakeWord() {
         stopEngines();
         wakeEngine = RiderWakeWordFactory.INSTANCE.create(getContext(),
-            () -> { if (keepListening) { if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; startCommandCapture(); } return kotlin.Unit.INSTANCE; },
+            () -> { if (keepListening) { commandSessionUntil = System.currentTimeMillis() + COMMAND_SESSION_MS; if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; startCommandCapture(); } return kotlin.Unit.INSTANCE; },
             error -> { emitVoiceError(error); return kotlin.Unit.INSTANCE; });
         return wakeEngine != null && wakeEngine.start();
     }
 
     private void startCommandCapture() {
         commandEngine = new RiderCommandEngine(getContext(),
-            text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> armWakeWord()); return kotlin.Unit.INSTANCE; },
-            error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> armWakeWord()); return kotlin.Unit.INSTANCE; });
+            text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; },
+            error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; });
         if (!commandEngine.start()) emitVoiceError(new IllegalStateException("No se pudo iniciar el reconocimiento de comando"));
     }
 
