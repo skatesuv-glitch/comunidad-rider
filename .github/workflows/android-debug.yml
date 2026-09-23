@@ -61,14 +61,6 @@ jobs:
           echo "RIDER :1.5 #0.25 @RIDER" > /tmp/keywords_raw.txt
           D=android/app/src/main/assets/rider-kws/$KWS
           sherpa-onnx-cli text2token --tokens "$D/tokens.txt" --tokens-type bpe --bpe-model "$D/bpe.model" /tmp/keywords_raw.txt "$D/rider-keyword.txt"
-          mkdir -p android/app/src/main/assets/rider-asr
-          ASR=sherpa-onnx-whisper-tiny
-          wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/$ASR.tar.bz2 -O /tmp/asr.tar.bz2
-          tar -xjf /tmp/asr.tar.bz2 -C /tmp
-          A=/tmp/$ASR
-          cp "$A/tiny-encoder.int8.onnx" android/app/src/main/assets/rider-asr/tiny-encoder.int8.onnx
-          cp "$A/tiny-decoder.int8.onnx" android/app/src/main/assets/rider-asr/tiny-decoder.int8.onnx
-          cp "$A/tiny-tokens.txt" android/app/src/main/assets/rider-asr/tiny-tokens.txt
           sed -i '/dependencies {/a\    implementation files("libs/sherpa-onnx-1.13.8.aar")' android/app/build.gradle
           sed -i '/dependencies {/a\        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"' android/build.gradle
           sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle
@@ -82,4 +74,4 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-# integration build retry 281 - mobile ARM ABIs only
+# integration build retry 282 - Android SpeechRecognizer commands, no Whisper ASR assets - mobile ARM ABIs only
