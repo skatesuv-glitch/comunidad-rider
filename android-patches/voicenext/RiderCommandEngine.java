@@ -33,9 +33,9 @@ public final class RiderCommandEngine {
       while(running&&System.currentTimeMillis()<until){int n=recorder.read(b,0,b.length);if(n>0)for(int i=0;i<n;i++)pcm.add(b[i]/32768f);}
       if(!running)return;
       float[] samples=new float[pcm.size()];for(int i=0;i<samples.length;i++)samples[i]=pcm.get(i);
-      OfflineWhisperModelConfig whisper=new OfflineWhisperModelConfig("rider-asr/tiny-encoder.int8.onnx","rider-asr/tiny-decoder.int8.onnx","es","transcribe",0);
+      OfflineWhisperModelConfig whisper=new OfflineWhisperModelConfig("rider-asr/tiny-encoder.int8.onnx","rider-asr/tiny-decoder.int8.onnx","es","transcribe",0,false,false);
       OfflineModelConfig model=new OfflineModelConfig();model.setWhisper(whisper);model.setTokens("rider-asr/tiny-tokens.txt");model.setModelType("whisper");model.setNumThreads(2);
-      OfflineRecognizerConfig cfg=new OfflineRecognizerConfig();cfg.setFeatConfig(new FeatureConfig(16000,80));cfg.setModelConfig(model);
+      OfflineRecognizerConfig cfg=new OfflineRecognizerConfig();cfg.setFeatConfig(new FeatureConfig(16000,80,0.0f));cfg.setModelConfig(model);
       OfflineRecognizer recognizer=new OfflineRecognizer(context.getAssets(),cfg);OfflineStream stream=recognizer.createStream();
       stream.acceptWaveform(samples,16000);recognizer.decode(stream);String text=recognizer.getResult(stream).getText().trim();
       stream.release();recognizer.release();if(!text.isEmpty())onCommand.invoke(text);else onError.invoke(new IllegalStateException("No he entendido el comando"));
