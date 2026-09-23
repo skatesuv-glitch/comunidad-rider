@@ -1,0 +1,97 @@
+name: Rider wake-word plugin payload
+
+on:
+  push:
+    branches: [ rider-voz-stable-rebuild ]
+    paths:
+      - 'voice-next/**'
+      - 'wakeword-payload/**'
+      - '.github/workflows/rider-wakeword-payload.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Download sherpa Android AAR
+        working-directory: wakeword-payload
+        run: |
+          set -euxo pipefail
+          mkdir -p payload/libs
+          wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar             -O payload/libs/sherpa-onnx-1.13.8.aar
+
+      - name: Build plugin AAR
+        working-directory: wakeword-payload
+        run: gradle --no-daemon :payload:assembleRelease
+
+      - name: Download and prepare GigaSpeech KWS assets
+        working-directory: wakeword-payload
+        run: |
+          set -euxo pipefail
+          MODEL=sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
+          URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/$MODEL.tar.bz2
+          wget -q "$URL" -O model.tar.bz2
+          tar -xjf model.tar.bz2
+
+          python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece pypinyin
+          printf 'RIDER :3.0 #0.10\n' > keyword.txt
+          sherpa-onnx-cli text2token             --tokens "$MODEL/tokens.txt"             --tokens-type bpe             --bpe-model "$MODEL/bpe.model"             keyword.txt "$MODEL/rider-keyword.txt"
+
+          mkdir -p out/assets/rider-kws/$MODEL
+          cp "$MODEL/encoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx" out/assets/rider-kws/$MODEL/
+          cp "$MODEL/decoder-epoch-12-avg-2-chunk-16-left-64.int8.onnx" out/assets/rider-kws/$MODEL/
+          cp "$MODEL/joiner-epoch-12-avg-2-chunk-16-left-64.int8.onnx" out/assets/rider-kws/$MODEL/
+          cp "$MODEL/tokens.txt" out/assets/rider-kws/$MODEL/
+          cp "$MODEL/rider-keyword.txt" out/assets/rider-kws/$MODEL/
+          cat "$MODEL/rider-keyword.txt"
+
+      - name: Build injectable DEX and native libs
+        working-directory: wakeword-payload
+        run: |
+          set -euxo pipefail
+          mkdir -p tmp/plugin tmp/sherpa out/lib/arm64-v8a
+
+          unzip -q payload/build/outputs/aar/payload-release.aar -d tmp/plugin
+          unzip -q payload/libs/sherpa-onnx-1.13.8.aar -d tmp/sherpa
+
+          cp tmp/sherpa/jni/arm64-v8a/*.so out/lib/arm64-v8a/
+
+          CORE_AAR=$(find ~/.gradle/caches -type f -name 'core-8.0.2.aar' | head -1)
+          unzip -q "$CORE_AAR" classes.jar -d tmp/core
+
+          KOTLIN_JAR=$(find ~/.gradle/caches -type f -name 'kotlin-stdlib-2.0.21.jar' | head -1)
+          ANDROID_JAR="$ANDROID_HOME/platforms/android-35/android.jar"
+          D8="$ANDROID_HOME/build-tools/35.0.0/d8"
+
+          "$D8"             --min-api 24             --lib "$ANDROID_JAR"             --classpath tmp/core/classes.jar             --classpath "$KOTLIN_JAR"             --output out             tmp/plugin/classes.jar             tmp/sherpa/classes.jar
+
+          mv out/classes.dex out/classes7.dex
+
+          cat > out/capacitor.plugins.json <<'EOF'
+          [
+            {
+              "pkg": "rider-wakeword",
+              "classpath": "com.eskatesuv.ridervoz.voicenext.RiderWakeWordPlugin"
+            }
+          ]
+          EOF
+
+          find out -type f -printf '%P %s bytes\n' | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rider-WakeWord-Injectable-Payload
+          path: wakeword-payload/out/**
+          if-no-files-found: error
