@@ -70,7 +70,7 @@ jobs:
           cp "$A/tiny-decoder.int8.onnx" android/app/src/main/assets/rider-asr/tiny-decoder.int8.onnx
           cp "$A/tiny-tokens.txt" android/app/src/main/assets/rider-asr/tiny-tokens.txt
           sed -i '/dependencies {/a\    implementation files("libs/sherpa-onnx-1.13.8.aar")' android/app/build.gradle
-          sed -i '/plugins {/a\    id "org.jetbrains.kotlin.android" version "2.1.0" apply false' android/build.gradle
+          sed -i '/dependencies {/a\        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"' android/build.gradle
           sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle
       - name: Build debug APK
         working-directory: android
