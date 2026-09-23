@@ -43,6 +43,10 @@ jobs:
       - name: Install Rider Voz native layer
         run: |
           cp android-patches/*.java android/app/src/main/java/com/eskatesuv/ridervoz/
+          # RiderVoice is registered explicitly from MainActivity.registerPlugin().
+          # Assert the native bridge is present so a build cannot silently ship without it.
+          grep -q 'registerPlugin(RiderVoicePlugin.class)' android/app/src/main/java/com/eskatesuv/ridervoz/MainActivity.java
+          grep -q '@CapacitorPlugin(name = "RiderVoice"' android/app/src/main/java/com/eskatesuv/ridervoz/RiderVoicePlugin.java
           mkdir -p android/app/src/main/java/com/eskatesuv/ridervoz/voicenext
           cp android-patches/voicenext/*.kt android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
           cp android-patches/voicenext/*.java android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
