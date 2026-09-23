@@ -20,8 +20,9 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" out/
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib64/libc++.so" out/
           chmod +x out/zipalign out/apksigner
-          ./out/zipalign -h >/dev/null
+          LD_LIBRARY_PATH="$PWD/out" ./out/zipalign -h >/dev/null
           ./out/apksigner --version
       - uses: actions/upload-artifact@v4
         with:
