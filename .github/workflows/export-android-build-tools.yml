@@ -11,9 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v3
-      - name: Install official Android build tools
+      - name: Export official Android build tools
         run: |
+          set -euxo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/build-tools"
           sdkmanager "build-tools;35.0.0"
           mkdir -p out
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" out/
