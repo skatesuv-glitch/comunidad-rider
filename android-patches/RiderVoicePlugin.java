@@ -164,7 +164,11 @@ public class RiderVoicePlugin extends Plugin {
         commandEngine = new RiderCommandEngine(getContext(),
             text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; },
             error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; });
-        if (!commandEngine.start()) emitVoiceError(new IllegalStateException("No se pudo iniciar el reconocimiento de comando"));
+        if (!commandEngine.start()) {
+            commandEngine = null;
+            emitVoiceError(new IllegalStateException("No se pudo iniciar el reconocimiento de comando"));
+            if (keepListening) getActivity().runOnUiThread(this::armWakeWord);
+        }
     }
 
     private void emitVoiceCommand(String text) {
