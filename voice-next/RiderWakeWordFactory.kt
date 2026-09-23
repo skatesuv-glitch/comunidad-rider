@@ -52,8 +52,8 @@ object RiderWakeWordFactory {
             modelConfig = model,
             maxActivePaths = 4,
             keywordsFile = "$MODEL_DIR/$KEYWORDS",
-            keywordsScore = 1.5f,
-            keywordsThreshold = 0.25f,
+            keywordsScore = 3.0f,
+            keywordsThreshold = 0.10f,
             numTrailingBlanks = 1
         )
 
