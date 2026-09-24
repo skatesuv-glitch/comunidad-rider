@@ -25,6 +25,12 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
       const riders=await fetchCommunityRiders();
       return {available:true,riders:riders.filter(r=>r.state==='green'&&Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)))}
     },
+    getOnboard:async()=>{
+      if(!commandsNative?.getOnboardSnapshot)return {available:false,reason:'El ordenador de a bordo necesita SKATESUV compatible'};
+      const result=await commandsNative.getOnboardSnapshot();
+      if(!result?.available)return result||{available:false};
+      try{return {...result,data:JSON.parse(result.json)}}catch{return {available:false,reason:'No pude leer los datos de SKATESUV'}}
+    },
     leave:()=>leave.click(),
     emergency:()=>setVoiceState(voiceActive?'active':'ready','EMERGENCIA · alerta local confirmada')
   });
