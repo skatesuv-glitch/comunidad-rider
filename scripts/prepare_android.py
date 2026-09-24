@@ -6,13 +6,13 @@ for p in (root/'android-patches').glob('*.java'): shutil.copy2(p,java/p.name)
 model=Path(sys.argv[1])
 shutil.copytree(model,root/'android/app/src/main/assets/rider-model',dirs_exist_ok=True)
 p=root/'android/app/build.gradle';s=p.read_text()
-s=s.replace('versionCode 1\n','versionCode 291\n').replace('versionName "1.0"','versionName "2.0-assistant-291"')
-if 'vosk-android' not in s:s=s.replace('dependencies {','dependencies {\n    implementation "com.alphacephei:vosk-android:0.3.75"\n    implementation "net.java.dev.jna:jna:5.18.1@aar"')
+s=s.replace('versionCode 1\n','versionCode 292\n').replace('versionName "1.0"','versionName "2.0-assistant-292"')
+if 'vosk-android' not in s:s=s.replace('dependencies {','dependencies {\n    implementation "com.alphacephei:vosk-android:0.3.75"\n    implementation "net.java.dev.jna:jna:5.18.1@aar"\n    implementation "androidx.media3:media3-exoplayer:1.11.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.11.1"')
 p.write_text(s)
 p=root/'android/app/src/main/AndroidManifest.xml'
 ET.register_namespace('android','http://schemas.android.com/apk/res/android');key='{http://schemas.android.com/apk/res/android}'
 tree=ET.parse(p);m=tree.getroot()
-perms=['RECORD_AUDIO','MODIFY_AUDIO_SETTINGS','BLUETOOTH_CONNECT','FOREGROUND_SERVICE','FOREGROUND_SERVICE_MICROPHONE','POST_NOTIFICATIONS']
+perms=['INTERNET','RECORD_AUDIO','MODIFY_AUDIO_SETTINGS','BLUETOOTH_CONNECT','FOREGROUND_SERVICE','FOREGROUND_SERVICE_MICROPHONE','POST_NOTIFICATIONS']
 existing={x.get(key+'name') for x in m.findall('uses-permission')}
 for perm in perms:
  if 'android.permission.'+perm not in existing: ET.SubElement(m,'uses-permission',{key+'name':'android.permission.'+perm})
