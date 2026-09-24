@@ -16,6 +16,9 @@ checks = {
     "reanuda radio tras tts": "if (rp.getPlaybackState() == Player.STATE_READY && !rp.isPlaying()) rp.play()",
     "sale de modo voip para radio": "audio.setMode(AudioManager.MODE_NORMAL)",
     "respeta Rider Voz activo": 'call.getBoolean("voiceActive", false)',
+    "normaliza gramática": "grammarPhrases.add(normalizeSpeech(phrase))",
+    "radio conocida va directa": "if (isExactKnownRadio(text))",
+    "radio conocida parcial va directa": "if (isExactKnownRadio(partial))",
 }
 for label, needle in checks.items():
     if needle not in s:
@@ -26,4 +29,4 @@ segment = s[s.index("private void startRadioCandidates"):s.index("@PluginMethod 
 if "STATE_READY" in segment:
     raise SystemExit("FAIL radio native: todavía acepta STATE_READY como éxito")
 
-print("PASS: radio native requires real playback and has stream fallbacks")
+print("PASS: radio native requires real playback, has fallbacks and bypasses second ASR for known stations")
