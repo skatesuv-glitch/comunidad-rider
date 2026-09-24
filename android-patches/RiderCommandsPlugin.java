@@ -8,9 +8,12 @@ import android.content.Context;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.os.BatteryManager;
@@ -33,6 +36,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Comparator;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -426,21 +431,27 @@ public final class RiderCommandsPlugin extends Plugin {
         }
     }
 
-    private String[] directStation(String query) {
+    private List<String[]> directStations(String query) {
         String q = normalizeSpeech(query);
-        if (q.equals("rock fm") || q.equals("rockfm"))
-            return new String[]{"https://rockfm-cope.flumotion.com/playlist.m3u8", "Rock FM"};
-        if (q.equals("los40") || q.equals("los 40") || q.equals("los cuarenta"))
-            return new String[]{"https://playerservices.streamtheworld.com/api/livestream-redirect/Los40.mp3", "LOS40"};
-        if (q.equals("kiss fm") || q.equals("kissfm"))
-            return new String[]{"https://kissfm.kissfmradio.cires21.com/kissfm.mp3", "Kiss FM"};
-        if (q.equals("cadena 100") || q.equals("cadena cien"))
-            return new String[]{"https://cadena100-cope.flumotion.com/chunks.m3u8", "Cadena 100"};
-        if (q.equals("europa fm") || q.equals("europa"))
-            return new String[]{"https://radio-atres-live.ondacero.es/api/livestream-redirect/EFMAAC.aac", "Europa FM"};
-        if (q.equals("radio 3") || q.equals("radio tres"))
-            return new String[]{"https://rtvelivestream.rtve.es/rtvesec/rne/rne_r3_main.m3u8", "Radio 3"};
-        return null;
+        List<String[]> out = new ArrayList<>();
+        if (q.equals("rock fm") || q.equals("rockfm")) {
+            out.add(new String[]{"https://rockfm-cope.flumotion.com/playlist.m3u8", "Rock FM"});
+            out.add(new String[]{"https://rockfm-barcelona.flumotion.com/playlist.m3u8", "Rock FM"});
+        } else if (q.equals("los40") || q.equals("los 40") || q.equals("los cuarenta")) {
+            out.add(new String[]{"https://playerservices.streamtheworld.com/api/livestream-redirect/Los40.mp3", "LOS40"});
+        } else if (q.equals("kiss fm") || q.equals("kissfm")) {
+            out.add(new String[]{"https://bbkissfm.kissfmradio.cires21.com/bbkissfm.mp3", "Kiss FM"});
+            out.add(new String[]{"https://kissfm.kissfmradio.cires21.com/kissfm.mp3", "Kiss FM"});
+        } else if (q.equals("cadena 100") || q.equals("cadena cien")) {
+            out.add(new String[]{"https://cadena100-cope.flumotion.com/playlist.m3u8", "Cadena 100"});
+        } else if (q.equals("europa fm") || q.equals("europa")) {
+            out.add(new String[]{"https://radio-atres-live.ondacero.es/api/livestream-redirect/EFMAAC.aac", "Europa FM"});
+            out.add(new String[]{"https://livefastly-webs.europafm.com/europafm/audio/master.m3u8", "Europa FM"});
+        } else if (q.equals("radio 3") || q.equals("radio tres")) {
+            out.add(new String[]{"https://rtvelivestream.rtve.es/rtvesec/rne/rne_r3_main.m3u8", "Radio 3"});
+            out.add(new String[]{"https://radio3.rtveradio.cires21.com/radio3_hc.mp3", "Radio 3"});
+        }
+        return out;
     }
 
     @PluginMethod public void playRadio(PluginCall call) {
@@ -449,14 +460,11 @@ public final class RiderCommandsPlugin extends Plugin {
             JSObject out = new JSObject(); out.put("ok", false); out.put("message", "Emisora no válida"); call.resolve(out); return;
         }
         String cacheKey = normalizeSpeech(query);
-        String[] direct = directStation(query);
-        if (direct != null) {
-            main.post(() -> startRadioPlayer(direct[0], direct[1], call));
-            return;
-        }
+        List<String[]> direct = directStations(query);
         String[] cached = radioCache.get(cacheKey);
-        if (cached != null) {
-            main.post(() -> startRadioPlayer(cached[0], cached[1], call));
+        if (cached != null) direct.add(0, cached);
+        if (!direct.isEmpty()) {
+            main.post(() -> startRadioCandidates(direct, 0, cacheKey, call, new StringBuilder()));
             return;
         }
         ioWorker.execute(() -> {
@@ -474,8 +482,9 @@ public final class RiderCommandsPlugin extends Plugin {
                         URL url = new URL(server + "/json/stations/search?name=" +
                             encoded + "&hidebroken=true&order=clickcount&reverse=true&limit=20");
                         connection = (HttpURLConnection)url.openConnection();
-                        connection.setConnectTimeout(3000);
-                        connection.setReadTimeout(4500);
+                        connection.setConnectTimeout(3500);
+                        connection.setReadTimeout(5500);
+                        connection.setInstanceFollowRedirects(true);
                         connection.setRequestProperty("User-Agent", "RiderVoz/2.0");
                         StringBuilder body = new StringBuilder();
                         try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
@@ -490,85 +499,132 @@ public final class RiderCommandsPlugin extends Plugin {
                     }
                 }
                 if (stations == null) throw (lastError == null ? new IOException("Sin servidores de radio") : lastError);
-                JSONObject chosen = null;
-                JSONObject contains = null;
+
                 String normalizedQuery = normalizeSpeech(query).replaceFirst("^radio ", "").trim();
-                for (int i = 0; i < stations.length(); i++) {
-                    JSONObject station = stations.optJSONObject(i);
-                    if (station == null) continue;
-                    String name = normalizeSpeech(station.optString("name", ""));
-                    if (name.equals(normalizedQuery)) { chosen = station; break; }
-                    if (contains == null && (name.contains(normalizedQuery) || normalizedQuery.contains(name))) contains = station;
+                List<String[]> candidates = new ArrayList<>();
+                for (int pass = 0; pass < 3 && candidates.size() < 5; pass++) {
+                    for (int i = 0; i < stations.length() && candidates.size() < 5; i++) {
+                        JSONObject station = stations.optJSONObject(i);
+                        if (station == null) continue;
+                        String streamUrl = station.optString("url_resolved", station.optString("url", "")).trim();
+                        if (streamUrl.isEmpty()) continue;
+                        String name = station.optString("name", query).trim();
+                        String normalizedName = normalizeSpeech(name);
+                        boolean match = pass == 0 ? normalizedName.equals(normalizedQuery)
+                            : pass == 1 ? (normalizedName.contains(normalizedQuery) || normalizedQuery.contains(normalizedName))
+                            : true;
+                        if (!match) continue;
+                        boolean duplicate = false;
+                        for (String[] c : candidates) if (c[0].equals(streamUrl)) { duplicate = true; break; }
+                        if (!duplicate) candidates.add(new String[]{streamUrl, name.isEmpty() ? query : name});
+                    }
                 }
-                if (chosen == null) chosen = contains;
-                if (chosen == null && stations.length() > 0) chosen = stations.optJSONObject(0);
-                if (chosen == null) {
+                if (candidates.isEmpty()) {
                     JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No encuentro esa emisora"); call.resolve(out); return;
                 }
-                String streamUrl = chosen.optString("url_resolved", chosen.optString("url", ""));
-                String stationName = chosen.optString("name", query).trim();
-                if (streamUrl.isEmpty()) {
-                    JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora no tiene audio disponible"); call.resolve(out); return;
-                }
-                radioCache.put(cacheKey, new String[]{streamUrl, stationName});
-                final String finalUrl = streamUrl, finalName = stationName;
-                main.post(() -> startRadioPlayer(finalUrl, finalName, call));
+                main.post(() -> startRadioCandidates(candidates, 0, cacheKey, call, new StringBuilder()));
             } catch (Exception e) {
-                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No pude conectar con la radio"); call.resolve(out);
+                JSObject out = new JSObject();
+                out.put("ok", false);
+                out.put("message", "No pude consultar las emisoras");
+                call.resolve(out);
             } finally {
                 if (connection != null) connection.disconnect();
             }
         });
     }
 
-    private void startRadioPlayer(String url, String name, PluginCall call) {
+    private MediaItem radioMediaItem(String url) {
+        MediaItem.Builder builder = new MediaItem.Builder().setUri(url);
+        String lower = url.toLowerCase(Locale.ROOT);
+        if (lower.contains(".m3u8")) builder.setMimeType(MimeTypes.APPLICATION_M3U8);
+        return builder.build();
+    }
+
+    private String radioError(PlaybackException error) {
+        if (error == null) return "error desconocido";
+        String name = error.errorCodeName;
+        if (name == null || name.isEmpty()) name = "código " + error.errorCode;
+        return name.replace("ERROR_CODE_", "").toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    private void failRadioAttempt(
+        ExoPlayer player, AtomicBoolean finished, List<String[]> candidates, int nextIndex,
+        String cacheKey, PluginCall call, StringBuilder errors, String reason
+    ) {
+        if (!finished.compareAndSet(false, true)) return;
+        try { player.stop(); } catch (Exception ignored) {}
+        try { player.release(); } catch (Exception ignored) {}
+        if (radioPlayer == player) radioPlayer = null;
+        if (errors.length() > 0) errors.append("; ");
+        errors.append(reason);
+        startRadioCandidates(candidates, nextIndex, cacheKey, call, errors);
+    }
+
+    private void startRadioCandidates(
+        List<String[]> candidates, int index, String cacheKey, PluginCall call, StringBuilder errors
+    ) {
+        if (index >= candidates.size()) {
+            radioCache.remove(cacheKey);
+            JSObject out = new JSObject();
+            out.put("ok", false);
+            out.put("message", errors.length() == 0 ? "No consigo abrir el audio" : "No consigo abrir el audio: " + errors.toString());
+            call.resolve(out);
+            return;
+        }
+
+        String[] candidate = candidates.get(index);
+        String url = candidate[0], name = candidate[1];
         try {
             stopRadioPlayer();
-            ExoPlayer player = new ExoPlayer.Builder(getContext()).build();
-            AtomicBoolean settled = new AtomicBoolean(false);
+
+            DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+                .setUserAgent("RiderVoz/2.0")
+                .setConnectTimeoutMs(6000)
+                .setReadTimeoutMs(12000)
+                .setAllowCrossProtocolRedirects(true);
+            DefaultMediaSourceFactory mediaFactory = new DefaultMediaSourceFactory(httpFactory);
+            ExoPlayer player = new ExoPlayer.Builder(getContext())
+                .setMediaSourceFactory(mediaFactory)
+                .build();
+            AtomicBoolean finished = new AtomicBoolean(false);
+
             AudioAttributes attrs = new AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                 .build();
             player.setAudioAttributes(attrs, true);
-            player.setMediaItem(MediaItem.fromUri(url));
+            player.setMediaItem(radioMediaItem(url));
             player.addListener(new Player.Listener() {
-                @Override public void onPlaybackStateChanged(int state) {
-                    if (state != Player.STATE_READY || !settled.compareAndSet(false, true)) return;
+                @Override public void onIsPlayingChanged(boolean isPlaying) {
+                    if (!isPlaying || !finished.compareAndSet(false, true)) return;
                     radioPlayer = player;
                     radioStationName = name;
+                    radioCache.put(cacheKey, new String[]{url, name});
                     JSObject result = new JSObject();
                     result.put("ok", true);
                     result.put("name", name);
+                    result.put("stream", index + 1);
                     call.resolve(result);
                 }
 
                 @Override public void onPlayerError(PlaybackException error) {
-                    if (!settled.compareAndSet(false, true)) return;
-                    try { player.release(); } catch (Exception ignored) {}
-                    if (radioPlayer == player) radioPlayer = null;
-                    JSObject out = new JSObject();
-                    out.put("ok", false);
-                    out.put("message", "La emisora no pudo iniciar la reproducción");
-                    call.resolve(out);
+                    failRadioAttempt(player, finished, candidates, index + 1, cacheKey, call, errors,
+                        "stream " + (index + 1) + " " + radioError(error));
                 }
             });
             player.prepare();
             player.play();
+
             main.postDelayed(() -> {
-                if (!settled.compareAndSet(false, true)) return;
-                try { player.release(); } catch (Exception ignored) {}
-                if (radioPlayer == player) radioPlayer = null;
-                JSObject out = new JSObject();
-                out.put("ok", false);
-                out.put("message", "La emisora tarda demasiado en responder");
-                call.resolve(out);
-            }, 8000);
+                if (player.isPlaying()) return;
+                failRadioAttempt(player, finished, candidates, index + 1, cacheKey, call, errors,
+                    "stream " + (index + 1) + " sin audio");
+            }, 10000);
         } catch (Exception e) {
-            JSObject out = new JSObject();
-            out.put("ok", false);
-            out.put("message", "No se pudo reproducir la emisora");
-            call.resolve(out);
+            if (errors.length() > 0) errors.append("; ");
+            errors.append("stream ").append(index + 1).append(" ").append(e.getClass().getSimpleName());
+            startRadioCandidates(candidates, index + 1, cacheKey, call, errors);
         }
     }
 
