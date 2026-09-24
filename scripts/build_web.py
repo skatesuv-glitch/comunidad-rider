@@ -44,6 +44,10 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
       return await commandsNative.playRadio({query});
     },
     stopRadio:async()=>{if(commandsNative?.stopRadio)await commandsNative.stopRadio()},
+    controlSkatesuv:async action=>{
+      if(!commandsNative?.controlSkatesuv)return {ok:false,message:'El control necesita SKATESUV compatible'};
+      return await commandsNative.controlSkatesuv({action});
+    },
     leave:()=>leave.click(),
     emergency:()=>setVoiceState(voiceActive?'active':'ready','EMERGENCIA · alerta local confirmada')
   });
