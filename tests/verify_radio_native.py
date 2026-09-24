@@ -12,6 +12,8 @@ checks = {
     "tiene fallback Rock FM": "rockfm-barcelona.flumotion.com/playlist.m3u8",
     "tiene fallback Kiss FM": "bbkissfm.kissfmradio.cires21.com/bbkissfm.mp3",
     "prueba siguiente stream": "startRadioCandidates(candidates, index + 1",
+    "tts no roba foco a radio": "player.setAudioAttributes(attrs, false)",
+    "reanuda radio tras tts": "if (rp.getPlaybackState() == Player.STATE_READY && !rp.isPlaying()) rp.play()",
 }
 for label, needle in checks.items():
     if needle not in s:
