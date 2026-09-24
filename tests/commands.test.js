@@ -254,3 +254,11 @@ test('incomplete radio request never disables Rider',async()=>{
   await bot.receive('Rider que hora es');
   assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
 });
+
+test('radio parser never confuses radio with Rider Voz off',()=>{
+  assert.equal(parse('Rider pon la radio').id,'radioPrompt');
+  assert.equal(parse('Rider pon Rock FM').id,'radioRock');
+  assert.equal(parse('Rider pon Kiss FM').id,'radioNamed');
+  assert.equal(parse('Rider pon el bluetooth').id,'useBluetooth');
+  assert.equal(parse('Rider desactivar Rider Voz').id,'voiceOff');
+});
