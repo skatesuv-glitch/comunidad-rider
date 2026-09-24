@@ -1,6 +1,7 @@
 package com.eskatesuv.ridervoz;
 
 import android.os.Handler;
+import android.os.Bundle;
 import android.database.Cursor;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
@@ -105,7 +106,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(phrase);
             }
         } catch (Exception e) { call.reject("Gramática de comandos no válida"); return; }
-        lastPartial = ""; partialHits = 0; lastEmitted = ""; lastEmitAt = 0;
+        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; lastEmitted = ""; lastEmitAt = 0;
         worker.execute(() -> {
             try {
                 active = false;
