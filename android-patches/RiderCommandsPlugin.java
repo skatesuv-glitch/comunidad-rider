@@ -5,8 +5,12 @@ import android.os.Bundle;
 import android.database.Cursor;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
+import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.C;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.exoplayer.ExoPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.os.BatteryManager;
@@ -67,7 +71,7 @@ public final class RiderCommandsPlugin extends Plugin {
     private int partialHits;
     private String lastEmitted = "";
     private long lastEmitAt;
-    private MediaPlayer radioPlayer;
+    private ExoPlayer radioPlayer;
     private String radioStationName = "";
     private boolean radioDucked;
 
@@ -486,39 +490,51 @@ public final class RiderCommandsPlugin extends Plugin {
     private void startRadioPlayer(String url, String name, PluginCall call) {
         try {
             stopRadioPlayer();
-            MediaPlayer player = new MediaPlayer();
+            ExoPlayer player = new ExoPlayer.Builder(getContext()).build();
             AtomicBoolean settled = new AtomicBoolean(false);
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build());
-            player.setDataSource(url);
-            player.setOnPreparedListener(p -> {
-                if (!settled.compareAndSet(false, true)) {
-                    try { p.release(); } catch (Exception ignored) {}
-                    return;
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build();
+            player.setAudioAttributes(attrs, true);
+            player.setMediaItem(MediaItem.fromUri(url));
+            player.addListener(new Player.Listener() {
+                @Override public void onPlaybackStateChanged(int state) {
+                    if (state != Player.STATE_READY || !settled.compareAndSet(false, true)) return;
+                    radioPlayer = player;
+                    radioStationName = name;
+                    JSObject result = new JSObject();
+                    result.put("ok", true);
+                    result.put("name", name);
+                    call.resolve(result);
                 }
-                radioPlayer = p;
-                radioStationName = name;
-                p.start();
-                JSObject result = new JSObject(); result.put("ok", true); result.put("name", name); call.resolve(result);
+
+                @Override public void onPlayerError(PlaybackException error) {
+                    if (!settled.compareAndSet(false, true)) return;
+                    try { player.release(); } catch (Exception ignored) {}
+                    if (radioPlayer == player) radioPlayer = null;
+                    JSObject out = new JSObject();
+                    out.put("ok", false);
+                    out.put("message", "La emisora no pudo iniciar la reproducción");
+                    call.resolve(out);
+                }
             });
-            player.setOnErrorListener((p, what, extra) -> {
-                if (!settled.compareAndSet(false, true)) return true;
-                try { p.release(); } catch (Exception ignored) {}
-                if (radioPlayer == p) radioPlayer = null;
-                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora no pudo iniciar la reproducción"); call.resolve(out);
-                return true;
-            });
-            player.prepareAsync();
+            player.prepare();
+            player.play();
             main.postDelayed(() -> {
                 if (!settled.compareAndSet(false, true)) return;
-                try { player.reset(); player.release(); } catch (Exception ignored) {}
+                try { player.release(); } catch (Exception ignored) {}
                 if (radioPlayer == player) radioPlayer = null;
-                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora tarda demasiado en responder"); call.resolve(out);
-            }, 6000);
+                JSObject out = new JSObject();
+                out.put("ok", false);
+                out.put("message", "La emisora tarda demasiado en responder");
+                call.resolve(out);
+            }, 8000);
         } catch (Exception e) {
-            JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No se pudo reproducir la emisora"); call.resolve(out);
+            JSObject out = new JSObject();
+            out.put("ok", false);
+            out.put("message", "No se pudo reproducir la emisora");
+            call.resolve(out);
         }
     }
 
@@ -527,7 +543,7 @@ public final class RiderCommandsPlugin extends Plugin {
     }
 
     private void stopRadioPlayer() {
-        MediaPlayer player = radioPlayer; radioPlayer = null; radioStationName = ""; radioDucked = false;
+        ExoPlayer player = radioPlayer; radioPlayer = null; radioStationName = ""; radioDucked = false;
         if (player != null) {
             try { player.stop(); } catch (Exception ignored) {}
             try { player.release(); } catch (Exception ignored) {}
@@ -535,7 +551,7 @@ public final class RiderCommandsPlugin extends Plugin {
     }
 
     private void setRadioDucked(boolean ducked) {
-        MediaPlayer player = radioPlayer;
+        ExoPlayer player = radioPlayer;
         if (player == null) return;
         try {
             player.setVolume(ducked ? 0.18f : 1.0f, ducked ? 0.18f : 1.0f);
