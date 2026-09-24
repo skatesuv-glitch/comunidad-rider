@@ -94,10 +94,11 @@
       'Rider, ¿tengo GPS?', 'Rider, ¿tengo Internet?', 'Rider, ¿tengo Bluetooth?'
     ]},
     { title: 'Radio', commands: [
-      'Rider, pon [nombre de emisora]', 'Rider, para la radio'
+      'Rider, pon [nombre de emisora]', 'Rider, pon Rock FM', 'Rider, para la radio'
     ]},
     { title: 'Asistente', commands: [
-      'Rider, ¿qué hora es?', 'Rider, ¿qué puedes hacer?', 'Rider, repetir último mensaje'
+      'Rider, ¿qué hora es?', 'Rider, ¿qué puedes hacer?', 'Rider, repetir último mensaje',
+      'Rider, sí (confirmar)', 'Rider, no (cancelar)'
     ]}
   ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
