@@ -593,7 +593,9 @@ public final class RiderCommandsPlugin extends Plugin {
                 .setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                 .build();
-            player.setAudioAttributes(attrs, true);
+            // Rider ya gestiona el ducking de la música manualmente durante la voz.
+            // No dejamos que ExoPlayer pause la radio por cambios de foco de TTS.
+            player.setAudioAttributes(attrs, false);
             player.setMediaItem(radioMediaItem(url));
             player.addListener(new Player.Listener() {
                 @Override public void onIsPlayingChanged(boolean isPlaying) {
@@ -679,6 +681,12 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (radioRecognizer != null) radioRecognizer.reset();
                 lastPartial = ""; partialHits = 0;
                 speaking = false;
+                ExoPlayer rp = radioPlayer;
+                if (rp != null) {
+                    try {
+                        if (rp.getPlaybackState() == Player.STATE_READY && !rp.isPlaying()) rp.play();
+                    } catch (Exception ignored) {}
+                }
                 setRadioDucked(false);
                 if (error == null) call.resolve(); else call.reject(error);
             }), 250);
