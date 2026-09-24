@@ -25,13 +25,61 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm install
+      - name: Validate web bundle
+        run: |
+          test -s www/index.html
+          test -s www/app.js
+          test -s www/styles.css
+          node --check www/app.js
+          ! grep -q "Arranque Android OK" www/index.html
+          ! grep -q "Cargando aplicación" www/index.html
+      - name: Bundle Supabase SDK locally
+        run: |
+          cp node_modules/@supabase/supabase-js/dist/umd/supabase.js www/supabase.js
+          sed -i '/<script src="app.js"><\/script>/i <script src="supabase.js"></script>' www/index.html
+          test -s www/supabase.js
       - run: npx cap add android
       - run: npx cap sync android
+      - name: Install Rider Voz native layer
+        run: |
+          cp android-patches/*.java android/app/src/main/java/com/eskatesuv/ridervoz/
+          # RiderVoice is registered explicitly from MainActivity.registerPlugin().
+          # Assert the native bridge is present so a build cannot silently ship without it.
+          grep -q 'registerPlugin(RiderVoicePlugin.class)' android/app/src/main/java/com/eskatesuv/ridervoz/MainActivity.java
+          grep -q '@CapacitorPlugin(name = "RiderVoice"' android/app/src/main/java/com/eskatesuv/ridervoz/RiderVoicePlugin.java
+          mkdir -p android/app/src/main/java/com/eskatesuv/ridervoz/voicenext
+          cp android-patches/voicenext/*.kt android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
+          cp android-patches/voicenext/*.java android/app/src/main/java/com/eskatesuv/ridervoz/voicenext/
+          sed -i '/<application/i\\    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<\/application>/i\\        <service android:name=".RiderVoiceService" android:foregroundServiceType="microphone" android:exported="false" />' android/app/src/main/AndroidManifest.xml
+      - name: Install sherpa voice engine
+        run: |
+          set -euxo pipefail
+          mkdir -p android/app/libs android/app/src/main/assets/rider-kws
+          wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar -O android/app/libs/sherpa-onnx-1.13.8.aar
+          KWS=sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01
+          wget -q https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/$KWS.tar.bz2 -O /tmp/kws.tar.bz2
+          tar -xjf /tmp/kws.tar.bz2 -C /tmp
+          mv /tmp/$KWS android/app/src/main/assets/rider-kws/
+          python3 -m pip install --quiet sherpa-onnx==1.13.8 sentencepiece pypinyin
+          echo "RIDER :1.5 #0.25 @RIDER" > /tmp/keywords_raw.txt
+          D=android/app/src/main/assets/rider-kws/$KWS
+          sherpa-onnx-cli text2token --tokens "$D/tokens.txt" --tokens-type bpe --bpe-model "$D/bpe.model" /tmp/keywords_raw.txt "$D/rider-keyword.txt"
+          sed -i '/dependencies {/a\    implementation files("libs/sherpa-onnx-1.13.8.aar")' android/app/build.gradle
+          sed -i '/dependencies {/a\        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0"' android/build.gradle
+          sed -i '1a apply plugin: "kotlin-android"' android/app/build.gradle
+          sed -i '/android {/a\\    defaultConfig { ndk { abiFilters "arm64-v8a", "armeabi-v7a" } }' android/app/build.gradle
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: comunidad-rider-debug-apk
+          name: rider-voz-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+# integration build Build Rider V2 locked bot fix - mobile ARM ABIs only
+
+# compile Rider voice mic handoff fix ce60ce6
+
+# build after locked V2 styling restore 36dee4b

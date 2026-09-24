@@ -35,3 +35,213 @@ body{background:radial-gradient(circle at 50% -10%,#09273a 0,#020b12 38%,#01070c
 .communityListCard{padding:15px 16px;min-height:92px;text-align:left}
 .communityListCard strong{display:block;margin-bottom:7px}.communityListCard small{display:block;margin-top:4px}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:11px;color:#bdd0dc}
+
+/* Portada Comunidad: composición visual aprobada */
+.heroCard{min-height:224px;background-size:cover;background-position:center;justify-content:flex-end}
+.hero-voice{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/rider-voice.jpg')}
+.hero-nearby{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/riders-nearby.jpg')}
+.hero-routes{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/shared-routes.jpg')}
+.hero-challenges{background-image:linear-gradient(180deg,rgba(0,8,14,.08),rgba(0,8,14,.92)),url('assets/challenges.jpg')}
+.heroCopy strong{font-size:17px;line-height:1.08}.heroCopy small{font-size:12px;line-height:1.25}
+.profileMark{width:34px;height:34px;border:1px solid var(--eskate-cyan);border-radius:50%;display:grid;place-items:center;color:var(--eskate-cyan);font-weight:900;background:#061b28}
+.profileMarkBig{width:86px;height:86px;font-size:32px;margin:auto}
+
+/* Rider Voz: cockpit aprobado, sin iconografía provisional */
+.voiceLabel{display:block;color:#13cfff;font-size:11px;font-weight:900;letter-spacing:.22em;margin-top:4px}
+.voiceTitle{margin:4px 0 0;font-size:27px}
+.voiceCockpit{min-height:360px;display:grid;place-items:center;position:relative}
+.voiceCockpit:before{content:"";position:absolute;width:290px;height:290px;border-radius:50%;background:radial-gradient(circle,rgba(19,207,255,.12),rgba(19,207,255,.025) 54%,transparent 70%)}
+.voiceRing{position:relative;width:230px;height:230px;border-radius:50%;border:2px solid #13cfff;box-shadow:0 0 18px rgba(19,207,255,.6),inset 0 0 38px rgba(19,207,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle,#0a2130 0,#06131d 66%,#030a10 100%)}
+.voiceRing:before,.voiceRing:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(19,207,255,.2)}
+.voiceRing:before{inset:-18px}.voiceRing:after{inset:18px}
+.voiceRing strong{font-size:22px;letter-spacing:.18em;margin-top:18px}.voiceRing small{color:#8fa8b8;margin-top:5px;letter-spacing:.1em}
+.voiceWave{height:50px;display:flex;align-items:center;gap:5px}.voiceWave i{display:block;width:4px;border-radius:8px;background:#13cfff;box-shadow:0 0 10px #13cfff}.voiceWave i:nth-child(1),.voiceWave i:nth-child(7){height:14px}.voiceWave i:nth-child(2),.voiceWave i:nth-child(6){height:27px}.voiceWave i:nth-child(3),.voiceWave i:nth-child(5){height:39px}.voiceWave i:nth-child(4){height:50px}
+.voiceControls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 18px}.voiceControl{min-height:78px;border:1px solid #17445d;border-radius:18px;background:#081b29;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-weight:800}.voiceControl span{font-size:14px;color:#13cfff}.voiceControl small{font-size:10px;color:#8fa8b8}.primaryVoice{border-color:#13cfff;box-shadow:0 0 18px rgba(19,207,255,.18)}
+.voiceStatus{display:flex;align-items:center;justify-content:center;gap:8px;color:#8fa8b8;font-size:12px;margin:4px 0 14px}.voiceStatus i{width:8px;height:8px;border-radius:50%;background:#516876}
+.voiceCommandToggle{width:100%;border:1px solid #17445d;border-radius:16px;background:#071822;color:#fff;display:grid;grid-template-columns:38px 1fr;grid-template-rows:auto auto;text-align:left;padding:11px 14px;margin-bottom:7px}.voiceCommandToggle>span{grid-row:1/3;align-self:center;color:#13cfff;font-size:25px}.voiceCommandToggle strong{font-size:13px}.voiceCommandToggle small{color:#7898aa;margin-top:3px}.voiceCommandToggle.active{border-color:#13cfff;box-shadow:0 0 18px rgba(19,207,255,.18)}.voiceCommandToggle.active>span{color:#00dc7a;text-shadow:0 0 12px #00dc7a}.voiceCommandStatus{text-align:center;min-height:18px;color:#7793a3;font-size:10px;margin-bottom:7px}
+
+/* Rider Voz independiente · diseño aprobado */
+.riderVoiceApp{min-height:100vh;margin:-24px -18px;padding-top:max(10px,env(safe-area-inset-top));padding-bottom:calc(92px + env(safe-area-inset-bottom));background:#020b12;color:#fff}.rvHeader{height:66px;display:grid;grid-template-columns:56px 1fr 56px;align-items:center;padding:0 8px;background:linear-gradient(180deg,#071421,#020b12)}.rvHeader h1{text-align:center;margin:0;font-size:25px;letter-spacing:.1em}.rvHeader h1 b{color:#12d5f7}.rvHeader button{border:0;background:transparent;color:#dcebf2;font-size:31px}.rvHeader button:first-child{color:#13d9ff;font-size:42px;font-weight:200}.rvHero{height:252px;background:url('assets/rider-voz-hero.webp') center/cover no-repeat;border-top:1px solid #0d3345;border-bottom:1px solid #174f67}.rvConsole{margin:-1px 12px 0;padding:14px 14px 16px;border:1px solid #174b61;border-radius:0 0 20px 20px;background:linear-gradient(180deg,rgba(3,15,23,.96),#020b11);box-shadow:0 0 28px #00cfff12}.rvConnected{text-align:center}.rvConnected>strong{display:block;font-size:15px;letter-spacing:.12em;margin-bottom:10px}.rvConnected>strong b{color:#11d8fa;font-size:21px}.rvAvatars{min-height:54px;display:flex;justify-content:center;gap:10px;overflow:auto}.rvAvatars .emptyGroup{align-self:center}.rvAvatars .groupRider{min-width:54px}.rvAvatars .profileMark{width:43px;height:43px;border:2px solid #16d8f9;box-shadow:0 0 12px #16d8f966}.rvAvatars .voiceQualityBadge{display:none}.rvPtt{display:grid;place-items:center;width:118px;height:118px;margin:12px auto 5px;border:3px solid #62f0b4;border-radius:50%;background:radial-gradient(circle at 45% 35%,#25d98f,#08764f 58%,#032b20 72%);color:#fff;box-shadow:0 0 12px #62f0b4,0 0 34px #62f0b477,inset 0 0 18px #fff4;touch-action:none}.rvPtt .voiceMicGlyph{width:47px;height:57px;transform:scale(1.55)}.rvPtt.talking{transform:scale(.97);background:radial-gradient(circle,#34edb2,#087b68 65%,#032c2c);box-shadow:0 0 16px #25f0b6,0 0 42px #25f0b688}.rvConsole>h2{text-align:center;font-size:18px;letter-spacing:.07em;margin:5px 0 12px}.rvSetting{min-height:53px;border:1px solid #1a4355;border-radius:13px;background:#07151f;display:flex;align-items:center;justify-content:space-between;margin:8px 0;padding:0 15px;color:#eff8fb;font-size:13px;font-weight:750;letter-spacing:.06em}.rvAction{width:100%;cursor:pointer}.rvAction b{font-size:29px;font-weight:300}.rvVolume input{width:58%;accent-color:#10caeb}.rvButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:9px}.rvButtons button{min-height:72px;border:1px solid #194659;border-radius:14px;background:#07151f;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.rvButtons b{font-size:25px;color:#13d9fa}.rvButtons span{font-size:11px;font-weight:800;letter-spacing:.08em}.riderVoiceApp .voiceStatus{margin:5px 0 0}.riderVoiceApp .voiceExit{margin-top:8px}.rvNav{position:fixed;z-index:20;left:50%;bottom:0;transform:translateX(-50%);width:min(430px,100%);height:82px;padding-bottom:env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(5,1fr);background:rgba(1,8,13,.98);border-top:1px solid #174153;border-radius:22px 22px 0 0}.rvNav button{border:0;background:transparent;color:#9aa6ac;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.rvNav b{font-size:23px}.rvNav span{font-size:9px}.rvNav .active{color:#12d8fa}.rvNav .active:after{content:"";width:32px;height:3px;border-radius:4px;background:#12d8fa;box-shadow:0 0 8px #12d8fa}.riderVoiceApp .riderPicker{max-width:430px}
+.bluetoothPicker{position:fixed;z-index:80;inset:0;background:rgba(0,6,10,.78);display:flex;align-items:flex-end;justify-content:center}.bluetoothPicker.hidden{display:none}.btSheet{width:min(430px,100%);max-height:78vh;overflow:auto;border:1px solid #1a536b;border-radius:25px 25px 0 0;background:#04121b;padding:19px 17px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -20px 55px #000b}.btHelp{color:#8ba4b2;font-size:12px}.btDeviceList{display:grid;gap:8px;margin:14px 0}.btDeviceList>p{text-align:center;color:#8ba4b2;padding:16px}.btDevice{width:100%;min-height:62px;display:grid;grid-template-columns:40px 1fr 25px;align-items:center;text-align:left;border:1px solid #174052;border-radius:15px;background:#071a25;color:#fff;padding:8px 12px}.btDevice>span:first-child{font-size:25px}.btDevice>span:nth-child(2){display:flex;flex-direction:column;gap:3px}.btDevice small{color:#78909d}.btDevice>b{color:#12d8fa;font-size:22px}.btDevice.selected{border-color:#12d8fa;box-shadow:0 0 15px #12d8fa22}
+.voiceSettingsList{display:grid;gap:2px;margin:14px 0}.voiceSettingsList .rvSetting>span{display:flex;flex-direction:column;gap:3px}.voiceSettingsList .rvSetting small{color:#78909d;font-size:10px}.voiceSettingsList .fixedSetting>b{color:#14e5a1;font-size:20px}.settingsRange input{width:42%;accent-color:#12d8fa}
+.rvSpeakerGlyph{position:relative;display:block;width:30px;height:28px;color:#13d9fa}.rvSpeakerGlyph:before{content:"";position:absolute;left:1px;top:9px;width:8px;height:10px;border:2px solid currentColor;border-right:0;border-radius:2px}.rvSpeakerGlyph:after{content:"";position:absolute;left:9px;top:4px;width:15px;height:20px;border-right:3px solid currentColor;border-radius:0 55% 55% 0;box-shadow:5px 0 0 -3px currentColor}.rvVolumeLabel{display:flex!important;flex-direction:row!important;align-items:center;gap:8px}.rvVolumeLabel .rvSpeakerGlyph{width:27px;transform:scale(.78)}
+.rvPtt.voxReady{background:radial-gradient(circle at 45% 35%,#2ce8a8,#08775f 60%,#032b26 74%);border-color:#79ffd0;box-shadow:0 0 14px #19e69d,0 0 38px #19e69d66,inset 0 0 18px #fff3}.rvPtt.voxReady+h2{color:#2ce8a8}
+
+/* Sistema visual común Comunidad */
+.appTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.miniBrand{display:flex;flex-direction:column;line-height:1}.miniBrand b{font-size:17px;font-style:italic;letter-spacing:-.035em}.miniBrand span{margin-top:6px;color:#13cfff;font-size:8px;font-weight:900;letter-spacing:.32em}.backBtn{width:42px;height:42px;border-radius:13px;border:1px solid #14516f;background:linear-gradient(180deg,#0b2231,#07141e);color:#cdeeff;font-size:28px;line-height:1}.screenLabel{color:#13cfff;font-size:10px;font-weight:900;letter-spacing:.22em;margin:16px 0 8px}.screenHero{min-height:145px;border:1px solid #124b69;border-radius:22px;padding:20px;display:flex;align-items:flex-end;margin:10px 0 18px;background:radial-gradient(circle at 85% 15%,rgba(19,207,255,.13),transparent 38%),linear-gradient(145deg,#0a2130,#06121b);box-shadow:0 15px 35px rgba(0,0,0,.25);overflow:hidden;position:relative}.screenHero:after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 45%,rgba(19,207,255,.05));pointer-events:none}.screenHero>div{position:relative;z-index:1}.screenHero small,.profileHead small{color:#13cfff;font-weight:900;letter-spacing:.18em;font-size:9px}.screenHero h1{margin:5px 0 5px;font-size:28px}.screenHero p{margin:0;color:#a8bbc7;font-size:12px;max-width:270px}.routeHero{background:radial-gradient(circle at 80% 15%,rgba(19,207,255,.18),transparent 35%),linear-gradient(145deg,#092638,#06121b)}.challengeHero{background:radial-gradient(circle at 82% 15%,rgba(19,207,255,.18),transparent 35%),linear-gradient(145deg,#0a2130,#06121b)}.privacyHero{min-height:130px}.profileHead{display:flex;align-items:center;gap:16px;margin:20px 0 28px;padding:18px;border:1px solid #124b69;border-radius:22px;background:linear-gradient(145deg,#0a2130,#06121b)}.profileHead h1{margin:4px 0 0;font-size:30px}.communityListCard{transition:transform .15s,border-color .15s,box-shadow .15s}.communityListCard:active,.menuCard:active{transform:scale(.985);border-color:#13cfff;box-shadow:0 0 22px rgba(19,207,255,.16)}.card,.profileStrip,.field input,.field textarea{box-shadow:inset 0 1px 0 rgba(255,255,255,.018)}.phone{padding-bottom:34px}
+
+/* Acceso y cuenta dentro del mismo universo visual */
+.authBrand{padding-top:10px;display:flex;flex-direction:column;line-height:.92}.authBrand b{font-size:31px;font-style:italic;letter-spacing:-.055em}.authBrand span{margin-top:11px;color:#13cfff;font-size:12px;font-weight:900;letter-spacing:.42em}.authIntro{margin:48px 0 28px}.authIntro small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.22em}.authIntro h1{font-size:34px;margin:7px 0 5px}.authIntro p{color:#91a7b5;margin:0}.authTabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}.authTabs .mini{min-height:44px;border-radius:13px}.passwordWrap{position:relative;margin-top:7px}.passwordWrap input{margin-top:0;padding-right:54px}.eyeBtn{position:absolute;right:5px;top:5px;width:42px;height:calc(100% - 10px);border:0;border-left:1px solid #17445d;background:transparent;color:#bdeeff;font-size:17px}.accountHero{display:flex;align-items:center;gap:17px;margin:22px 0 28px;padding:20px;border:1px solid #124b69;border-radius:22px;background:radial-gradient(circle at 15% 50%,rgba(19,207,255,.12),transparent 42%),linear-gradient(145deg,#0a2130,#06121b)}.accountHero small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.18em}.accountHero h1{margin:5px 0 0;font-size:29px}.accountData{display:flex;flex-direction:column;gap:7px}.accountData small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.16em}.accountData strong{font-size:16px}.dangerBtn{margin-top:30px}
+
+/* Perfil Rider aprobado */
+.riderCover{height:205px;margin:14px 0 0;border:1px solid #124b69;border-radius:24px;background:radial-gradient(circle at 70% 25%,rgba(19,207,255,.16),transparent 34%),linear-gradient(155deg,#102d3d,#06121b 64%);position:relative;overflow:visible;box-shadow:0 18px 38px rgba(0,0,0,.3)}
+.riderCover:after{content:"";position:absolute;inset:0;border-radius:24px;background:linear-gradient(180deg,transparent 35%,rgba(2,9,14,.78) 100%)}
+.riderAvatar{position:absolute;left:20px;bottom:-31px;z-index:2;width:78px;height:78px;border-radius:50%;padding:4px;background:#06131d;border:2px solid #13cfff;box-shadow:0 0 20px rgba(19,207,255,.3)}.riderAvatar span{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:#0a2636;color:#13cfff;font-size:27px;font-weight:900}
+.riderIdentity{padding:42px 4px 6px}.riderIdentity small,.riderAbout small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.2em}.riderIdentity h1{font-size:30px;margin:4px 0}.riderIdentity p{margin:0;font-size:12px}
+.riderStats{display:grid;grid-template-columns:1.3fr .8fr .8fr;gap:9px;margin:16px 0}.riderStats div{min-height:70px;border:1px solid #173f55;border-radius:16px;background:#071723;display:flex;flex-direction:column;align-items:center;justify-content:center}.riderStats b{font-size:16px}.riderStats small{margin-top:5px;color:#7898aa;font-size:9px;letter-spacing:.12em}
+.riderAbout p{line-height:1.5;margin:8px 0 0;color:#c1d0d8}.disabledAction{opacity:.42;filter:saturate(.3);box-shadow:none!important;cursor:not-allowed}
+
+/* Perfil Rider: la cabecera pertenece a Comunidad; el Rider solo personaliza su avatar circular */
+.communityProfileCover{background-image:linear-gradient(180deg,rgba(2,9,14,.04) 25%,rgba(2,9,14,.92) 100%),radial-gradient(circle at 72% 18%,rgba(19,207,255,.18),transparent 32%),linear-gradient(145deg,#163b4d 0%,#0b2433 48%,#061019 100%);background-size:cover;background-position:center}
+.userAvatar{cursor:default}
+
+/* Retratos Rider: estructura lista para fotografía circular, sin alterar la cabecera editorial */
+.avatarPortrait{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 30%,#24495d,#091b27 68%);background-size:cover;background-position:center}
+.avatarPortrait span{display:grid;width:100%;height:100%;place-items:center;color:#d9f8ff;font-size:27px;font-weight:900;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+
+/* Reconstrucción visual sobre APK real */
+.phone{max-width:480px;padding:calc(18px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom))}
+.communityHeader{align-items:center;margin:0 0 8px}.communityTag{margin:12px 0 22px}
+.accountBtn.profileBubble{width:46px;height:46px;padding:0;border-radius:50%;display:grid;place-items:center;color:#13cfff;background:radial-gradient(circle,#0c3043,#06131d 70%);box-shadow:0 0 20px rgba(19,207,255,.16)}.profileBubble span{font-weight:900}
+.communityGrid{gap:14px}.heroCard{border-radius:22px;min-height:218px;padding:0;position:relative;isolation:isolate;background:#06131d;overflow:hidden}.heroVisual{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover;transform:scale(1.02)}.heroCard:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(1,8,13,.02) 15%,rgba(1,8,13,.18) 42%,rgba(1,8,13,.97) 100%)}.heroCopy{padding:0 48px 18px 17px}.heroCopy strong{font-size:18px}.heroCopy small{color:#a9bdc9;margin-top:5px}.heroArrow{bottom:17px}
+.hero-voice .heroVisual{background:radial-gradient(circle at 50% 35%,rgba(19,207,255,.25),transparent 23%),radial-gradient(circle at 50% 35%,#0a3144 0 18%,#06131d 19% 33%,#0b2634 34% 35%,#031019 36% 100%)}.hero-voice .heroVisual:after{content:"";position:absolute;width:70px;height:70px;left:50%;top:35%;transform:translate(-50%,-50%);border:2px solid #13cfff;border-radius:50%;box-shadow:0 0 25px rgba(19,207,255,.55)}
+.hero-nearby .heroVisual{background:radial-gradient(circle at 25% 35%,#153f51 0 2%,transparent 3%),radial-gradient(circle at 62% 26%,#16485b 0 3%,transparent 4%),radial-gradient(circle at 72% 52%,#153f51 0 2%,transparent 3%),linear-gradient(145deg,#0d3142,#06131d)}
+.hero-routes .heroVisual{background:linear-gradient(150deg,transparent 44%,rgba(19,207,255,.7) 45% 46%,transparent 47%),linear-gradient(25deg,#071923 48%,#123646 49% 58%,#06131d 59%)}
+.hero-challenges .heroVisual{background:radial-gradient(circle at 68% 32%,rgba(19,207,255,.24),transparent 17%),linear-gradient(145deg,#123545,#06131d 65%)}
+.profileStrip{border-radius:18px;margin-top:16px;min-height:72px}
+.mapToolbar{display:flex;align-items:end;justify-content:space-between;margin:20px 0 12px}.mapToolbar small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.18em}.mapToolbar h1{font-size:29px;margin:4px 0 0}.mapPrivacy{width:44px;height:44px;border-radius:14px;border:1px solid #14516f;background:#071b28;color:#13cfff;font-size:22px}.mapLegend{display:flex;gap:15px;align-items:center;margin:14px 2px;color:#9fb2bf;font-size:11px}.mapLegend span{display:flex;align-items:center;gap:6px}.legendDot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.riderMap{height:540px;border-radius:26px;border:1px solid #174b67;background:radial-gradient(circle at 52% 52%,rgba(15,72,94,.35),transparent 30%),linear-gradient(145deg,#0b2735,#06131d);position:relative;overflow:hidden;box-shadow:inset 0 0 60px rgba(0,0,0,.28)}.riderMap:before,.riderMap:after{content:"";position:absolute;inset:0;background:linear-gradient(28deg,transparent 47%,rgba(39,91,111,.24) 48% 49%,transparent 50%),linear-gradient(104deg,transparent 47%,rgba(39,91,111,.18) 48% 49%,transparent 50%);transform:scale(1.3)}.mapRoad{position:absolute;height:2px;background:#174357;transform-origin:left center;opacity:.7}.roadA{width:430px;left:-40px;top:160px;transform:rotate(18deg)}.roadB{width:420px;left:20px;top:360px;transform:rotate(-28deg)}.roadC{width:330px;left:120px;top:80px;transform:rotate(72deg)}.mapFocus{position:absolute;left:52%;top:56%;width:92px;height:92px;border:1px solid rgba(19,207,255,.18);border-radius:50%;transform:translate(-43%,-43%);box-shadow:0 0 35px rgba(19,207,255,.07)}
+.riderPin{position:absolute;z-index:3;width:38px;height:38px;border-radius:50%;border:2px solid #fff;display:grid;place-items:center;padding:0;box-shadow:0 0 20px currentColor;transform:translate(-50%,-50%);cursor:pointer}.riderPin span{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#08151e;color:#fff;font-size:11px;font-weight:900}.riderPin.red span{background:#341018}.riderPin.green span{background:#063523}.riderPin.cyan span{background:#07354a}.mePin{width:46px;height:46px}.mePin span{font-size:8px}.mapHint{text-align:center;color:#93a9b7;font-size:12px;margin:16px 0 0}
+
+/* Rutas, Retos y Perfil: segunda pasada sobre APK real */
+.routeHero{background:linear-gradient(180deg,rgba(2,10,15,.15),rgba(2,10,15,.88)),linear-gradient(25deg,#0a1b25 42%,#16465a 43% 53%,#06131d 54%);min-height:190px}.routeList,.challengeList{display:grid;gap:12px;margin-top:16px}.routeCard,.challengeCard{width:100%;border:1px solid #174b67;border-radius:20px;background:linear-gradient(145deg,#0a1d29,#06131d);color:#fff;text-align:left;padding:0;overflow:hidden;display:flex;align-items:center;min-height:112px}.routeThumb{align-self:stretch;width:105px;position:relative;background:linear-gradient(145deg,#12394a,#07131d);flex:none}.routeThumb:before,.routeThumb:after{content:"";position:absolute;height:2px;background:#13cfff;box-shadow:0 0 10px rgba(19,207,255,.45);transform-origin:left}.routeThumb:before{width:78px;left:10px;top:70px;transform:rotate(-38deg)}.routeThumb:after{width:55px;left:46px;top:23px;transform:rotate(54deg)}.routeCardCopy,.challengeCopy{display:flex;flex-direction:column;gap:5px;padding:14px;min-width:0;flex:1}.routeCardCopy small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.14em}.routeCardCopy strong,.challengeCopy strong{font-size:16px}.routeCardCopy em,.challengeCopy em{color:#8fa8b8;font-size:10px;font-style:normal}.routeCard>b,.challengeCard>b{padding-right:14px;color:#13cfff;font-size:28px}
+.challengeHero{min-height:190px;background:radial-gradient(circle at 75% 25%,rgba(19,207,255,.23),transparent 20%),linear-gradient(145deg,#123545,#06131d 70%)}.challengeCard{padding:12px}.challengePct{width:62px;height:62px;border:2px solid #13cfff;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:14px;font-weight:900;box-shadow:0 0 16px rgba(19,207,255,.22);flex:none}.challengeCopy small{color:#9fb3bf;font-size:11px;line-height:1.35}.challengeCopy .progress{margin:5px 0 2px}
+.myProfileCover{height:190px;border:1px solid #174b67;border-radius:24px;margin-top:14px;position:relative;background:radial-gradient(circle at 70% 25%,rgba(19,207,255,.2),transparent 24%),linear-gradient(155deg,#12394a,#06131d 68%);box-shadow:0 18px 38px rgba(0,0,0,.28)}.myProfileCover:after{content:"";position:absolute;inset:0;border-radius:24px;background:linear-gradient(180deg,transparent 35%,rgba(2,9,14,.82))}.myProfileCover .profileMarkBig{position:absolute;z-index:2;left:20px;bottom:-36px;background:#082130;border:4px solid #06131d;box-shadow:0 0 0 2px #13cfff,0 0 22px rgba(19,207,255,.25)}.profileHeadOwn{padding-top:45px}.profileHeadOwn p{margin:4px 0;color:#8fa8b8;font-size:11px}
+.routeCanvas{position:relative;overflow:hidden}.routeLine{display:block;width:70%;height:4px;border-radius:10px;background:#13cfff;transform:rotate(-20deg);box-shadow:0 0 14px rgba(19,207,255,.65)}.routeLine:before,.routeLine:after{content:"";position:absolute;width:45%;height:4px;border-radius:10px;background:#13cfff}.routeLine:before{left:-6px;top:-30px;transform:rotate(48deg)}.routeLine:after{right:-8px;top:28px;transform:rotate(42deg)}
+
+/* Rider Voz: grupo, manos libres y gestión de participantes */
+.voiceParticipants{margin:0 0 14px}.voiceParticipants>small{display:block;color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.18em;margin-bottom:9px}.voiceParticipants>div{min-height:66px;border:1px solid #153d52;border-radius:17px;background:#06131d;padding:9px;display:flex;gap:8px;align-items:center;overflow-x:auto}.emptyGroup{color:#718996;font-size:11px;padding:0 7px}.groupRider{position:relative;min-width:68px;border:0;background:transparent;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px}.groupRider small{max-width:64px;overflow:hidden;text-overflow:ellipsis;font-size:9px}.groupRider b{position:absolute;right:4px;top:-2px;width:17px;height:17px;border-radius:50%;background:#44141b;color:#ff7182;display:grid;place-items:center;font-size:11px}.voiceControl.muted{border-color:#ff405c;box-shadow:0 0 16px rgba(255,64,92,.18)}.voiceExit{background:#31131a;color:#ff9ba7;border:1px solid #6d2734;box-shadow:none}.riderPicker{position:fixed;z-index:50;left:50%;bottom:0;transform:translateX(-50%);width:min(480px,100%);max-height:72vh;overflow:auto;padding:20px 18px calc(22px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;background:#06131d;border:1px solid #174b67;box-shadow:0 -20px 60px rgba(0,0,0,.7)}.riderPicker.hidden{display:none}.pickerHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.pickerHead small{color:#13cfff;font-size:9px;font-weight:900;letter-spacing:.18em}.pickerHead h2{margin:3px 0 0}.pickerHead button{width:40px;height:40px;border-radius:50%;border:1px solid #174b67;background:#0a2230;color:#fff;font-size:25px}.pickerList{display:grid;gap:8px}.pickerRider{width:100%;min-height:62px;border:1px solid #174052;border-radius:16px;background:#081a25;color:#fff;display:flex;align-items:center;gap:11px;padding:9px 12px;text-align:left}.pickerRider>span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:4px}.pickerRider small{font-size:10px}.pickerRider>b{color:#13cfff;font-size:22px}.pickerRider.unavailable{opacity:.42}.pickerRider.selected{border-color:#13cfff}.pickerEmpty{color:#8fa8b8;text-align:center;padding:15px}
+
+/* Contraseña: control limpio, sin emojis */
+.eyeBtn{position:relative;font-size:0!important}
+.eyeBtn:before{content:"";display:block;width:18px;height:11px;border:2px solid #7fa8bb;border-radius:70% 20% 70% 20%;transform:rotate(45deg);opacity:.75}
+.eyeBtn:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:#7fa8bb;left:50%;top:50%;transform:translate(-50%,-50%)}
+.eyeBtn.showing:before{border-color:#13cfff}.eyeBtn.showing:after{background:#13cfff}
+
+/* Iconografía propia Comunidad, sin emojis */
+.privacyGlyph{display:block;width:16px;height:16px;border:2px solid currentColor;border-radius:50%;position:relative}
+.privacyGlyph:after{content:"";position:absolute;width:4px;height:4px;border-radius:50%;background:currentColor;left:4px;top:4px}
+.sendGlyph{display:block;width:12px;height:12px;border-top:2px solid currentColor;border-right:2px solid currentColor;transform:rotate(45deg);margin-left:-3px}
+.voiceInviteGlyph{display:block;width:34px;height:34px;border:2px solid #13cfff;border-radius:50%;position:relative;margin:auto}
+.voiceInviteGlyph:before,.voiceInviteGlyph:after{content:"";position:absolute;left:50%;top:50%;border-radius:999px;transform:translate(-50%,-50%)}
+.voiceInviteGlyph:before{width:7px;height:18px;background:#13cfff}.voiceInviteGlyph:after{width:20px;height:20px;border:1px solid rgba(19,207,255,.45)}
+
+body.pickerOpen{overflow:hidden}
+body.pickerOpen .phone{overscroll-behavior:none}
+
+.mapFooter{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;font-size:12px}
+.mapFooter .mapHint{margin:0;text-align:right}
+.mapLiveState{display:flex;align-items:center;gap:7px;color:#9eb4c2;white-space:nowrap}
+.mapLiveState i{width:7px;height:7px;border-radius:50%;background:#19e58c;box-shadow:0 0 10px rgba(25,229,140,.7)}
+
+.bubble.pending{opacity:.72}.messageState{display:block;margin-top:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.68}
+
+
+/* BASE VISUAL BLOQUEADA · COMUNIDAD
+   Referencia: composición aprobada recuperada. No reinterpretar sin OK. */
+.communityTag{color:#6ddfff;font-size:12px;font-weight:900;letter-spacing:.13em}
+.communityGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.heroCard{min-height:238px;border-radius:14px;border:1px solid #124d70;padding:0;position:relative;isolation:isolate;overflow:hidden;background:#06131d}
+.heroCard .heroVisual{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover}
+.heroCard:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(1,8,13,.02) 12%,rgba(1,8,13,.14) 44%,rgba(1,8,13,.96) 100%)}
+.heroCopy{padding:0 46px 17px 15px}.heroCopy strong{font-size:17px;line-height:1.02;letter-spacing:.015em}.heroCopy small{font-size:11px;line-height:1.25;color:#c5d5df}
+.heroArrow{right:13px;bottom:15px;width:32px;height:32px}
+.hero-voice .heroVisual{background-image:url('assets/rider-voice.jpg')}
+.hero-nearby .heroVisual{background-image:url('assets/riders-nearby.jpg')}
+.hero-routes .heroVisual{background-image:url('assets/shared-routes.jpg')}
+.hero-challenges .heroVisual{background-image:url('assets/challenges.jpg')}
+.communityNav{position:sticky;bottom:8px;z-index:20;margin:18px -5px 0;padding:9px 8px calc(7px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr 1.2fr 1fr 1fr;align-items:end;border:1px solid #123e59;border-radius:20px;background:rgba(2,11,18,.94);backdrop-filter:blur(14px);box-shadow:0 -8px 28px rgba(0,0,0,.38)}
+.communityNav button{border:0;background:transparent;color:#7394a8;min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.communityNav button.active{color:#11bfff}.communityNav small{font-size:9px}.communityNav i{font-style:normal;display:block;position:relative}
+.navPlus{align-self:center!important}.communityNav .navPlus i{width:58px;height:58px;margin-top:-25px;border-radius:50%;display:grid;place-items:center;background:#079cf5;color:white;font-size:40px;font-weight:300;box-shadow:0 0 24px rgba(7,156,245,.45)}
+
+/* Navegación Comunidad · iconos CSS sin emoji */
+.communityNav .navHome{width:18px;height:15px;border:2px solid currentColor;border-top:0;border-radius:2px;margin-top:5px}
+.communityNav .navHome:before{content:"";position:absolute;width:12px;height:12px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);left:1px;top:-6px;border-radius:1px}
+.communityNav .navMap{width:18px;height:18px;border:2px solid currentColor;border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.communityNav .navMap:after{content:"";position:absolute;width:5px;height:5px;border:2px solid currentColor;border-radius:50%;left:4.5px;top:4.5px}
+.communityNav .navBell{width:16px;height:16px;border:2px solid currentColor;border-radius:9px 9px 5px 5px;border-bottom-width:1px}
+.communityNav .navBell:before{content:"";position:absolute;width:4px;height:2px;border-radius:50%;background:currentColor;left:4px;top:-4px}
+.communityNav .navBell:after{content:"";position:absolute;width:5px;height:2px;border-radius:0 0 5px 5px;background:currentColor;left:3.5px;bottom:-5px}
+.communityNav .navProfile{width:18px;height:18px;border:2px solid currentColor;border-radius:50%}
+.communityNav .navProfile:before{content:"";position:absolute;width:5px;height:5px;border:2px solid currentColor;border-radius:50%;left:4.5px;top:2px}
+.communityNav .navProfile:after{content:"";position:absolute;width:9px;height:5px;border:2px solid currentColor;border-bottom:0;border-radius:8px 8px 0 0;left:2.5px;bottom:1px}
+
+/* Acceso Comunidad · referencia visual recuperada */
+.authScreen{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;padding:12px 4px 34px}
+.authScreen .authBrand{align-items:center;text-align:center;padding:0 0 34px}
+.authScreen .authBrand b{font-size:34px}
+.authScreen .authBrand span{margin-left:.42em}
+.authScreen .authIntro{text-align:center;margin:0 0 30px}
+.authScreen .authIntro h1{font-size:30px;margin:0 0 8px}
+.authScreen .authIntro p{font-size:13px}
+.authScreen .field{margin:15px 0;color:#b8c9d3;font-size:12px;font-weight:700}
+.authScreen .field input{height:52px;border-radius:12px;background:#07131d;border-color:#17394e}
+.authScreen .authPrimary{height:52px;margin-top:22px;color:#fff;font-size:15px}
+.authOptions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 4px;color:#819aa9;font-size:11px}
+.authOptions label{display:flex;align-items:center;gap:6px}
+.authOptions input{accent-color:#08aef5}
+.authLink{border:0;background:transparent;color:#18c8ff;padding:4px;font:inherit;font-weight:800;cursor:pointer}
+.authSwitch,.authTerms{text-align:center;color:#7f98a7;font-size:11px;line-height:1.55}
+.authSwitch{margin:18px 0 0}.authTerms{margin:14px 18px 0}
+.authScreen #authMsg{min-height:20px;margin-top:12px}
+
+/* Mi cuenta Rider · referencia visual recuperada */
+.accountProfile{text-align:center;padding:20px 0 22px}.accountProfile .profileMarkBig{margin:0 auto 14px;width:92px;height:92px;display:grid;place-items:center;border-radius:50%;border:2px solid #16c9ff;background:#092332;box-shadow:0 0 24px rgba(19,207,255,.2)}.accountProfile h1{margin:0;font-size:25px}.accountProfile small{display:block;margin-top:6px;color:#6d8999;font-size:9px;font-weight:900;letter-spacing:.18em}
+.accountFields{margin-bottom:18px}.accountFields .accountData{margin:10px 0;border-radius:14px;background:#07141e}
+.accountMenu{border-top:1px solid #123246;border-bottom:1px solid #123246}.accountMenu button{width:100%;min-height:54px;padding:0 6px;border:0;border-bottom:1px solid #102b3c;background:transparent;color:#eaf7ff;display:flex;align-items:center;justify-content:space-between;text-align:left;font:inherit;cursor:pointer}.accountMenu button:last-child{border-bottom:0}.accountMenu button span{padding-left:13px;border-left:3px solid #10c9ff;font-weight:750}.accountMenu button b{color:#16c9ff;font-size:24px;font-weight:300}.accountMenu button.selected{background:rgba(19,207,255,.06)}
+.dangerBtn{border:1px solid #c43c4b!important;background:transparent!important;color:#ff6878!important;box-shadow:none!important}
+
+/* Home Comunidad · cierre de cascada sobre la base visual bloqueada */
+.communityHeader{align-items:center;margin:0 0 8px}
+.communityTag{margin:12px 0 22px;color:#6ddfff;font-size:12px;font-weight:900;letter-spacing:.13em}
+.communityGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.heroCard{min-height:238px;border-radius:14px;border:1px solid #124d70;padding:0;position:relative;isolation:isolate;overflow:hidden;background:#06131d;text-align:left;display:flex;flex-direction:column;justify-content:flex-end}
+.heroCard .heroVisual{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover;transform:none}
+.heroCard:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(1,8,13,.02) 12%,rgba(1,8,13,.14) 44%,rgba(1,8,13,.96) 100%)}
+.heroCopy{padding:0 46px 17px 15px}.heroCopy strong{font-size:17px;line-height:1.02;letter-spacing:.015em}.heroCopy small{font-size:11px;line-height:1.25;color:#c5d5df}
+.heroArrow{right:13px;bottom:15px;width:32px;height:32px}
+
+/* Rider Voz · estados de audio medidos */
+.groupRider{position:relative}
+.groupRider.speaking{border-color:#16d7ff!important;box-shadow:0 0 18px rgba(22,215,255,.3)}
+.voiceQualityBadge{position:absolute;right:7px;top:6px;font-size:7px!important;font-weight:900;letter-spacing:.08em;color:#6f8795;background:#06131d;border:1px solid #29404d;border-radius:9px;padding:3px 5px;pointer-events:none}
+.groupRider[data-voice-quality="good"] .voiceQualityBadge{color:#70efb2;border-color:#187a56}
+.groupRider[data-voice-quality="medium"] .voiceQualityBadge{color:#ffd36a;border-color:#80661e}
+.groupRider[data-voice-quality="weak"] .voiceQualityBadge{color:#ff7180;border-color:#8b2f3a}
+
+/* Acabado premium Comunidad · superficies secundarias */
+.routeCard,.challengeCard{transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.routeCard:active,.challengeCard:active,.heroCard:active{transform:scale(.985)}
+.routeCard{border-color:#143f58;background:linear-gradient(135deg,#071721,#061019)}
+.routeThumb{background:radial-gradient(circle at 72% 25%,rgba(18,202,255,.18),transparent 28%),linear-gradient(145deg,#0d2c3b,#07131c)}
+.challengeCard{border-color:#143f58;background:linear-gradient(135deg,#081923,#061019)}
+.screenHero{border-color:#143f58;background:radial-gradient(circle at 82% 14%,rgba(18,202,255,.11),transparent 35%),linear-gradient(145deg,#091d29,#061019)}
+.card{border-color:#14394f;background:#07141e}
+.backBtn,.mini{transition:transform .14s ease,border-color .14s ease}.backBtn:active,.mini:active{transform:scale(.94)}
+@media (max-width:370px){.heroCard{min-height:205px}.heroCopy strong{font-size:15px}.communityGrid{gap:8px}.communityTag{font-size:10px}}
+
+/* Cabecera interior Comunidad · marca centrada */
+.appTop{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px}
+.appTop .miniBrand{text-align:center;align-items:center}
+.topSpacer{width:44px;height:42px}
+
+/* Rider Voz · controles propios, sin abreviaturas provisionales */
+.voiceControl>span{position:relative;display:block;width:27px;height:27px;margin:auto}
+.voiceMicGlyph:before{content:"";position:absolute;left:8px;top:1px;width:9px;height:15px;border:2px solid currentColor;border-radius:8px}
+.voiceMicGlyph:after{content:"";position:absolute;left:5px;top:9px;width:15px;height:11px;border:2px solid currentColor;border-top:0;border-radius:0 0 10px 10px;box-shadow:0 5px 0 -3px currentColor}
+.voiceVolumeGlyph:before{content:"";position:absolute;left:2px;top:9px;width:7px;height:9px;border:2px solid currentColor;border-right:0;border-radius:2px}
+.voiceVolumeGlyph:after{content:"";position:absolute;left:8px;top:5px;width:12px;height:17px;border-right:2px solid currentColor;border-radius:0 50% 50% 0;box-shadow:4px 0 0 -2px currentColor}
+.voiceAddGlyph{display:grid!important;place-items:center;font-size:28px;font-weight:300;line-height:1}
+
+/* Portada eSkateSUV · secuencia aprobada */
+.launchSplash{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#02070b url('assets/app-cover.jpg') center/cover no-repeat;color:#fff;opacity:0;transition:opacity .42s ease}
+.launchSplash.is-in{opacity:1}.launchSplash.is-out{opacity:0;pointer-events:none}
+.launchShade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,6,11,.82) 0%,rgba(0,7,12,.34) 31%,rgba(0,7,12,.04) 61%,rgba(0,7,12,.64) 100%)}
+.launchBrand{position:absolute;top:max(6.5vh,48px);left:7vw;right:7vw;text-align:center;filter:drop-shadow(0 4px 14px #000)}
+.launchMark{width:92px;height:92px;margin:0 auto 13px;border:5px solid #20d9f5;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 22px rgba(32,217,245,.38)}
+.launchS{position:absolute;left:24px;width:43px;height:25px;border:7px solid #20d9f5;transform:skewX(-22deg);filter:drop-shadow(0 0 5px rgba(32,217,245,.28))}.launchSOne{top:18px;border-left-color:transparent;border-bottom-color:transparent;border-radius:7px 10px 3px 7px}.launchSTwo{bottom:18px;border-right-color:transparent;border-top-color:transparent;border-radius:3px 7px 7px 10px}
+.launchWord{font-size:clamp(40px,12vw,66px);font-weight:900;font-style:italic;letter-spacing:-.075em;white-space:nowrap}
+.launchWord span{display:inline-block;opacity:0;transform:translateY(9px) scale(.96);animation:launchLetter .22s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(.34s + var(--i)*.075s)}
+.launchWord span:nth-child(n+7){color:#18bff0}.launchTag{margin-top:8px;font-size:clamp(11px,3vw,16px);letter-spacing:.31em;font-weight:500;opacity:0;animation:launchTag .35s ease 1.08s forwards}.launchTag b{color:#20d9f5}
+.launchLoad{position:absolute;left:13vw;right:13vw;bottom:max(7vh,38px);text-align:center}.launchLoad:before{content:"";display:block;width:42%;height:3px;margin:0 auto 18px;background:rgba(255,255,255,.18);border-radius:3px}.launchLoad i{position:absolute;top:0;left:29%;width:0;height:3px;background:#20d9f5;border-radius:3px;animation:launchProgress 1.7s ease .45s forwards}.launchLoad small{font-size:10px;letter-spacing:.26em}
+@keyframes launchLetter{to{opacity:1;transform:none}}@keyframes launchTag{to{opacity:1}}@keyframes launchProgress{to{width:42%}}

@@ -1,200 +1,688 @@
 const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_7GinSOXWplq3vLmtQmKMAw_xom0bg3A';
-const supabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},global:{fetch:window.fetch.bind(window)}}):null;
 async function supabaseStatus(){
-  if(!supabase)return {ok:false,text:'Supabase no disponible'};
+  if(!supabaseClient)return {ok:false,text:'Supabase no disponible'};
   try{
-    const {error}=await supabase.from('profiles').select('id',{head:true,count:'exact'}).limit(1);
+    const {error}=await supabaseClient.from('profiles').select('id',{head:true,count:'exact'}).limit(1);
     return error?{ok:false,text:'Backend pendiente'}:{ok:true,text:'Backend conectado'};
   }catch{return {ok:false,text:'Sin conexión al backend'}}
 }
 const app=document.querySelector('#app');
 const state={locationConsent:localStorage.getItem('cr_location_consent')==='yes',locationSharing:localStorage.getItem('cr_location_sharing')==='yes'};
 const KEY='comunidad_rider_v1';
-function dbLoad(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch{return {}}}
-function dbSave(db){localStorage.setItem(KEY,JSON.stringify(db))}
+function dbLoad(){try{const value=JSON.parse(localStorage.getItem(KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{}}catch{return {}}}
+function dbSave(db){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch{return false}}
 async function currentUserId(){
-  if(!supabase)return null;
-  try{const {data}=await supabase.auth.getUser();return data?.user?.id||null}catch{return null}
+  if(!supabaseClient)return null;
+  try{const {data}=await supabaseClient.auth.getUser();return data?.user?.id||null}catch{return null}
+}
+const conversationCache=new Map();
+async function getPrivateConversation(riderId){
+  const me=await currentUserId();
+  if(!supabaseClient||!me||!riderId)return null;
+  const key=String(riderId);if(conversationCache.has(key))return conversationCache.get(key);
+  try{
+    const {data,error}=await supabaseClient.rpc('get_or_create_private_conversation',{other_profile:riderId});
+    if(error||!data)return null;
+    const id=Array.isArray(data)?data[0]:data;
+    if(id){conversationCache.set(key,id);return id}
+  }catch{}
+  return null
 }
 async function fetchMessages(riderId){
-  const me=await currentUserId();
-  if(!supabase||!me)return null;
+  const conversationId=await getPrivateConversation(riderId);
+  if(!conversationId)return null;
   try{
-    const {data,error}=await supabase.from('messages').select('*')
-      .or(`and(sender_id.eq.${me},receiver_id.eq.${riderId}),and(sender_id.eq.${riderId},receiver_id.eq.${me})`)
+    const {data,error}=await supabaseClient.from('messages').select('*').eq('conversation_id',conversationId)
       .order('created_at',{ascending:true}).limit(100);
     if(error)return null;
     return data||[];
   }catch{return null}
 }
 async function sendRemoteMessage(riderId,text){
-  const me=await currentUserId();
-  if(!supabase||!me)return false;
+  const me=await currentUserId(),conversationId=await getPrivateConversation(riderId);
+  if(!supabaseClient||!me||!conversationId)return null;
   try{
-    const {error}=await supabase.from('messages').insert({sender_id:me,receiver_id:riderId,body:text});
-    return !error;
+    const {data,error}=await supabaseClient.from('messages').insert({conversation_id:conversationId,sender_id:me,body:text}).select('id,created_at').single();
+    return error||!data?.id?null:data;
+  }catch{return null}
+}
+async function flushPendingMessages(riderId){
+  const pending=savedMessages(riderId).filter(m=>m.pending);
+  if(!pending.length)return 0;
+  const sentKeys=new Set();
+  for(const msg of pending){
+    const sent=await sendRemoteMessage(riderId,msg.text);
+    if(!sent)break;
+    sentKeys.add(msg.id||msg.at);
+  }
+  if(sentKeys.size){
+    const db=dbLoad(),messages=db.messages||{};
+    const key=Object.keys(messages).find(k=>String(k)===String(riderId));
+    if(key!=null&&messages[key]){
+      messages[key]=messages[key].filter(m=>!sentKeys.has(m.id||m.at));
+      db.messages=messages;dbSave(db);
+    }
+  }
+  return sentKeys.size;
+}
+function savedMessages(id){const db=dbLoad(),messages=db.messages||{};let key=Object.keys(messages).find(k=>String(k)===String(id));if(key==null)key=String(id);const list=messages[key]||[];let changed=false,seq=0;for(const m of list){if(m.pending&&!m.id){m.id='local-'+(m.at||Date.now())+'-'+(++seq);changed=true}}if(changed)dbSave(db);return list}
+function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};let key=Object.keys(db.messages).find(k=>String(k)===String(id));if(key==null)key=String(id);db.messages[key]=db.messages[key]||[];db.messages[key].push({id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),text,from:'me',at:new Date().toISOString(),pending:true});dbSave(db)}
+function clearSyncedLocalMessages(id,remoteHistory){const db=dbLoad(),messages=db.messages||{};const key=Object.keys(messages).find(k=>String(k)===String(id));if(key==null)return;const list=messages[key];if(!list?.length)return;const remaining=list.filter(l=>l.pending||!remoteHistory.some(m=>m.from===l.from&&m.text===l.text));if(remaining.length===list.length)return;messages[key]=remaining;db.messages=messages;dbSave(db)}
+function isFavorite(id){return (dbLoad().favoriteRoutes||[]).map(String).includes(String(id))}
+async function toggleFavorite(id){
+  const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];
+  const i=db.favoriteRoutes.findIndex(x=>String(x)===String(id)),adding=i<0;
+  const uid=await currentUserId();if(!uid||!supabaseClient)return null;
+  try{
+    const result=adding
+      ?await supabaseClient.from('route_favorites').upsert({route_id:id,profile_id:uid},{onConflict:'route_id,profile_id'})
+      :await supabaseClient.from('route_favorites').delete().eq('route_id',id).eq('profile_id',uid);
+    if(result.error)return null;
+    adding?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);
+    return adding
+  }catch{return null}
+}
+function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).map(String).includes(String(id))}
+async function joinChallenge(id){
+  if(joinedChallenge(id))return true;
+  const uid=await currentUserId();if(!uid||!supabaseClient)return false;
+  try{
+    const {error}=await supabaseClient.from('challenge_members').upsert({challenge_id:id,profile_id:uid},{onConflict:'challenge_id,profile_id'});
+    if(error)return false;
+    const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];
+    if(!db.joinedChallenges.map(String).includes(String(id)))db.joinedChallenges.push(id);
+    dbSave(db);return true
   }catch{return false}
 }
-function savedMessages(id){return (dbLoad().messages||{})[id]||[]}
-function saveMessage(id,text){const db=dbLoad();db.messages=db.messages||{};db.messages[id]=db.messages[id]||[];db.messages[id].push({text,from:'me',at:new Date().toISOString()});dbSave(db)}
-function isFavorite(id){return (dbLoad().favoriteRoutes||[]).includes(id)}
-function toggleFavorite(id){const db=dbLoad();db.favoriteRoutes=db.favoriteRoutes||[];const i=db.favoriteRoutes.indexOf(id);i<0?db.favoriteRoutes.push(id):db.favoriteRoutes.splice(i,1);dbSave(db);return db.favoriteRoutes.includes(id)}
-function joinedChallenge(id){return (dbLoad().joinedChallenges||[]).includes(id)}
-function joinChallenge(id){const db=dbLoad();db.joinedChallenges=db.joinedChallenges||[];if(!db.joinedChallenges.includes(id))db.joinedChallenges.push(id);dbSave(db)}
 function saveState(){localStorage.setItem('cr_location_consent',state.locationConsent?'yes':'no');localStorage.setItem('cr_location_sharing',state.locationSharing?'yes':'no')}
 function requestLocation(done){if(!navigator.geolocation){done&&done(null);return}navigator.geolocation.getCurrentPosition(p=>done&&done({lat:p.coords.latitude,lng:p.coords.longitude}),()=>done&&done(null),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})}
+async function publishRiderLocation(pos){
+  if(!supabaseClient||!pos)return false;
+  const uid=await currentUserId();if(!uid)return false;
+  try{const expires=new Date(Date.now()+5*60*1000).toISOString();const {error}=await supabaseClient.from('shared_locations').upsert({profile_id:uid,latitude:pos.lat,longitude:pos.lng,expires_at:expires},{onConflict:'profile_id'});return !error}catch{return false}
+}
+async function clearRiderLocation(){
+  if(!supabaseClient)return false;
+  const uid=await currentUserId();if(!uid)return false;
+  try{const {error}=await supabaseClient.from('shared_locations').delete().eq('profile_id',uid);return !error}catch{return false}
+}
+async function refreshSharedLocation(){
+  if(!state.locationConsent||!state.locationSharing)return false;
+  return await new Promise(resolve=>requestLocation(pos=>{if(!pos){resolve(false);return}publishRiderLocation(pos).then(resolve).catch(()=>resolve(false))}))
+}
+let riderLocationTimer=null;
+function stopRiderLocationHeartbeat(){if(riderLocationTimer){clearInterval(riderLocationTimer);riderLocationTimer=null}}
+function startRiderLocationHeartbeat(){
+  stopRiderLocationHeartbeat();
+  if(!state.locationConsent||!state.locationSharing)return;
+  riderLocationTimer=setInterval(()=>{if(document.visibilityState==='visible'&&navigator.onLine&&state.locationConsent&&state.locationSharing)refreshSharedLocation().catch(()=>{})},180000)
+}
+async function setRiderPresence(isOnline){
+  if(!supabaseClient)return false;
+  const uid=await currentUserId();if(!uid)return false;
+  try{const {error}=await supabaseClient.from('presence').upsert({profile_id:uid,is_online:Boolean(isOnline),last_seen:new Date().toISOString()},{onConflict:'profile_id'});return !error}catch{return false}
+}
+let riderPresenceTimer=null;
+function stopRiderPresenceHeartbeat(){if(riderPresenceTimer){clearInterval(riderPresenceTimer);riderPresenceTimer=null}}
+function startRiderPresenceHeartbeat(){
+  stopRiderPresenceHeartbeat();
+  riderPresenceTimer=setInterval(()=>{if(document.visibilityState==='visible'&&navigator.onLine)setRiderPresence(true).catch(()=>{})},45000)
+}
+function riderPresenceIsFresh(pr){
+  if(!pr?.is_online||!pr.last_seen)return false;
+  const seen=new Date(pr.last_seen).getTime();
+  return Number.isFinite(seen)&&Date.now()-seen<120000
+}
 async function fetchCommunityRiders(){
-  if(!supabase)return riders;
+  if(!supabaseClient)return [];
   try{
-    const {data,error}=await supabase.from('profiles').select('*').limit(50);
-    if(error||!data||!data.length)return riders;
-    return data.map((p,i)=>({
-      id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
-      status:p.is_active?'Activo ahora':'Última ubicación',
-      state:p.is_active?'green':'red',
-      left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
-      board:p.board||'eSkate',km:p.km?String(p.km)+' km':''
-    }));
-  }catch{return riders}
+    const [{data:profiles,error:profileError},{data:presence},{data:locations}]=await Promise.all([
+      supabaseClient.from('profiles').select('*').limit(50),
+      supabaseClient.from('presence').select('profile_id,is_online,last_seen').limit(50),
+      supabaseClient.from('active_shared_locations').select('profile_id,latitude,longitude,accuracy_m,updated_at').limit(50)
+    ]);
+    if(profileError||!profiles||!profiles.length)return [];
+    const presenceById=new Map((presence||[]).map(x=>[String(x.profile_id),x]));
+    const locationById=new Map((locations||[]).map(x=>[String(x.profile_id),x]));
+    const real=profiles.map((p,i)=>{
+      const pr=presenceById.get(String(p.id)),loc=locationById.get(String(p.id));
+      const online=riderPresenceIsFresh(pr);
+      return {
+        id:p.id,name:p.alias||p.name||'Rider',city:p.city||'',
+        status:online?'Activo ahora':'Fuera de cobertura',
+        state:online?'green':'red',
+        left:(20+(i*17)%65)+'%',top:(25+(i*13)%55)+'%',
+        latitude:loc?.latitude??null,longitude:loc?.longitude??null,accuracy:loc?.accuracy_m??null,
+        bio:p.bio||'Sin descripción.'
+      };
+    });
+    return real;
+  }catch{return []}
 }
 async function fetchSharedRoutes(){
-  if(!supabase)return routes;
+  if(!supabaseClient)return [];
   try{
-    const {data,error}=await supabase.from('routes').select('*').limit(50);
-    if(error||!data||!data.length)return routes;
-    return data.map((r,i)=>({id:r.id,name:r.name||'Ruta Rider',city:r.city||'',km:String(r.distance_km??r.km??'—'),time:r.duration||'—',level:r.level||'—',author:r.author_name||'Rider',likes:r.likes||0}));
-  }catch{return routes}
+    const {data,error}=await supabaseClient.from('routes').select('*').limit(50);
+    if(error||!data||!data.length)return [];
+    const authorIds=[...new Set(data.map(r=>r.author_id).filter(Boolean))];
+    let authors=new Map();
+    if(authorIds.length){const {data:profiles}=await supabaseClient.from('profiles').select('id,alias').in('id',authorIds);authors=new Map((profiles||[]).map(p=>[String(p.id),p.alias||'Rider']))}
+    const formatDuration=seconds=>{const n=Number(seconds);if(!Number.isFinite(n)||n<0)return '—';const h=Math.floor(n/3600),m=Math.floor((n%3600)/60);return h?h+' h '+String(m).padStart(2,'0')+' min':m+' min'};
+    return data.map(r=>({id:r.id,name:r.name||'Ruta Rider',city:r.city||'',km:String(r.distance_km??'—'),time:formatDuration(r.duration_seconds),elevation:Number.isFinite(Number(r.elevation_gain_m))?Number(r.elevation_gain_m):null,author:authors.get(String(r.author_id))||'Rider'}));
+  }catch{return []}
 }
 async function fetchChallenges(){
-  if(!supabase)return challengeData;
+  if(!supabaseClient)return [];
   try{
-    const {data,error}=await supabase.from('challenges').select('*').limit(50);
-    if(error||!data||!data.length)return challengeData;
-    return data.map((x,i)=>({id:x.id,icon:'🏆',name:x.name||'Reto',desc:x.description||'',progress:0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
-  }catch{return challengeData}
+    const uid=await currentUserId();
+    const [{data,error},{data:members}]=await Promise.all([
+      supabaseClient.from('challenges').select('*').limit(50),
+      uid?supabaseClient.from('challenge_members').select('challenge_id,progress').eq('profile_id',uid):Promise.resolve({data:[]})
+    ]);
+    if(error||!data||!data.length)return [];
+    const progressById=new Map((members||[]).map(x=>[String(x.challenge_id),Number(x.progress)||0]));
+    return data.map(x=>({id:x.id,name:x.name||'Reto',desc:x.description||'',progress:progressById.get(String(x.id))||0,target:Number(x.target)||1,unit:x.metric==='elevation_m'?'m':x.metric==='distance_km'?'km':'puntos'}));
+  }catch{return []}
 }
-const riders=[
-{id:1,name:'Alex Rider',city:'Madrid',status:'Activo ahora',state:'green',left:'48%',top:'39%',board:'eSkate SUV',km:'1.240 km'},
-{id:2,name:'Marta',city:'Valencia',status:'Última conexión: hace 2 h',state:'red',left:'70%',top:'51%',board:'Electric Rider',km:'860 km'},
-{id:3,name:'Dani',city:'Sevilla',status:'Activo ahora',state:'green',left:'27%',top:'58%',board:'eSkate',km:'2.105 km'}];
+const riders=[];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function shell(body){app.innerHTML='<section class="phone">'+body+'</section>'}
+let screenCleanup=null;function shell(body){if(screenCleanup){const cleanup=screenCleanup;screenCleanup=null;try{cleanup()}catch{}}app.innerHTML='<section class="phone">'+body+'</section>'}
+function topbar(label,back){return '<div class="appTop">'+(back?'<button class="backBtn" id="back" aria-label="Volver">‹</button>':'<span class="topSpacer"></span>')+'<div class="miniBrand"><b>eSKATESUV</b><span>COMUNIDAD</span></div><span class="topSpacer"></span></div>'+(label?'<div class="screenLabel">'+label+'</div>':'')}
 async function getSession(){
-  if(!supabase)return null;
-  try{const {data}=await supabase.auth.getSession();return data?.session||null}catch{return null}
+  if(!supabaseClient)return null;
+  try{const {data}=await supabaseClient.auth.getSession();return data?.session||null}catch{return null}
 }
 function authScreen(){
-  shell(`<div class="brand">E-SKATE SUV</div><h1>Acceso Rider</h1><p class="sub">Entra o crea tu cuenta para conectar con la comunidad.</p><label class="field">Seudónimo Rider<input id="authAlias" autocomplete="nickname" maxlength="24" placeholder="Tu nombre en la comunidad"></label><label class="field">Email<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres"></label><button class="btn" id="login">Entrar</button><button class="btn secondary" id="signup">Crear cuenta</button><p class="sub center" id="authMsg"></p>`);
-  const alias=document.querySelector('#authAlias'),email=document.querySelector('#authEmail'),pass=document.querySelector('#authPass'),msg=document.querySelector('#authMsg');
-  const values=()=>({email:email.value.trim(),password:pass.value});
-  document.querySelector('#login').onclick=async()=>{msg.textContent='Entrando…';const {error}=await supabase.auth.signInWithPassword(values());if(error){msg.textContent=error.message;return}home()};
-  document.querySelector('#signup').onclick=async()=>{const nick=alias.value.trim();if(nick.length<3){msg.textContent='El seudónimo debe tener al menos 3 caracteres.';return}msg.textContent='Creando cuenta…';const v=values();v.options={data:{alias:nick}};const {data,error}=await supabase.auth.signUp(v);if(error){msg.textContent=error.message;return}msg.textContent=data?.session?'✓ Cuenta creada':'✓ Cuenta creada. Revisa tu email para confirmar.';if(data?.session)home()};
+  shell(`<div class="authScreen"><div class="authBrand"><b>eSKATESUV</b><span>COMUNIDAD</span></div><div class="authIntro"><h1 id="authTitle">Bienvenido Rider</h1><p id="authSubtitle">Accede a tu comunidad.</p></div><div id="authFields"></div><p class="sub center" id="authMsg"></p></div>`);
+  const fields=document.querySelector('#authFields'),msg=document.querySelector('#authMsg'),title=document.querySelector('#authTitle'),subtitle=document.querySelector('#authSubtitle');
+  const bindEyes=()=>document.querySelectorAll('.eyeBtn').forEach(b=>b.onclick=()=>{const i=document.getElementById(b.dataset.eye);i.type=i.type==='password'?'text':'password';b.classList.toggle('showing',i.type==='text');b.setAttribute('aria-label',i.type==='password'?'Mostrar contraseña':'Ocultar contraseña')});
+  function loginForm(){
+    title.textContent='Bienvenido Rider';subtitle.textContent='Accede a tu comunidad.';
+    fields.innerHTML=`<label class="field">Correo electrónico<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<div class="passwordWrap"><input id="authPass" type="password" autocomplete="current-password" minlength="6" placeholder="Tu contraseña"><button type="button" class="eyeBtn" data-eye="authPass" aria-label="Mostrar contraseña"></button></div></label><div class="authOptions"><label><input id="rememberMe" type="checkbox" checked> <span>Recordarme</span></label><button type="button" class="authLink" id="forgotPass">¿Has olvidado tu contraseña?</button></div><button class="btn authPrimary" id="login">Entrar</button><p class="authSwitch">¿No tienes cuenta? <button type="button" class="authLink" id="goSignup">Regístrate</button></p>`;
+    bindEyes();
+    document.querySelector('#goSignup').onclick=()=>{msg.textContent='';signupForm()};
+    document.querySelector('#forgotPass').onclick=async()=>{const email=document.querySelector('#authEmail').value.trim();if(!email){msg.textContent='Introduce tu correo para recuperar la contraseña.';return}try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email);msg.textContent=error?error.message:'Te hemos enviado el enlace de recuperación.'}catch{msg.textContent='No se pudo enviar el enlace de recuperación.'}};
+    document.querySelector('#login').onclick=async()=>{const email=document.querySelector('#authEmail').value.trim(),password=document.querySelector('#authPass').value;if(!email||!password){msg.textContent='Completa email y contraseña.';return}msg.textContent='Entrando…';try{const {error}=await supabaseClient.auth.signInWithPassword({email,password});if(error){msg.textContent=error.message==='Failed to fetch'?'No hay conexión con el servidor.':error.message;return}await ensureProfile();riderVoice()}catch(e){msg.textContent='No se pudo conectar. Revisa la conexión e inténtalo de nuevo.'}};
+  }
+  function signupForm(){
+    title.textContent='Únete a la Comunidad';subtitle.textContent='Crea tu perfil Rider.';
+    fields.innerHTML=`<label class="field">Seudónimo Rider<input id="authAlias" autocomplete="nickname" maxlength="24" placeholder="Tu nombre en la comunidad"></label><label class="field">Correo electrónico<input id="authEmail" type="email" autocomplete="email" placeholder="tu@email.com"></label><label class="field">Contraseña<div class="passwordWrap"><input id="authPass" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres"><button type="button" class="eyeBtn" data-eye="authPass" aria-label="Mostrar contraseña"></button></div></label><button class="btn authPrimary" id="signup">Registrarse</button><p class="authTerms">Al registrarte aceptas las condiciones de uso y la política de privacidad.</p><p class="authSwitch">¿Ya tienes cuenta? <button type="button" class="authLink" id="goLogin">Entrar</button></p>`;
+    bindEyes();document.querySelector('#goLogin').onclick=()=>{msg.textContent='';loginForm()};
+    document.querySelector('#signup').onclick=async()=>{const nick=document.querySelector('#authAlias').value.trim(),email=document.querySelector('#authEmail').value.trim(),password=document.querySelector('#authPass').value;if(nick.length<3){msg.textContent='El seudónimo debe tener al menos 3 caracteres.';return}if(!email){msg.textContent='Introduce tu email.';return}if(password.length<6){msg.textContent='La contraseña debe tener al menos 6 caracteres.';return}msg.textContent='Creando cuenta…';try{const {data,error}=await supabaseClient.auth.signUp({email,password,options:{data:{alias:nick}}});if(error){msg.textContent=error.message==='Failed to fetch'?'No hay conexión con el servidor.':error.message;return}if(data&&data.session){await ensureProfile();riderVoice();return}msg.textContent='Cuenta creada. Revisa tu email para activar el acceso.'}catch(e){msg.textContent='No se pudo conectar. Revisa la conexión e inténtalo de nuevo.'}};
+  }
+  loginForm();
 }
 async function ensureProfile(){
-  const uid=await currentUserId();if(!uid||!supabase)return;
+  const uid=await currentUserId();if(!uid||!supabaseClient)return;
   try{
-    const {data:userData}=await supabase.auth.getUser();
+    const {data:userData}=await supabaseClient.auth.getUser();
     const alias=userData?.user?.user_metadata?.alias||'Rider';
-    const {data}=await supabase.from('profiles').select('id,alias').eq('id',uid).maybeSingle();
-    if(!data)await supabase.from('profiles').insert({id:uid,alias});
-    else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabase.from('profiles').update({alias}).eq('id',uid);
+    const {data}=await supabaseClient.from('profiles').select('id,alias').eq('id',uid).maybeSingle();
+    if(!data)await supabaseClient.from('profiles').insert({id:uid,alias});
+    else if((!data.alias||data.alias==='Rider')&&alias!=='Rider')await supabaseClient.from('profiles').update({alias}).eq('id',uid);
   }catch{}
+}
+async function cleanupRiderSessionResources({markOffline=false,clearLocation=false}={}){
+  stopRiderPresenceHeartbeat();stopRiderLocationHeartbeat();
+  if(screenCleanup){const cleanup=screenCleanup;screenCleanup=null;try{cleanup()}catch{}}
+  const closingSession=sessionStorage.getItem('rider_voice_session');
+  if(closingSession)await endVoiceInviteSession(closingSession).catch(()=>false);
+  if(window.riderVoiceRtc){
+    const rtc=window.riderVoiceRtc;
+    if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);
+    if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}
+    for(const remoteId of rtc.peers.keys()){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}})}catch{}}
+    for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();
+    try{await rtc.channel.unsubscribe()}catch{}window.riderVoiceRtc=null
+  }
+  document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});
+  if(window.riderVoiceLocalStream){try{window.riderVoiceLocalStream.getTracks().forEach(track=>track.stop())}catch{}window.riderVoiceLocalStream=null}
+  if(voiceInboxChannel){try{await voiceInboxChannel.unsubscribe()}catch{}voiceInboxChannel=null}
+  pendingVoiceResponses.clear();sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
+  if(clearLocation)await clearRiderLocation().catch(()=>false);if(markOffline)await setRiderPresence(false).catch(()=>false)
 }
 async function signOutRider(){
-  if(!supabase)return;
-  try{await supabase.auth.signOut()}catch{}
-  authScreen();
+  if(!supabaseClient){authScreen();return}
+  const btn=document.querySelector('#logout');if(btn){btn.disabled=true;btn.textContent='Cerrando sesión…'}
+  try{
+    await cleanupRiderSessionResources({markOffline:true,clearLocation:true});
+    const {error}=await supabaseClient.auth.signOut();
+    if(error)throw error;
+    authScreen()
+  }catch{
+    if(btn){btn.disabled=false;btn.textContent='Cerrar sesión'}
+    const menu=document.querySelector('.accountMenu');if(menu){let note=document.querySelector('#logoutError');if(!note){note=document.createElement('p');note.id='logoutError';note.className='sub center';menu.insertAdjacentElement('afterend',note)}note.textContent='No se pudo cerrar la sesión. Revisa la conexión e inténtalo de nuevo.'}
+  }
 }
+
+function notificationSettings(){
+  const db=dbLoad();db.settings=db.settings||{};
+  const current={voice:db.settings.notifyVoice!==false,chat:db.settings.notifyChat!==false,routes:db.settings.notifyRoutes!==false};
+  shell(`${topbar('NOTIFICACIONES',true)}<div class="settingsIntro"><small>AVISOS DE COMUNIDAD</small><h1>Tú decides qué suena</h1><p>Configura los avisos de Comunidad Rider sin afectar a los avisos de conducción de eSkateSUV.</p></div><div class="settingsList"><button class="settingToggle" data-setting="voice"><span><strong>Rider Voz</strong><small>Invitaciones y llamadas de voz</small></span><i class="switch ${current.voice?'on':''}"><span class="knob"></span></i></button><button class="settingToggle" data-setting="chat"><span><strong>Chat Rider</strong><small>Mensajes nuevos de otros Riders</small></span><i class="switch ${current.chat?'on':''}"><span class="knob"></span></i></button><button class="settingToggle" data-setting="routes"><span><strong>Rutas y retos</strong><small>Novedades de actividad de la comunidad</small></span><i class="switch ${current.routes?'on':''}"><span class="knob"></span></i></button></div>`);
+  document.querySelector('#back').onclick=accountScreen;
+  document.querySelectorAll('[data-setting]').forEach(btn=>btn.onclick=()=>{const key=btn.dataset.setting;current[key]=!current[key];btn.querySelector('.switch').classList.toggle('on',current[key]);const d=dbLoad();d.settings=d.settings||{};d.settings['notify'+key[0].toUpperCase()+key.slice(1)]=current[key];dbSave(d)});
+}
+function helpScreen(){
+  shell(`${topbar('AYUDA',true)}<div class="settingsIntro"><small>CENTRO RIDER</small><h1>¿En qué te ayudamos?</h1><p>Accesos rápidos para resolver los puntos habituales de Comunidad Rider.</p></div><div class="helpList"><div class="card"><strong>Rider Voz</strong><p>Comprueba permiso de micrófono, conexión a Internet y que el Rider siga disponible antes de iniciar la conversación.</p></div><div class="card"><strong>Ubicación y mapa</strong><p>Puedes activar o detener el uso de ubicación desde Privacidad. Tú decides cuándo aparecer en el mapa.</p></div><div class="card"><strong>Cuenta Rider</strong><p>Edita seudónimo, ciudad y descripción desde Mi cuenta Rider. La contraseña se recupera desde la pantalla de acceso.</p></div></div>`);
+  document.querySelector('#back').onclick=accountScreen;
+}
+
 async function accountScreen(){
   const uid=await currentUserId();
-  if(!uid||!supabase){authScreen();return}
+  if(!uid||!supabaseClient){authScreen();return}
   let user=null,profile=null;
-  try{
-    const {data:u}=await supabase.auth.getUser();user=u?.user||null;
-    const {data:p}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null;
-  }catch{}
+  try{const {data:u}=await supabaseClient.auth.getUser();user=u?.user||null;const {data:p}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();profile=p||null}catch{}
   const alias=profile?.alias||user?.user_metadata?.alias||'Rider';
-  shell(`<div class="brand">MI CUENTA RIDER</div><div class="row spread"><h1>${esc(alias)}</h1><button class="mini" id="back">‹</button></div><div class="card"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card"><small>CORREO</small><strong>${esc(user?.email||'')}</strong></div><button class="btn secondary" id="logout">Cerrar sesión</button>`);
+  const initial=esc(alias.slice(0,1).toUpperCase());
+  shell(`${topbar('MI CUENTA RIDER',true)}<div class="accountProfile"><div class="profileMark profileMarkBig">${initial}</div><h1>${esc(alias)}</h1><small>RIDER eSKATE SUV</small></div><div class="accountFields"><div class="card accountData"><small>SEUDÓNIMO</small><strong>${esc(alias)}</strong></div><div class="card accountData"><small>CORREO ELECTRÓNICO</small><strong>${esc(user?.email||'')}</strong></div></div><div class="accountMenu"><button id="editProfile"><span>Editar perfil</span><b>›</b></button><button id="notifications"><span>Notificaciones</span><b>›</b></button><button id="privacyAccount"><span>Privacidad</span><b>›</b></button><button id="helpAccount"><span>Ayuda</span><b>›</b></button></div><button class="btn secondary dangerBtn" id="logout">Cerrar sesión</button>`);
   document.querySelector('#back').onclick=home;
+  document.querySelector('#editProfile').onclick=myProfile;
+  document.querySelector('#notifications').onclick=notificationSettings;
+  document.querySelector('#privacyAccount').onclick=()=>privacy(accountScreen);
+  document.querySelector('#helpAccount').onclick=helpScreen;
   document.querySelector('#logout').onclick=signOutRider;
 }
 
-  if(!supabase){home();return}
-  const session=await getSession();
-  if(!session){authScreen();return}
-  await ensureProfile();home();
+async function createVoiceInviteRecord(recipientId,sessionId){
+  if(!supabaseClient)return null;
+  const me=await currentUserId();if(!me)return null;
+  try{
+    const expiresAt=new Date(Date.now()+30000).toISOString();
+    const {data,error}=await supabaseClient.from('voice_invites').insert({sender_id:me,recipient_id:recipientId,session_id:sessionId,status:'pending',expires_at:expiresAt}).select('id').single();
+    return error?null:data?.id||null
+  }catch{return null}
 }
-function home(){shell(`<div class="communityHeader"><div class="brandLogo"><strong>eSKATE SUV</strong><span>COMUNIDAD</span></div><button class="mini accountBtn" id="account" aria-label="Mi cuenta">👤</button></div><p class="communityTag">RIDERS · RUTAS · EXPERIENCIAS</p><div class="backendStatus" id="backendStatus"><i></i><span>Comprobando backend…</span></div><div class="communityGrid">${[['🎙️','RIDER VOZ','Habla. Comparte. Conecta.'],['📍','RIDERS EN MI ZONA','Encuentra riders cerca de ti.'],['🗺️','RUTAS COMPARTIDAS','Descubre. Guarda. Disfruta.'],['🏆','RETOS','Supera tus límites.']].map((x,i)=>`<button class="card menuCard photoCard heroCard" data-menu="${i}"><span class="heroIcon">${x[0]}</span><span class="heroCopy"><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="heroArrow">›</span></button>`).join('')}</div><button class="profileStrip" data-menu="4"><span>👤</span><span><strong>MI PERFIL RIDER</strong><small>Cuenta, privacidad y preferencias</small></span><b>›</b></button>`);
-supabaseStatus().then(s=>{const el=document.querySelector('#backendStatus');if(el){el.classList.toggle('ok',s.ok);el.querySelector('span').textContent=s.text}});
-document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile;
-const account=document.querySelector('#account');if(account)account.onclick=accountScreen;
+async function updateVoiceInviteRecord(inviteId,status){
+  if(!supabaseClient||!inviteId)return false;
+  try{const {error}=await supabaseClient.from('voice_invites').update({status}).eq('id',inviteId);return !error}catch{return false}
 }
-function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`<div class="brand">RIDERS EN MI ZONA</div><h1>Privacidad primero</h1><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
+
+async function endVoiceInviteSession(sessionId){
+  if(!supabaseClient||!sessionId)return false;
+  try{
+    const me=await currentUserId();if(!me)return false;
+    const {error}=await supabaseClient.from('voice_invites').update({status:'ended'}).eq('session_id',sessionId).eq('status','accepted').or('sender_id.eq.'+me+',recipient_id.eq.'+me);
+    return !error
+  }catch{return false}
+}
+
+let voiceInboxChannel=null;
+const pendingVoiceResponses=new Map();
+async function sendVoiceInviteResponse(payload,accepted,reason=''){
+  if(!supabaseClient||!payload?.from||!payload?.sessionId)return false;
+  const me=await currentUserId();if(!me)return false;
+  const responseChannel=supabaseClient.channel('rider-voice-inbox-'+payload.from,{config:{broadcast:{self:false}}});
+  return await new Promise(resolve=>{
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;try{responseChannel.unsubscribe()}catch{}resolve(value)};
+    const timer=setTimeout(()=>finish(false),5000);
+    responseChannel.subscribe(async status=>{
+      if(status!=='SUBSCRIBED')return;
+      try{
+        await responseChannel.send({type:'broadcast',event:'voice-invite-response',payload:{from:me,to:String(payload.from),sessionId:payload.sessionId,inviteId:payload.inviteId,accepted:Boolean(accepted),reason:reason||undefined}});
+        clearTimeout(timer);finish(true)
+      }catch{clearTimeout(timer);finish(false)}
+    })
+  })
+}
+async function showVoiceInvite(payload,channel){
+  const me=await currentUserId();
+  if(!me||!payload||String(payload.to)!==String(me)||!payload.sessionId)return false;
+  if(payload.createdAt&&Date.now()-Number(payload.createdAt)>30000){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'expired');return false}
+  if(window.riderVoiceRtc||sessionStorage.getItem('rider_voice_session')){if(payload.inviteId)await updateVoiceInviteRecord(payload.inviteId,'declined');await sendVoiceInviteResponse(payload,false,'busy');return false}
+  const pool=window.communityRiders||[];
+  const rider=pool.find(x=>String(x.id)===String(payload.from))||{id:String(payload.from),name:payload.senderName||'Rider'};
+  shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>LLAMADA RIDER</small><h1>'+esc(rider.name)+' te invita</h1><p>Quiere iniciar una conversación Rider Voz contigo.</p><div class="inviteRider"><span class="profileMark">'+esc((rider.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(rider.name)+'</strong><small class="online">● Invitación recibida</small></span></div><button class="btn" id="acceptVoice">Aceptar</button><button class="btn secondary" id="rejectVoice">Rechazar</button><p class="sub center" id="inviteStatus"></p></div>');
+  let answered=false;
+  const reply=async accepted=>{
+    if(answered)return;answered=true;
+    const accept=document.querySelector('#acceptVoice'),reject=document.querySelector('#rejectVoice');if(accept)accept.disabled=true;if(reject)reject.disabled=true;
+    try{
+      const responseSent=await sendVoiceInviteResponse(payload,accepted);if(!responseSent)throw new Error('voice-response-failed');
+      if(payload.inviteId){const stored=await updateVoiceInviteRecord(payload.inviteId,accepted?'accepted':'declined');if(!stored)throw new Error('voice-status-failed')}
+      if(accepted){sessionStorage.setItem('rider_voice_session',payload.sessionId);sessionStorage.setItem('rider_voice_peer',String(payload.from));riderVoice()}else home()
+    }catch{answered=false;if(accept)accept.disabled=false;if(reject)reject.disabled=false;const status=document.querySelector('#inviteStatus');if(status)status.textContent='No se pudo responder · revisa la conexión.'}
+  };
+  document.querySelector('#back').onclick=()=>reply(false);document.querySelector('#rejectVoice').onclick=()=>reply(false);document.querySelector('#acceptVoice').onclick=e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Entrando…';reply(true)};
+  return true
+}
+async function recoverPendingVoiceInvite(){
+  if(!supabaseClient)return false;
+  const me=await currentUserId();if(!me)return false;
+  try{
+    const now=new Date().toISOString();
+    const {data,error}=await supabaseClient.from('voice_invites').select('id,sender_id,session_id,created_at,expires_at').eq('recipient_id',me).eq('status','pending').gt('expires_at',now).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(error||!data)return false;
+    if(!data.session_id){await updateVoiceInviteRecord(data.id,'expired');return false}
+    const createdAt=new Date(data.created_at).getTime();
+    return await showVoiceInvite({from:data.sender_id,to:me,sessionId:data.session_id,inviteId:data.id,createdAt},voiceInboxChannel)
+  }catch{return false}
+}
+async function ensureVoiceInbox(){
+  if(!supabaseClient||voiceInboxChannel)return;
+  const me=await currentUserId();if(!me)return;
+  const channel=supabaseClient.channel('rider-voice-inbox-'+me,{config:{broadcast:{self:false}}});
+  channel.on('broadcast',{event:'voice-invite'},({payload})=>{showVoiceInvite(payload,channel)}).on('broadcast',{event:'voice-invite-response'},({payload})=>{if(!payload?.sessionId)return;const handler=pendingVoiceResponses.get(payload.sessionId);if(handler)handler(payload)}).subscribe();
+  voiceInboxChannel=channel;
+}
+async function enterAppAfterSplash(){
+  if(!supabaseClient){riderVoice();return}
+  let session=await getSession();
+  if(!session){try{const {data,error}=await supabaseClient.auth.signInAnonymously();if(!error)session=data?.session||null}catch{}}
+  if(session){await ensureProfile();await setRiderPresence(true);startRiderPresenceHeartbeat();await ensureVoiceInbox();const recovered=await recoverPendingVoiceInvite();if(recovered)return}
+  riderVoice();
+}
+function splashScreen(){
+  const letters=[...'eSkateSUV'].map((ch,i)=>`<span style="--i:${i}">${ch}</span>`).join('');
+  app.innerHTML=`<section class="launchSplash" aria-label="eSkateSUV"><div class="launchShade"></div><div class="launchBrand"><div class="launchMark" aria-hidden="true"><span class="launchS launchSOne"></span><span class="launchS launchSTwo"></span></div><div class="launchWord" aria-label="eSkateSUV">${letters}</div><div class="launchTag">RIDE <b>·</b> EXPLORE <b>·</b> CONNECT</div></div></section>`;
+  requestAnimationFrame(()=>document.querySelector('.launchSplash')?.classList.add('is-in'));
+  setTimeout(()=>document.querySelector('.launchSplash')?.classList.add('is-out'),2200);
+  setTimeout(()=>enterAppAfterSplash(),2850);
+}
+let authStateCleanupRunning=false;
+function watchAuthState(){
+  if(!supabaseClient)return;
+  supabaseClient.auth.onAuthStateChange((event)=>{
+    if(event!=='SIGNED_OUT'||authStateCleanupRunning)return;
+    authStateCleanupRunning=true;
+    cleanupRiderSessionResources().catch(()=>{}).finally(()=>{authStateCleanupRunning=false;enterAppAfterSplash()})
+  })
+}
+function boot(){watchAuthState();enterAppAfterSplash()}
+async function activityScreen(){
+  const db=dbLoad();let fav=new Set((db.favoriteRoutes||[]).map(String)).size,joined=new Set((db.joinedChallenges||[]).map(String)).size;
+  const group=new Set((db.voiceGroup||[]).map(String)).size;
+  const uid=await currentUserId();
+  if(uid&&supabaseClient){
+    try{
+      const [{count:favCount,error:favError},{count:challengeCount,error:challengeError}]=await Promise.all([
+        supabaseClient.from('route_favorites').select('route_id',{count:'exact',head:true}).eq('profile_id',uid),
+        supabaseClient.from('challenge_members').select('challenge_id',{count:'exact',head:true}).eq('profile_id',uid)
+      ]);
+      if(!favError&&Number.isFinite(favCount))fav=favCount;
+      if(!challengeError&&Number.isFinite(challengeCount))joined=challengeCount
+    }catch{}
+  }
+  shell(`${topbar('ACTIVIDAD',true)}<div class="screenHero activityHero"><div><small>TU COMUNIDAD</small><h1>Actividad Rider</h1><p>Un resumen de lo que tienes en marcha.</p></div></div><div class="activityList"><button class="card activityCard" id="activityVoice"><span><small>RIDER VOZ</small><strong>${group?group+' Rider'+(group===1?'':'s')+' en tu grupo':'Sin grupo activo'}</strong></span><b>›</b></button><button class="card activityCard" id="activityRoutes"><span><small>RUTAS GUARDADAS</small><strong>${fav} favorita${fav===1?'':'s'}</strong></span><b>›</b></button><button class="card activityCard" id="activityChallenges"><span><small>RETOS ACTIVOS</small><strong>${joined} reto${joined===1?'':'s'}</strong></span><b>›</b></button></div>`);
+  document.querySelector('#back').onclick=home;document.querySelector('#activityVoice').onclick=riderVoice;document.querySelector('#activityRoutes').onclick=sharedRoutes;document.querySelector('#activityChallenges').onclick=challenges
+}
+function home(){const p=dbLoad().profile||{};const initial=esc((p.alias||'R').slice(0,1).toUpperCase());const alias=esc(p.alias||'Rider');shell(`<div class="communityHeader"><div class="brandLogo"><strong>eSKATESUV</strong><span>COMUNIDAD</span></div><button class="accountBtn profileBubble" id="account" aria-label="Mi cuenta"><span>${initial}</span></button></div><p class="communityTag">TU GENTE. TUS RUTAS. TU RIDE.</p><div class="communityGrid">${[['voice','RIDER VOZ','Habla. Comparte. Conecta.'],['nearby','RIDERS EN MI ZONA','Encuentra riders cerca de ti.'],['routes','RUTAS COMPARTIDAS','Descubre. Guarda. Disfruta.'],['challenges','RETOS','Supera tus límites.']].map((x,i)=>`<button class="menuCard heroCard hero-${x[0]}" data-menu="${i}"><span class="heroVisual"></span><span class="heroCopy"><strong>${x[1]}</strong><small>${x[2]}</small></span><span class="heroArrow">›</span></button>`).join('')}</div><nav class="communityNav"><button class="active" data-nav="home"><i class="navHome"></i><small>Inicio</small></button><button data-nav="map"><i class="navMap"></i><small>Mapa</small></button><button class="navPlus" data-nav="plus"><i>+</i></button><button data-nav="activity"><i class="navBell"></i><small>Actividad</small></button><button data-menu="4"><i class="navProfile"></i><small>Perfil</small></button></nav>`);
+document.querySelector('[data-menu="0"]').onclick=riderVoice;document.querySelector('[data-menu="1"]').onclick=consent;document.querySelector('[data-menu="2"]').onclick=sharedRoutes;document.querySelector('[data-menu="3"]').onclick=challenges;document.querySelector('[data-menu="4"]').onclick=myProfile;document.querySelector('[data-nav="map"]').onclick=consent;document.querySelector('[data-nav="plus"]').onclick=sharedRoutes;document.querySelector('[data-nav="activity"]').onclick=activityScreen;
+const account=document.querySelector('#account');if(account){account.title=alias;account.onclick=accountScreen}
+}
+function consent(){if(state.locationConsent&&state.locationSharing){map();return}shell(`${topbar('RIDERS EN MI ZONA',true)}<div class="screenHero privacyHero"><div><small>ANTES DE APARECER EN EL MAPA</small><h1>Privacidad primero</h1><p>Tú controlas cuándo compartes tu ubicación.</p></div></div><div class="card"><div class="row"><div><h3>Compartir mi ubicación</h3><p>Activa esta opción para aparecer en la comunidad. Puedes desactivarla cuando quieras.</p></div><button class="switch" id="sw" aria-label="Compartir ubicación"><span class="knob"></span></button></div><div id="consent" class="hidden"><p class="sub">Tu ubicación se utiliza para mostrarte en el mapa. La última ubicación podrá mostrarse temporalmente cuando dejes de estar activo.</p><button class="btn" id="accept">ACEPTO Y ACTIVAR</button></div></div><button class="btn secondary" id="back">Volver</button>`);
 const sw=document.querySelector('#sw'), box=document.querySelector('#consent');
-sw.onclick=()=>{sw.classList.add('on');box.classList.remove('hidden')};document.querySelector('#accept').onclick=()=>{state.locationConsent=true;state.locationSharing=true;saveState();requestLocation(()=>map())};document.querySelector('#back').onclick=home}
+sw.onclick=()=>{const on=sw.classList.toggle('on');box.classList.toggle('hidden',!on)};document.querySelector('#accept').onclick=()=>{const btn=document.querySelector('#accept');if(btn){btn.disabled=true;btn.textContent='ACTIVANDO UBICACIÓN…'}requestLocation(pos=>{if(!pos){state.locationConsent=false;state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='ACEPTO Y ACTIVAR'}const note=document.querySelector('#consent .sub');if(note)note.textContent='No se pudo obtener la ubicación. Revisa el permiso de ubicación del dispositivo e inténtalo de nuevo.';return}state.locationConsent=true;publishRiderLocation(pos).then(ok=>{if(!ok){state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='ACEPTO Y ACTIVAR'}const note=document.querySelector('#consent .sub');if(note)note.textContent='No se pudo compartir la ubicación. Revisa la conexión e inténtalo de nuevo.';return}state.locationSharing=true;saveState();startRiderLocationHeartbeat();map()}).catch(()=>{state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='ACEPTO Y ACTIVAR'}const note=document.querySelector('#consent .sub');if(note)note.textContent='No se pudo compartir la ubicación. Revisa la conexión e inténtalo de nuevo.'})})};document.querySelector('#back').onclick=home}
 async function map(){
+  let myLocation=null;
+  if(state.locationConsent&&state.locationSharing){await refreshSharedLocation();const uid=await currentUserId();if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('active_shared_locations').select('latitude,longitude,accuracy_m').eq('profile_id',uid).maybeSingle();if(data)myLocation=data}catch{}}}
   const liveRiders=await fetchCommunityRiders();
   window.communityRiders=liveRiders;
-  shell(`<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">📍</span><div><small>RIDERS EN MI ZONA</small><h1>España</h1></div></div><button class="mini" id="back">‹</button></div><div class="legend"><span>🟢 Activo</span><span>🔴 Última ubicación</span><span>🔵 Tú</span></div><div class="map"><div class="spain"></div>${liveRiders.map(r=>`<button aria-label="${esc(r.name)}" class="dot ${r.state}" data-rider="${r.id}" style="left:${r.left};top:${r.top}"></button>`).join('')}<i class="dot cyan" style="left:52%;top:56%"></i></div><p class="sub center">Toca un rider para ver su perfil.</p><button class="btn secondary" id="privacy">⚙️ Privacidad de ubicación</button>`);
+  const located=liveRiders.filter(r=>Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)));
+  const visibleRiders=located.filter(r=>r.state==='green');
+  const activeCount=visibleRiders.length;
+  const origin=myLocation||located[0]||null;
+  if(origin){const lat0=Number(origin.latitude),lng0=Number(origin.longitude),latScale=Math.max(Math.cos(lat0*Math.PI/180),0.2);for(const r of located){const dx=(Number(r.longitude)-lng0)*latScale,dy=Number(r.latitude)-lat0;r.left=(50+Math.max(-1,Math.min(1,dx/0.02))*38)+'%';r.top=(50-Math.max(-1,Math.min(1,dy/0.02))*38)+'%'}}
+  shell(`${topbar('RIDERS EN MI ZONA',true)}<div class="mapToolbar"><div><small>COMUNIDAD CERCANA</small><h1>Riders en mi zona</h1></div><button class="mapPrivacy" id="privacy" aria-label="Privacidad"><span class="privacyGlyph"></span></button></div><div class="mapLegend"><span><i class="legendDot green"></i>Activo${activeCount?' · '+activeCount:''}</span><span><i class="legendDot red"></i>Fuera de cobertura</span><span><i class="legendDot cyan"></i>Tú</span></div><div class="riderMap"><div class="mapRoad roadA"></div><div class="mapRoad roadB"></div><div class="mapRoad roadC"></div>${visibleRiders.map(r=>`<button aria-label="${esc(r.name)}" class="riderPin ${r.state}" data-rider="${r.id}" style="left:${r.left};top:${r.top}"><span>${esc((r.name||'R').slice(0,1).toUpperCase())}</span></button>`).join('')}${myLocation?'<i class="riderPin cyan mePin" style="left:50%;top:50%"><span>TÚ</span></i>':''}<div class="mapFocus"></div></div><div class="mapFooter"><span class="mapLiveState"><i></i>${activeCount?activeCount+' Rider'+(activeCount===1?'':'s')+' conectado'+(activeCount===1?'':'s'):'Sin Riders conectados ahora'}</span><span class="mapHint">Toca un Rider para ver su perfil</span></div>`);
   document.querySelector('#back').onclick=home;
-  document.querySelector('#privacy').onclick=privacy;
+  document.querySelector('#privacy').onclick=()=>privacy(map);
   document.querySelectorAll('[data-rider]').forEach(b=>b.onclick=()=>profile(b.dataset.rider));
 }
-function profile(id){const pool=window.communityRiders||riders;const r=pool.find(x=>String(x.id)===String(id))||riders.find(x=>String(x.id)===String(id));shell(`<div class="brand">RIDER</div><button class="mini" id="back">‹ Mapa</button><div class="profileAvatar">🛹</div><h1 class="center">${esc(r.name)}</h1><p class="center ${r.state==='green'?'online':'offline'}">● ${esc(r.status)}</p><div class="card"><h3>${esc(r.city)}</h3><p>Tabla: ${esc(r.board)}</p><p>Distancia compartida: ${esc(r.km)}</p></div><button class="btn" id="message">💬 Enviar mensaje</button>`);document.querySelector('#back').onclick=map;document.querySelector('#message').onclick=()=>chat(r)}
+async function profile(id){
+  const pool=window.communityRiders||[];
+  const r=pool.find(x=>String(x.id)===String(id));
+  if(!r){map();return}
+  const online=r.state==='green';
+  let routeCount=null;
+  if(supabaseClient&&r.id){try{const {count,error}=await supabaseClient.from('routes').select('id',{count:'exact',head:true}).eq('author_id',r.id);if(!error&&Number.isFinite(count))routeCount=count}catch{}}
+  const city=esc(r.city||'—'),bio=esc(r.bio||'Rider de la comunidad eSKATESUV.');
+  shell(`${topbar('PERFIL RIDER',true)}<div class="riderCover communityProfileCover"><div class="riderAvatar userAvatar" title="Foto de perfil del Rider"><div class="avatarPortrait avatar-${String(r.id).replace(/[^a-z0-9-]/gi,'').toLowerCase()}"><span>${esc((r.name||'R').slice(0,1).toUpperCase())}</span></div></div></div><div class="riderIdentity"><div><small>RIDER</small><h1>${esc(r.name)}</h1><p class="${online?'online':'offline'}">● ${online?'En línea':'Fuera de cobertura'}</p></div></div><div class="riderStats"><div><b>${city}</b><small>ZONA</small></div><div><b>${routeCount===null?'—':routeCount}</b><small>RUTAS</small></div><div><b>—</b><small>RETOS</small></div></div><div class="card riderAbout"><small>SOBRE MÍ</small><p>${bio}</p></div><button class="btn ${online?'':'disabledAction'}" id="message" ${online?'':'disabled'}>${online?'Enviar mensaje':'Fuera de cobertura'}</button><button class="btn secondary ${online?'':'disabledAction'}" id="voiceProfile" ${online?'':'disabled'}>Rider Voz</button>`);
+  document.querySelector('#back').onclick=map;
+  if(online){
+    document.querySelector('#message').onclick=()=>chat(r);
+    document.querySelector('#voiceProfile').onclick=()=>voiceInvite(r);
+  }
+}
 async function chat(r){
+  const current=(window.communityRiders||[]).find(x=>String(x.id)===String(r?.id));
+  if(!r||!current||current.state!=='green'){if(r?.id)profile(r.id);else map();return}
+  r=current;
+  await flushPendingMessages(r.id);
   const remote=await fetchMessages(r.id);
   const local=savedMessages(r.id);
-  const history=remote===null?local:remote.map(m=>({text:m.body||m.text||'',from:m.sender_id===r.id?'them':'me'}));
-  shell(`<div class="row spread"><div><div class="brand">CHAT PRIVADO</div><h2>${esc(r.name)}</h2></div><button class="mini" id="back">‹</button></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+'">'+esc(m.text)+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes. Estrena el chat 👋</p>'}</div><button class="btn voice" id="voice">🎙️ Invitar a Rider Voz</button><div class="composer"><input id="msg" placeholder="Escribe un mensaje..."><button id="send">➤</button></div>`);
-  document.querySelector('#back').onclick=()=>profile(r.id);
+  const remoteHistory=remote===null?[]:remote.map(m=>({id:m.id||'',text:m.body||m.text||'',from:String(m.sender_id)===String(r.id)?'them':'me',at:m.created_at||''}));
+  if(remote!==null)clearSyncedLocalMessages(r.id,remoteHistory);
+  const currentLocal=savedMessages(r.id);
+  const history=remote===null?local:remoteHistory.concat(currentLocal.filter(l=>l.pending||!remoteHistory.some(m=>(l.remoteId&&m.id&&String(m.id)===String(l.remoteId))||(!l.remoteId&&m.from===l.from&&m.text===l.text&&String(m.at||'')===String(l.at||'')))));
+  history.sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+  shell(`${topbar('CHAT PRIVADO',true)}<div class="chatHead"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><div><small>CONVERSACIÓN CON</small><h2>${esc(r.name)}</h2></div></div><div class="chat" id="chat">${history.length?history.map(m=>'<div class="bubble '+(m.from==='them'?'them':'me')+(m.pending?' pending':'')+'">'+esc(m.text)+(m.pending?'<small class="messageState">Pendiente</small>':'')+'</div>').join(''):'<p class="sub center">Todavía no hay mensajes.</p>'}</div><button class="btn voice" id="voice">Invitar a Rider Voz</button><div class="composer"><input id="msg" maxlength="1000" autocomplete="off" enterkeyhint="send" placeholder="Escribe un mensaje..."><button id="send" aria-label="Enviar"><span class="sendGlyph"></span></button></div>`);
+  
   const input=document.querySelector('#msg');
+  const chatBox=document.querySelector('#chat');if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
   const send=async()=>{
-    const value=input.value.trim();if(!value)return;
-    input.disabled=true;
-    const sent=await sendRemoteMessage(r.id,value);
+    const value=input.value.trim();if(!value||input.disabled||!chatActive)return;
+    input.disabled=true;const sendBtn=document.querySelector('#send');if(sendBtn)sendBtn.disabled=true;
+    let live=null;
+    if(navigator.onLine){const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;live=refreshed.find(x=>String(x.id)===String(r.id))}
+    const sent=(navigator.onLine&&live?.state==='green')?await sendRemoteMessage(r.id,value):null;
     if(!sent)saveMessage(r.id,value);
-    document.querySelector('#chat').insertAdjacentHTML('beforeend',`<div class="bubble me">${esc(value)}</div>`);
-    input.value='';input.disabled=false;input.focus();
+    const empty=chatBox?.querySelector('.sub.center');if(empty)empty.remove();
+    chatBox?.insertAdjacentHTML('beforeend',`<div class="bubble me${sent?'':' pending'}">${esc(value)}${sent?'':'<small class="messageState">Pendiente</small>'}</div>`);
+    if(chatBox)chatBox.scrollTop=chatBox.scrollHeight;
+    input.value='';input.disabled=false;if(sendBtn)sendBtn.disabled=false;input.focus();
   };
   document.querySelector('#send').onclick=send;
-  input.onkeydown=e=>{if(e.key==='Enter')send()};
-  document.querySelector('#voice').onclick=()=>voiceInvite(r);
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();send()}};
+  let chatActive=true,retryingPending=false;
+  const cleanupChat=()=>{chatActive=false;window.removeEventListener('online',retryPending);document.removeEventListener('visibilitychange',onVisible);if(screenCleanup===cleanupChat)screenCleanup=null};screenCleanup=cleanupChat;
+  const retryPending=async()=>{if(!chatActive||retryingPending||document.visibilityState!=='visible'||!navigator.onLine)return;retryingPending=true;try{const sent=await flushPendingMessages(r.id);if(sent&&chatActive){cleanupChat();chat(r)}}finally{retryingPending=false}};
+  const onVisible=()=>{if(document.visibilityState==='visible')retryPending()};
+  document.querySelector('#voice').onclick=()=>{cleanupChat();voiceInvite(r)};
+  const backBtn=document.querySelector('#back');backBtn.onclick=()=>{cleanupChat();profile(r.id)};
+  window.addEventListener('online',retryPending);
+  document.addEventListener('visibilitychange',onVisible);
 }
-function voiceInvite(r){shell(`<div class="brand">RIDER VOZ</div><button class="mini" id="back">‹ Chat</button><div class="profileAvatar">🎙️</div><h1 class="center">Invitar a ${esc(r.name)}</h1><p class="sub center">La conversación de voz solo comienza si el otro rider acepta.</p><button class="btn" id="invite">Enviar invitación</button><button class="btn secondary" id="cancel">Cancelar</button>`);const go=()=>chat(r);document.querySelector('#back').onclick=go;document.querySelector('#cancel').onclick=go;document.querySelector('#invite').onclick=()=>{document.querySelector('#invite').textContent='✓ Invitación enviada';document.querySelector('#invite').disabled=true}}
-const routes=[{id:1,name:'Casa de Campo Loop',city:'Madrid',km:'18,4',time:'1 h 12 min',level:'Media',author:'Alex Rider',likes:34},{id:2,name:'Turia Night Ride',city:'Valencia',km:'14,8',time:'58 min',level:'Fácil',author:'Marta',likes:21},{id:3,name:'Sevilla Ribera',city:'Sevilla',km:'22,1',time:'1 h 31 min',level:'Media',author:'Dani',likes:47}];
+async function voiceInvite(r){const current=(window.communityRiders||[]).find(x=>String(x.id)===String(r?.id));if(!r||!current||current.state!=='green'){if(r?.id)profile(r.id);else map();return}r=current;shell(topbar('RIDER VOZ',true)+'<div class="voiceInvitePanel"><div class="profileAvatar voiceInviteAvatar"><span class="voiceInviteGlyph"></span></div><small>INVITACIÓN DE VOZ</small><h1>Invitar a '+esc(r.name)+'</h1><p>La conversación comienza cuando el Rider acepta.</p><div class="inviteRider"><span class="profileMark">'+esc((r.name||'R').slice(0,1).toUpperCase())+'</span><span><strong>'+esc(r.name)+'</strong><small class="online">● En línea</small></span></div><button class="btn" id="invite">Enviar invitación</button><button class="btn secondary" id="cancel">Cancelar</button><p class="sub center" id="inviteStatus"></p></div>');let cancelPendingInvite=null;const go=async()=>{if(cancelPendingInvite)await cancelPendingInvite();chat(r)};document.querySelector('#back').onclick=go;document.querySelector('#cancel').onclick=go;document.querySelector('#invite').onclick=async e=>{if(e.currentTarget.disabled)return;const me=await currentUserId();if(!supabaseClient||!me){document.querySelector('#inviteStatus').textContent='No se pudo identificar tu sesión.';return}const sessionId=[String(me),String(r.id)].sort().join('-')+'-'+Date.now();const inviteId=await createVoiceInviteRecord(r.id,sessionId);if(!inviteId){document.querySelector('#inviteStatus').textContent='No se pudo registrar la invitación.';return}await ensureVoiceInbox();if(!voiceInboxChannel){await updateVoiceInviteRecord(inviteId,'expired');document.querySelector('#inviteStatus').textContent='No se pudo abrir el canal Rider Voz.';return}const inbox=supabaseClient.channel('rider-voice-inbox-'+r.id,{config:{broadcast:{self:false}}});let finished=false,inviteTimeout=null;const finish=()=>{if(finished)return;finished=true;if(inviteTimeout){clearTimeout(inviteTimeout);inviteTimeout=null}pendingVoiceResponses.delete(sessionId);cancelPendingInvite=null;try{inbox.unsubscribe()}catch{}};cancelPendingInvite=async()=>{if(finished)return;await updateVoiceInviteRecord(inviteId,'expired');finish()};pendingVoiceResponses.set(sessionId,payload=>{if(!payload||String(payload.to)!==String(me)||payload.sessionId!==sessionId)return;if(payload.accepted){sessionStorage.setItem('rider_voice_session',sessionId);sessionStorage.setItem('rider_voice_peer',String(r.id));document.querySelector('#inviteStatus').textContent=r.name+' ha aceptado · entrando en Rider Voz…';finish();setTimeout(()=>riderVoice(),250)}else{document.querySelector('#inviteStatus').textContent=payload.reason==='busy'?r.name+' está en otra conversación Rider Voz.':r.name+' ha rechazado la invitación.';e.currentTarget.disabled=false;e.currentTarget.textContent='Enviar invitación';finish()}});inbox.subscribe(async status=>{if(status!=='SUBSCRIBED')return;try{await inbox.send({type:'broadcast',event:'voice-invite',payload:{from:me,to:String(r.id),sessionId,inviteId,createdAt:Date.now()}});e.currentTarget.textContent='Invitación enviada';document.querySelector('#cancel').textContent='Volver al chat';document.querySelector('#inviteStatus').textContent='Esperando respuesta del Rider.';inviteTimeout=setTimeout(()=>{if(!finished){document.querySelector('#inviteStatus').textContent='Sin respuesta · puedes volver a intentarlo.';updateVoiceInviteRecord(inviteId,'expired');e.currentTarget.disabled=false;e.currentTarget.textContent='Enviar invitación';finish()}},30000)}catch{await updateVoiceInviteRecord(inviteId,'expired');e.currentTarget.disabled=false;e.currentTarget.textContent='Enviar invitación';document.querySelector('#inviteStatus').textContent='No se pudo enviar la invitación.';finish()}})}}
+const routes=[];
 async function sharedRoutes(){
   const liveRoutes=await fetchSharedRoutes();
+  const uid=await currentUserId();
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('route_favorites').select('route_id').eq('profile_id',uid);if(data){const db=dbLoad();db.favoriteRoutes=data.map(x=>x.route_id);dbSave(db)}}catch{}}
   window.communityRoutes=liveRoutes;
-  shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">🗺️</span><div><small>RUTAS COMPARTIDAS</small><h1>Descubrir rutas</h1></div></div><button class="mini" id="back">‹</button></div><p class="sub">Rutas publicadas por la comunidad.</p>'+liveRoutes.map(r=>'<button class="card menuCard communityListCard" data-route="'+r.id+'"><strong>🗺️ '+esc(r.name)+'</strong><small>📍 '+esc(r.city)+' · '+r.km+' km · '+esc(r.level)+'</small><small>🛹 '+esc(r.author)+' · ♥ '+r.likes+'</small></button>').join(''));
+  const routeCards=liveRoutes.length?liveRoutes.map(r=>'<button class="routeCard" data-route="'+r.id+'"><span class="routeThumb"><i></i></span><span class="routeCardCopy"><small>'+esc(r.city||'RUTA RIDER')+'</small><strong>'+esc(r.name)+'</strong><em>'+r.km+' km'+(r.elevation!==null?' · +'+r.elevation+' m':'')+' · '+esc(r.author)+'</em></span><b>›</b></button>').join(''):'<p class="sub center">Todavía no hay rutas compartidas.</p>';
+  shell(topbar('RUTAS COMPARTIDAS',true)+'<div class="screenHero routeHero"><div><small>RUTAS DE LA COMUNIDAD</small><h1>Descubrir rutas</h1><p>Explora y guarda rutas compartidas por otros Riders.</p></div></div><div class="routeList">'+routeCards+'</div>');
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeDetail(b.dataset.route));
 }
-function routeDetail(id){const pool=window.communityRoutes||routes;const r=pool.find(x=>String(x.id)===String(id))||routes.find(x=>String(x.id)===String(id));shell('<div class="brand">RUTA COMPARTIDA</div><button class="mini" id="back">‹ Rutas</button><div class="routePreview">⌁</div><h1>'+esc(r.name)+'</h1><p class="sub">📍 '+esc(r.city)+' · por '+esc(r.author)+'</p><div class="stats"><div><b>'+r.km+'</b><small>km</small></div><div><b>'+esc(r.time)+'</b><small>duración</small></div><div><b>'+esc(r.level)+'</b><small>nivel</small></div></div><button class="btn" id="openRoute">🧭 Abrir ruta</button><button class="btn secondary" id="fav">♡ Guardar en favoritas</button>');document.querySelector('#back').onclick=sharedRoutes;const fav=document.querySelector('#fav');if(isFavorite(r.id))fav.textContent='♥ Guardada en favoritas';fav.onclick=e=>{const on=toggleFavorite(r.id);e.currentTarget.textContent=on?'♥ Guardada en favoritas':'♡ Guardar en favoritas'};document.querySelector('#openRoute').onclick=e=>{e.currentTarget.textContent='✓ Ruta preparada';e.currentTarget.disabled=true}}
-const challengeData=[{id:1,icon:'⚡',name:'50 km esta semana',desc:'Acumula 50 km en cualquier número de salidas.',progress:32,target:50,unit:'km'},{id:2,icon:'⛰️',name:'Cazador de desnivel',desc:'Suma 1.000 m de desnivel positivo.',progress:640,target:1000,unit:'m'},{id:3,icon:'🧭',name:'Explorador',desc:'Completa 3 rutas nuevas.',progress:1,target:3,unit:'rutas'}];
+function routeDetail(id){const pool=window.communityRoutes||[];const r=pool.find(x=>String(x.id)===String(id));if(!r){sharedRoutes();return}shell(topbar('RUTA COMPARTIDA',true)+'<div class="routePreview routeCanvas"><span class="routeLine"></span></div><h1>'+esc(r.name)+'</h1><p class="sub">'+esc(r.city)+' · por '+esc(r.author)+'</p><div class="stats"><div><b>'+r.km+'</b><small>km</small></div><div><b>'+esc(r.time)+'</b><small>duración</small></div><div><b>'+(r.elevation!==null?'+'+r.elevation+' m':'—')+'</b><small>desnivel</small></div></div><button class="btn" id="openRoute">Preparar ruta</button><button class="btn secondary" id="fav">♡ Guardar en favoritas</button>');document.querySelector('#back').onclick=sharedRoutes;const fav=document.querySelector('#fav');if(isFavorite(r.id))fav.textContent='♥ Guardada en favoritas';fav.onclick=async e=>{const wasFavorite=isFavorite(r.id);e.currentTarget.disabled=true;const on=await toggleFavorite(r.id);if(on===null){e.currentTarget.textContent=wasFavorite?'♥ Guardada · reintenta':'♡ No se pudo guardar · reintenta'}else{e.currentTarget.textContent=on?'♥ Guardada en favoritas':'♡ Guardar en favoritas'}e.currentTarget.disabled=false};document.querySelector('#openRoute').onclick=e=>{const btn=e.currentTarget;btn.textContent='Ruta preparada para navegación';btn.disabled=true;const db=dbLoad();db.preparedRoute={id:r.id,name:r.name,city:r.city,km:r.km,preparedAt:new Date().toISOString()};dbSave(db)}}
+const challengeData=[];
 async function challenges(){
   const liveChallenges=await fetchChallenges();
+  const uid=await currentUserId();
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('challenge_members').select('challenge_id').eq('profile_id',uid);if(data){const db=dbLoad();db.joinedChallenges=data.map(x=>x.challenge_id);dbSave(db)}}catch{}}
   window.communityChallenges=liveChallenges;
-  shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">🏆</span><div><small>RETOS</small><h1>Esta semana</h1></div></div><button class="mini" id="back">‹</button></div><p class="sub">Objetivos para darle una excusa más a las ruedas.</p>'+liveChallenges.map(x=>{const pct=Math.min(100,Math.round(x.progress/x.target*100));return '<button class="card menuCard communityListCard" data-challenge="'+x.id+'"><strong>'+x.icon+' '+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><small>'+x.progress+' / '+x.target+' '+esc(x.unit)+' · '+pct+'%</small></button>'}).join(''));
+  const challengeCards=liveChallenges.length?liveChallenges.map(x=>{const target=Math.max(1,Number(x.target)||1),progress=Math.max(0,Number(x.progress)||0);const pct=Math.min(100,Math.round(progress/target*100));return '<button class="challengeCard" data-challenge="'+x.id+'"><span class="challengePct">'+pct+'%</span><span class="challengeCopy"><strong>'+esc(x.name)+'</strong><small>'+esc(x.desc)+'</small><span class="progress"><i style="width:'+pct+'%"></i></span><em>'+progress+' / '+target+' '+esc(x.unit)+'</em></span><b>›</b></button>'}).join(''):'<p class="sub center">Todavía no hay retos disponibles.</p>';
+  shell(topbar('RETOS',true)+'<div class="screenHero challengeHero"><div><small>RETOS DE LA COMUNIDAD</small><h1>Retos</h1><p>Objetivos, progreso y participación Rider.</p></div></div><div class="challengeList">'+challengeCards+'</div>');
   document.querySelector('#back').onclick=home;
   document.querySelectorAll('[data-challenge]').forEach(b=>b.onclick=()=>challengeDetail(b.dataset.challenge));
 }
-function challengeDetail(id){const pool=window.communityChallenges||challengeData;const x=pool.find(v=>String(v.id)===String(id))||challengeData.find(v=>String(v.id)===String(id)),pct=Math.min(100,Math.round(x.progress/x.target*100));shell('<div class="brand">RETO</div><button class="mini" id="back">‹ Retos</button><div class="challengeIcon">'+x.icon+'</div><h1 class="center">'+esc(x.name)+'</h1><p class="sub center">'+esc(x.desc)+'</p><div class="bigProgress">'+pct+'%</div><span class="progress"><i style="width:'+pct+'%"></i></span><p class="center">'+x.progress+' / '+x.target+' '+esc(x.unit)+'</p><button class="btn" id="join">Unirme al reto</button>');document.querySelector('#back').onclick=challenges;const join=document.querySelector('#join');if(joinedChallenge(x.id)){join.textContent='✓ Reto activo';join.disabled=true}join.onclick=e=>{joinChallenge(x.id);e.currentTarget.textContent='✓ Reto activo';e.currentTarget.disabled=true}}
-function privacy(){shell('<div class="brand">PRIVACIDAD</div><button class="mini" id="back">‹ Mapa</button><h1>Ubicación</h1><div class="card"><h3>Compartir mi ubicación</h3><p id="shareStatus">'+(state.locationSharing?'Activada':'Desactivada')+'</p><button class="btn secondary" id="toggleShare">'+(state.locationSharing?'Desactivar':'Activar')+'</button></div><p class="sub">Al desactivarla dejas de compartir nuevas posiciones. El módulo queda preparado para aplicar después la caducidad de la última ubicación en el servidor.</p>');document.querySelector('#back').onclick=map;document.querySelector('#toggleShare').onclick=()=>{state.locationSharing=!state.locationSharing;saveState();privacy()}}
+function challengeDetail(id){const pool=window.communityChallenges||challengeData;const x=pool.find(v=>String(v.id)===String(id))||challengeData.find(v=>String(v.id)===String(id));if(!x){challenges();return}const target=Math.max(1,Number(x.target)||1),progress=Math.max(0,Number(x.progress)||0);const pct=Math.min(100,Math.round(progress/target*100));shell(topbar('RETO',true)+'<div class="challengeBadge"><span>'+pct+'%</span><small>PROGRESO</small></div><h1 class="center">'+esc(x.name)+'</h1><p class="sub center">'+esc(x.desc)+'</p><div class="bigProgress">'+pct+'%</div><span class="progress"><i style="width:'+pct+'%"></i></span><p class="center">'+progress+' / '+target+' '+esc(x.unit)+'</p><button class="btn" id="join">Unirme al reto</button>');document.querySelector('#back').onclick=challenges;const join=document.querySelector('#join');if(joinedChallenge(x.id)){join.textContent='Reto activo';join.disabled=true}join.onclick=async e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Uniéndome…';const remote=await joinChallenge(x.id);if(remote){e.currentTarget.textContent='Reto activo'}else{e.currentTarget.textContent='No se pudo unir · reintenta';e.currentTarget.disabled=false}}}
+function privacy(returnTo=map){shell(topbar('PRIVACIDAD',true)+'<div class="screenHero privacyHero"><div><small>CONTROL RIDER</small><h1>Ubicación</h1><p>Tú decides cuándo apareces en la comunidad.</p></div></div><div class="card"><h3>Compartir mi ubicación</h3><p id="shareStatus">'+(state.locationSharing?'Activada':'Desactivada')+'</p><button class="btn secondary" id="toggleShare">'+(state.locationSharing?'Desactivar':'Activar')+'</button></div><p class="sub">Al desactivarla, Comunidad deja de solicitar tu ubicación. Puedes volver a activarla cuando quieras.</p>');document.querySelector('#back').onclick=returnTo;document.querySelector('#toggleShare').onclick=()=>{if(state.locationSharing){state.locationSharing=false;saveState();stopRiderLocationHeartbeat();clearRiderLocation().finally(()=>privacy(returnTo));return}const btn=document.querySelector('#toggleShare');if(btn){btn.disabled=true;btn.textContent='Activando…'}requestLocation(pos=>{if(!pos){state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='Activar'}const status=document.querySelector('#shareStatus');if(status)status.textContent='No se pudo obtener la ubicación';return}state.locationConsent=true;publishRiderLocation(pos).then(ok=>{if(!ok){state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='Activar'}const status=document.querySelector('#shareStatus');if(status)status.textContent='No se pudo compartir la ubicación';return}state.locationSharing=true;saveState();privacy(returnTo)}).catch(()=>{state.locationSharing=false;saveState();if(btn){btn.disabled=false;btn.textContent='Activar'}const status=document.querySelector('#shareStatus');if(status)status.textContent='No se pudo compartir la ubicación'})})}}
 async function myProfile(){
-  const db=dbLoad(),local=db.profile||{alias:'',city:'',board:'eSkate SUV',bio:''};
+  const db=dbLoad(),local=db.profile||{alias:'',city:'',bio:''};
   let p={...local};
   const uid=await currentUserId();
-  if(uid&&supabase){try{const {data}=await supabase.from('profiles').select('*').eq('id',uid).maybeSingle();if(data)p={...p,...data}}catch{}}
-  shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">👤</span><div><small>MI PERFIL RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><button class="mini" id="back">‹</button></div><div class="profileAvatar profileHero">🛹</div><label class="field">Seudónimo<input id="alias" maxlength="24" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Tabla<input id="board" maxlength="40" value="'+esc(p.board||'eSkate SUV')+'" placeholder="eSkate SUV"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
+  if(uid&&supabaseClient){try{const {data}=await supabaseClient.from('profiles').select('*').eq('id',uid).maybeSingle();if(data){p={...p,...data};const cached={alias:p.alias||'',city:p.city||'',bio:p.bio||''};db.profile=cached;dbSave(db)}}catch{}}
+  shell(topbar('MI PERFIL RIDER',true)+'<div class="myProfileCover"><div class="profileMark profileMarkBig">'+esc((p.alias||'R').slice(0,1).toUpperCase())+'</div></div><div class="profileHead profileHeadOwn"><div><small>RIDER</small><h1>'+esc(p.alias||'Rider')+'</h1></div></div><label class="field">Seudónimo<input id="alias" maxlength="24" autocomplete="nickname" value="'+esc(p.alias||'')+'" placeholder="Tu nombre Rider"></label><label class="field">Ciudad<input id="city" maxlength="40" value="'+esc(p.city||'')+'" placeholder="Ciudad"></label><label class="field">Sobre mí<textarea id="bio" maxlength="140" placeholder="Cuéntale algo a la comunidad">'+esc(p.bio||'')+'</textarea></label><button class="btn" id="saveProfile">Guardar perfil</button><p class="sub center" id="saved"></p>');
   document.querySelector('#back').onclick=home;
   document.querySelector('#saveProfile').onclick=async()=>{
-    const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),board:document.querySelector('#board').value.trim(),bio:document.querySelector('#bio').value.trim()};
-    const db=dbLoad();db.profile=profile;dbSave(db);
+    const profile={alias:document.querySelector('#alias').value.trim(),city:document.querySelector('#city').value.trim(),bio:document.querySelector('#bio').value.trim()};
+    if(!profile.alias){document.querySelector('#saved').textContent='El seudónimo es obligatorio';document.querySelector('#alias').focus();return}if(profile.alias.length<3){document.querySelector('#saved').textContent='Usa al menos 3 caracteres';document.querySelector('#alias').focus();return}if(!/^[\p{L}\p{N}._ -]+$/u.test(profile.alias)){document.querySelector('#saved').textContent='El seudónimo contiene caracteres no admitidos';document.querySelector('#alias').focus();return}profile.alias=profile.alias.replace(/\s+/g,' ').trim();profile.city=profile.city.replace(/\s+/g,' ').trim();profile.bio=profile.bio.trim();
     let remote=false;
-    if(uid&&supabase){try{const {error}=await supabase.from('profiles').update(profile).eq('id',uid);remote=!error}catch{}}
-    document.querySelector('#saved').textContent=remote?'✓ Perfil sincronizado':'✓ Perfil guardado en este dispositivo';
+    if(uid&&supabaseClient){try{const {error}=await supabaseClient.from('profiles').upsert({id:uid,...profile},{onConflict:'id'});remote=!error}catch{}}
+    const db=dbLoad();db.profile=profile;dbSave(db);
+    const mark=document.querySelector('.profileMarkBig');if(mark)mark.textContent=profile.alias.slice(0,1).toUpperCase();
+    const title=document.querySelector('.profileHeadOwn h1');if(title)title.textContent=profile.alias;
+    document.querySelector('#saved').textContent=remote?'Perfil sincronizado':'Perfil guardado en este dispositivo';
   };
 }
-function riderVoice(){shell('<div class="sectionEyebrow">eSKATE SUV · COMUNIDAD</div><div class="row spread"><div class="sectionHero"><span class="sectionHeroIcon">🎙️</span><div><small>RIDER VOZ</small><h1>Conexión de voz</h1></div></div><button class="mini" id="back">‹</button></div><p class="sub">Habla con otros riders mientras ruedas. Las invitaciones requieren aceptación.</p><div class="card voiceFeature"><div class="voiceOrb">🎙️</div><div><h3>Sin conexión activa</h3><p>Selecciona un rider para enviar una invitación de voz.</p></div></div><button class="btn" id="find">📍 Buscar riders</button><div class="card"><h3>Controles previstos</h3><p>Micrófono · silenciar · volumen · finalizar conexión.</p></div>');document.querySelector('#back').onclick=home;document.querySelector('#find').onclick=consent}
+async function riderVoice(){
+  const nativeVoice=window.Capacitor?.Plugins?.RiderVoice||null;
+  const liveRiders=await fetchCommunityRiders();
+  window.communityRiders=liveRiders;
+  const pool=liveRiders;
+  const selectable=pool.filter(r=>r.state==='green');
+  const offline=pool.filter(r=>r.state!=='green');
+  const availableIds=new Set(selectable.map(r=>String(r.id)));
+  shell(`<div class="riderVoiceApp"><header class="rvHeader"><button id="back" aria-label="Volver">‹</button><h1>RIDER <b>VOZ</b></h1><button id="rvSettings" aria-label="Ajustes">⚙</button></header><div class="rvHero" role="img" aria-label="Rider en la montaña comunicándose con su grupo"></div><section class="rvConsole"><div class="rvConnected"><strong><b>${selectable.length}</b> RIDERS CONECTADOS</strong><div id="voiceGroup" class="rvAvatars"><span class="emptyGroup">Pulsa Grupo para añadir Riders</span></div></div><button class="rvPtt" id="startVoice" aria-label="Pulsa y habla"><span class="voiceMicGlyph"></span></button><h2>PULSA Y HABLA</h2><div class="rvSetting"><span>MODO VOX · MANOS LIBRES</span><button class="switch" id="voxSwitch" aria-label="Modo VOX"><span class="knob"></span></button></div><button class="rvSetting rvAction" id="bluetooth"><span>🎧 &nbsp; AUDIO BLUETOOTH</span><b>›</b></button><label class="rvSetting rvVolume"><span class="rvVolumeLabel"><i class="rvSpeakerGlyph"></i> VOLUMEN RIDER</span><input id="volumeRange" type="range" min="0" max="100" value="100"></label><div class="rvButtons"><button id="find"><b>♟</b><span>GRUPO</span></button><button id="speaker"><b class="rvSpeakerGlyph"></b><span>ALTAVOZ</span></button><button id="voiceCommands"><b>⚙</b><span>AJUSTES</span></button></div><div class="voiceCommandStatus" id="voiceCommandStatus">Di «Rider» para usar comandos de voz</div><button class="rvSetting rvAction" id="voiceTest"><span>PRUEBA RIDER BOT</span><b>›</b></button><div class="voiceStatus"><i></i><span>Manos libres · esperando grupo</span></div><button class="btn voiceExit hidden" id="leaveVoice">Salir del grupo</button></section><nav class="rvNav"><button><b>⌂</b><span>INICIO</span></button><button><b>▥</b><span>DATOS</span></button><button><b>●</b><span>MAPA</span></button><button class="active"><b>♟</b><span>COMUNIDAD</span></button><button id="navSettings"><b>⚙</b><span>AJUSTES</span></button></nav><div class="riderPicker hidden" id="riderPicker"><div class="pickerHead"><div><small>AÑADIR AL GRUPO</small><h2>Riders</h2></div><button id="closePicker">×</button></div><div class="pickerList">${selectable.length?selectable.map(r=>`<button class="pickerRider" data-add-rider="${r.id}"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="online">● En línea</small></span><b>+</b></button>`).join(''):'<p class="pickerEmpty">No hay Riders conectados ahora mismo.</p>'}${offline.map(r=>`<div class="pickerRider unavailable"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><span><strong>${esc(r.name)}</strong><small class="offline">● Fuera de cobertura</small></span><b>×</b></div>`).join('')}</div></div></div>`);
+  document.querySelector('#back').onclick=()=>{document.body.classList.remove('pickerOpen');history.back()};
+  const picker=document.querySelector('#riderPicker'),group=document.querySelector('#voiceGroup'),leave=document.querySelector('#leaveVoice');
+  const invitedSession=sessionStorage.getItem('rider_voice_session');const invitedPeer=sessionStorage.getItem('rider_voice_peer');const storedVoiceGroup=(dbLoad().voiceGroup||[]).map(String).filter(id=>availableIds.has(id));if(invitedPeer&&!storedVoiceGroup.includes(String(invitedPeer)))storedVoiceGroup.push(String(invitedPeer));const selected=new Map(storedVoiceGroup.map(id=>{let r=selectable.find(x=>String(x.id)===id);if(!r&&invitedPeer&&String(invitedPeer)===id)r=pool.find(x=>String(x.id)===id)||{id,name:'Rider',state:'green'};return r?[id,r]:null}).filter(Boolean));
+  const renderGroup=()=>{const db=dbLoad();db.voiceGroup=[...selected.keys()];dbSave(db);const speaker=document.querySelector('#voiceSpeaker'),status=document.querySelector('.voiceStatus span');if(speaker)speaker.textContent=selected.size?(selected.size===1?[...selected.values()][0].name:selected.size+' Riders en el grupo'):'Sin grupo activo';if(status)status.textContent=selected.size?'Grupo preparado · esperando conexión':'Manos libres · esperando grupo';group.innerHTML=selected.size?[...selected.values()].map(r=>`<button class="groupRider" data-remove-rider="${r.id}" title="Quitar Rider"><span class="profileMark">${esc((r.name||'R').slice(0,1).toUpperCase())}</span><small>${esc(r.name)}</small><span class="voiceQualityBadge" aria-label="Audio sin medir">○ AUDIO</span><b>×</b></button>`).join(''):'<span class="emptyGroup">Añade Riders para crear el grupo</span>';leave.classList.toggle('hidden',!selected.size);document.querySelectorAll('[data-remove-rider]').forEach(b=>b.onclick=()=>{const id=String(b.dataset.removeRider);selected.delete(id);const rtc=window.riderVoiceRtc;if(rtc){rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:id}});const pc=rtc.peers.get(id);if(pc){pc.close();rtc.peers.delete(id)}rtc.voiceStats?.delete?.(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio){try{audio.pause();audio.srcObject=null}catch{}audio.remove()}}renderGroup();if(voiceActive&&!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · sin Riders')}})};
+  document.querySelector('#find').onclick=()=>{picker.classList.remove('hidden');document.body.classList.add('pickerOpen')};
+  const closePicker=()=>{picker.classList.add('hidden');document.body.classList.remove('pickerOpen')};
+  document.querySelector('#closePicker').onclick=closePicker;
+  document.querySelectorAll('[data-add-rider]').forEach(b=>{const id=String(b.dataset.addRider);if(selected.has(id)){b.classList.add('selected');b.querySelector('b').textContent='•'}b.onclick=()=>{const r=selectable.find(x=>String(x.id)===id);if(!r)return;if(selected.has(id)){selected.delete(id);const rtc=window.riderVoiceRtc;if(rtc){rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:id}});const pc=rtc.peers.get(id);if(pc){pc.close();rtc.peers.delete(id)}rtc.voiceStats?.delete?.(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio){try{audio.pause();audio.srcObject=null}catch{}audio.remove()}}b.classList.remove('selected');b.querySelector('b').textContent='+'}else{selected.set(id,r);b.classList.add('selected');b.querySelector('b').textContent='✓'}renderGroup();if(voiceActive&&!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · sin Riders')}}});
+  const volumeRange=document.querySelector('#volumeRange');let appVolume=Number(localStorage.getItem('rider_voice_volume')||1),audioRoute='speaker';volumeRange.value=String(Math.round(appVolume*100));const applyVolume=()=>{document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{a.volume=appVolume;a.muted=appVolume===0;if(appVolume>0)a.play().catch(()=>{})});volumeRange.value=String(Math.round(appVolume*100));localStorage.setItem('rider_voice_volume',String(appVolume))};volumeRange.oninput=()=>{appVolume=Number(volumeRange.value)/100;applyVolume()};applyVolume();document.querySelector('#speaker').onclick=async()=>{audioRoute='speaker';if(nativeVoice)try{await nativeVoice.setAudioRoute({route:'speaker'})}catch{}document.querySelector('.voiceStatus span').textContent='Audio por el altavoz del teléfono'};document.querySelector('#bluetooth').onclick=async()=>{audioRoute='bluetooth';if(nativeVoice)try{await nativeVoice.setAudioRoute({route:'bluetooth'});document.querySelector('.voiceStatus span').textContent='Audio Bluetooth activado'}catch{document.querySelector('.voiceStatus span').textContent='Conecta los auriculares Bluetooth y vuelve a intentarlo'}else document.querySelector('.voiceStatus span').textContent='Bluetooth disponible en la APK Android'};
+  leave.onclick=()=>{selected.clear();document.querySelectorAll('[data-add-rider]').forEach(b=>{b.classList.remove('selected');const mark=b.querySelector('b');if(mark)mark.textContent='+'});closePicker();renderGroup()};
+  picker.addEventListener('click',e=>{if(e.target===picker)closePicker()});
+  let voiceActive=false,voiceChecking=false,voxEnabled=false,voiceRecognition=null,pttHeld=false;
+  const voiceRing=document.querySelector('.voiceRing');
+  const setVoiceState=(mode,text)=>{
+    voiceActive=mode==='active';
+    if(voiceRing){voiceRing.classList.toggle('active',voiceActive);const strong=voiceRing.querySelector('strong');if(strong)strong.textContent=voiceActive?'EN VOZ':'LISTO'}
+    const status=document.querySelector('.voiceStatus span');if(status)status.textContent=text;
+  };
+  const say=text=>{try{speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang='es-ES';speechSynthesis.speak(utterance)}catch{}};
+  const commandStatus=document.querySelector('#voiceCommandStatus'),voxSwitch=document.querySelector('#voxSwitch');
+  const showVoxState=()=>{voxSwitch.classList.toggle('on',voxEnabled);document.querySelector('#startVoice').classList.toggle('voxReady',voxEnabled);document.querySelector('.rvConsole>h2').textContent=voxEnabled?'YA PUEDES HABLAR':'PULSA Y HABLA';commandStatus.textContent=voxEnabled?'VOX ACTIVO · habla con normalidad':'VOX desactivado · usa Pulsa y habla'};voxSwitch.onclick=()=>{voxEnabled=!voxEnabled;showVoxState()};
+  document.querySelector('.riderVoiceApp').insertAdjacentHTML('beforeend','<div class="bluetoothPicker hidden" id="bluetoothPicker"><div class="btSheet"><div class="pickerHead"><div><small>AUDIO RIDER VOZ</small><h2>Dispositivos Bluetooth</h2></div><button id="closeBluetooth">×</button></div><p class="btHelp">Selecciona unos auriculares o intercomunicador ya emparejado.</p><div class="btDeviceList" id="btDeviceList"><p>Buscando dispositivos…</p></div><button class="btn" id="pairBluetooth">Emparejar nuevo dispositivo</button><button class="btn secondary" id="useSpeaker">Usar altavoz del teléfono</button></div></div>');
+  document.querySelector('.riderVoiceApp').insertAdjacentHTML('beforeend','<div class="bluetoothPicker hidden" id="voiceSettings"><div class="btSheet"><div class="pickerHead"><div><small>RIDER VOZ</small><h2>Ajustes de audio</h2></div><button id="closeVoiceSettings">×</button></div><div class="voiceSettingsList"><div class="rvSetting"><span><strong>Comandos «Rider»</strong><small>Control mediante órdenes de voz</small></span><button class="switch" id="commandSwitch"><span class="knob"></span></button></div><label class="rvSetting settingsRange"><span><strong>Sensibilidad VOX</strong><small id="voxSensitivityLabel">Media</small></span><input id="voxSensitivity" type="range" min="1" max="3" value="2"></label><div class="rvSetting fixedSetting"><span><strong>Cancelación de eco y ruido</strong><small>Automática durante la conversación</small></span><b>✓</b></div><div class="rvSetting fixedSetting"><span><strong>Reconexión automática</strong><small>Recupera el audio al cambiar la cobertura</small></span><b>✓</b></div><div class="rvSetting fixedSetting"><span><strong>Confirmaciones de seguridad</strong><small>Salida del grupo y emergencia</small></span><b>✓</b></div></div><button class="btn secondary" id="resetVoiceAudio">Restablecer audio</button></div></div>');
+  const voiceSettings=document.querySelector('#voiceSettings'),commandToggle=document.querySelector('#commandSwitch'),voxSensitivity=document.querySelector('#voxSensitivity'),voxSensitivityLabel=document.querySelector('#voxSensitivityLabel');let voxThreshold=.035;
+  const openVoiceSettings=()=>voiceSettings.classList.remove('hidden');document.querySelector('#rvSettings').onclick=openVoiceSettings;document.querySelector('#navSettings').onclick=openVoiceSettings;document.querySelector('#voiceCommands').onclick=openVoiceSettings;document.querySelector('#closeVoiceSettings').onclick=()=>voiceSettings.classList.add('hidden');voxSensitivity.oninput=()=>{const level=Number(voxSensitivity.value);voxThreshold=level===1?.055:level===3?.018:.035;voxSensitivityLabel.textContent=level===1?'Baja':level===3?'Alta':'Media';localStorage.setItem('rider_vox_sensitivity',String(level))};voxSensitivity.value=localStorage.getItem('rider_vox_sensitivity')||'2';voxSensitivity.oninput();document.querySelector('#resetVoiceAudio').onclick=async()=>{appVolume=1;applyVolume();voxEnabled=false;showVoxState();voxSensitivity.value='2';voxSensitivity.oninput();audioRoute='speaker';if(nativeVoice)await nativeVoice.setAudioRoute({route:'speaker'}).catch(()=>{});commandStatus.textContent='Audio restablecido';voiceSettings.classList.add('hidden')};
+  const bluetoothPicker=document.querySelector('#bluetoothPicker'),btDeviceList=document.querySelector('#btDeviceList');
+  const closeBluetooth=()=>bluetoothPicker.classList.add('hidden');
+  const renderBluetoothDevices=async()=>{bluetoothPicker.classList.remove('hidden');btDeviceList.innerHTML='<p>Buscando dispositivos…</p>';if(!nativeVoice){btDeviceList.innerHTML='<p>La selección Bluetooth está disponible en la APK Android.</p>';return}try{const result=await nativeVoice.getBluetoothDevices(),devices=result.devices||[];btDeviceList.innerHTML=devices.length?devices.map(device=>'<button class="btDevice '+(device.selected?'selected':'')+'" data-bt-address="'+esc(device.address)+'" data-bt-name="'+esc(device.name)+'"><span>🎧</span><span><strong>'+esc(device.name)+'</strong><small>'+esc(device.address)+'</small></span><b>'+(device.selected?'✓':'›')+'</b></button>').join(''):'<p>No hay dispositivos emparejados. Pulsa el botón inferior para añadir uno.</p>';document.querySelectorAll('[data-bt-address]').forEach(button=>button.onclick=async()=>{const name=button.dataset.btName,address=button.dataset.btAddress;btDeviceList.querySelectorAll('.btDevice').forEach(x=>x.classList.remove('selected'));button.classList.add('selected');button.querySelector('b').textContent='…';try{const result=await nativeVoice.selectBluetoothDevice({address});if(!result.selected)throw new Error('not-available');audioRoute='bluetooth';button.querySelector('b').textContent='✓';document.querySelector('#bluetooth span').textContent='🎧   '+name.toUpperCase();document.querySelector('.voiceStatus span').textContent='Audio conectado a '+name;setTimeout(closeBluetooth,450)}catch{button.classList.remove('selected');button.querySelector('b').textContent='!';document.querySelector('.voiceStatus span').textContent='Conecta '+name+' en Android y vuelve a seleccionarlo'}})}catch{btDeviceList.innerHTML='<p>No se pudo leer la lista. Comprueba el permiso de dispositivos cercanos.</p>'}};
+  document.querySelector('#bluetooth').onclick=renderBluetoothDevices;document.querySelector('#closeBluetooth').onclick=closeBluetooth;document.querySelector('#pairBluetooth').onclick=async()=>{if(nativeVoice)await nativeVoice.openBluetoothSettings().catch(()=>{});else btDeviceList.innerHTML='<p>Abre los ajustes Bluetooth del teléfono.</p>'};document.querySelector('#useSpeaker').onclick=async()=>{audioRoute='speaker';if(nativeVoice)await nativeVoice.setAudioRoute({route:'speaker'}).catch(()=>{});document.querySelector('#bluetooth span').textContent='🎧   AUDIO BLUETOOTH';document.querySelector('.voiceStatus span').textContent='Audio por el altavoz del teléfono';closeBluetooth()};
+  const runVoiceCommand=raw=>{const command=String(raw||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();if(!command.includes('rider'))return;const order=command.slice(command.indexOf('rider')+5).trim();commandStatus.textContent='Orden: '+(order||'esperando…');if(order.includes('subir volumen')){appVolume=Math.min(1,appVolume+.2);applyVolume();say('Volumen '+Math.round(appVolume*100)+' por ciento')}else if(order.includes('bajar volumen')){appVolume=Math.max(0,appVolume-.2);applyVolume();say('Volumen '+Math.round(appVolume*100)+' por ciento')}else if(order.includes('silenciar')){appVolume=0;applyVolume();say('Audio silenciado')}else if(order.includes('activar sonido')){appVolume=1;applyVolume();say('Sonido activado')}else if(order.includes('activar modo vox')){voxEnabled=true;showVoxState();say('Modo VOX activado. Ya puedes hablar')}else if(order.includes('desactivar modo vox')){voxEnabled=false;showVoxState();say('Modo VOX desactivado')}else if(order.includes('activar rider voz')){startVoice()}else if(order.includes('desactivar rider voz')){releaseVoiceMedia();setVoiceState('ready','Rider Voz desactivado')}else if(order.includes('cuantos riders hay')||order.includes('cuantos rider hay')){const count=selectable.length;say(count===1?'Hay 1 rider conectado':'Hay '+count+' riders conectados')}else if(order.includes('quien esta conectado')){const names=[...selected.values()].map(x=>x.name);say(names.length?'Conectados: '+names.join(', '):'No hay riders conectados')}else if(order.includes('salir del grupo')){if(confirm('¿Salir del grupo Rider Voz?'))leave.click()}else if(order.includes('emergencia')){if(confirm('¿Confirmas activar la alerta de emergencia?')){say('Alerta de emergencia confirmada');setVoiceState('active','EMERGENCIA · alerta confirmada')}}else if(order.includes('repetir ultimo mensaje')){say('Todavía no hay un mensaje guardado para repetir')}else{say('Orden no reconocida')}};
+  const voiceTest=document.querySelector('#voiceTest');if(voiceTest)voiceTest.onclick=async()=>{if(!nativeVoice){commandStatus.textContent='Prueba disponible en Android';return}try{if(!nativeCommandHandle)nativeCommandHandle=await nativeVoice.addListener('voiceCommand',event=>runVoiceCommand(event.text));commandStatus.textContent='Prueba Rider Bot · habla ahora';await nativeVoice.testVoiceCommand()}catch{commandStatus.textContent='No se pudo iniciar la prueba de voz'}};
+  const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let nativeCommandHandle=null,nativeCommandsOn=false;commandToggle.onclick=async()=>{if(nativeVoice){if(nativeCommandsOn){await nativeVoice.stopCommandListening().catch(()=>{});nativeCommandsOn=false;commandToggle.classList.remove('on');commandStatus.textContent='Comandos de voz desactivados';return}try{if(!nativeCommandHandle)nativeCommandHandle=await nativeVoice.addListener('voiceCommand',event=>runVoiceCommand(event.text));await nativeVoice.startCommandListening();nativeCommandsOn=true;commandToggle.classList.add('on');commandStatus.textContent='Escuchando «Rider…»';return}catch{commandStatus.textContent='Activa el permiso de micrófono para usar comandos';return}}if(voiceRecognition){voiceRecognition.stop();voiceRecognition=null;commandToggle.classList.remove('on');commandStatus.textContent='Desactivados';return}if(!Recognition){commandStatus.textContent='Reconocimiento no disponible en este dispositivo';return}voiceRecognition=new Recognition();voiceRecognition.lang='es-ES';voiceRecognition.continuous=true;voiceRecognition.interimResults=false;voiceRecognition.onresult=e=>{const text=e.results[e.results.length-1][0].transcript;runVoiceCommand(text)};voiceRecognition.onerror=e=>{commandStatus.textContent=e.error==='not-allowed'?'Permiso de voz denegado':'Escucha interrumpida · toca para reactivar'};voiceRecognition.onend=()=>{if(voiceRecognition)try{voiceRecognition.start()}catch{}};voiceRecognition.start();commandToggle.classList.add('on');commandStatus.textContent='Escuchando «Rider…»'};
+  const checkVoiceCoverage=async()=>{
+    if(!voiceActive||voiceChecking)return;
+    voiceChecking=true;
+    try{
+      const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
+      const onlineIds=new Set(refreshed.filter(x=>x.state==='green').map(x=>String(x.id)));
+      let removed=0;
+      for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);removed++}}
+      if(removed){
+        renderGroup();
+        if(!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · Riders fuera de cobertura')}
+        else setVoiceState('active',removed+' Rider fuera de cobertura · voz continúa');
+      }
+    }finally{voiceChecking=false}
+  };
+  let localVoiceStream=null,rawVoiceStream=null,voiceAudioContext=null,voxGain=null,voxTimer=null;
+  const releaseVoiceMedia=()=>{
+    const closingSession=sessionStorage.getItem('rider_voice_session');
+    if(closingSession)endVoiceInviteSession(closingSession).catch(()=>{});
+    if(window.riderVoiceRtc){const rtc=window.riderVoiceRtc;if(rtc.voiceHealthTimer)clearInterval(rtc.voiceHealthTimer);if(rtc.readyTimer)clearInterval(rtc.readyTimer);if(rtc.networkChanged){window.removeEventListener('offline',rtc.networkChanged);window.removeEventListener('online',rtc.networkChanged)}const leaveSignals=[...rtc.peers.keys()].map(remoteId=>rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:remoteId}}).catch(()=>{}));for(const pc of rtc.peers.values())pc.close();rtc.peers.clear();rtc.voiceStats?.clear?.();Promise.allSettled(leaveSignals).finally(()=>rtc.channel.unsubscribe());window.riderVoiceRtc=null}
+    document.querySelectorAll('audio[data-voice-rider]').forEach(a=>{try{a.pause();a.srcObject=null}catch{}a.remove()});document.querySelectorAll('.voiceQualityBadge').forEach(x=>x.remove());document.querySelectorAll('[data-voice-quality]').forEach(x=>{delete x.dataset.voiceQuality;x.classList.remove('speaking')});
+    if(voxTimer){cancelAnimationFrame(voxTimer);voxTimer=null}if(localVoiceStream){localVoiceStream.getTracks().forEach(track=>track.stop());localVoiceStream=null}if(rawVoiceStream){rawVoiceStream.getTracks().forEach(track=>track.stop());rawVoiceStream=null}if(voiceAudioContext){voiceAudioContext.close().catch(()=>{});voiceAudioContext=null}voxGain=null;window.riderVoiceLocalStream=null;if(nativeVoice)nativeVoice.stopBackgroundAudio().catch(()=>{})
+    sessionStorage.removeItem('rider_voice_session');sessionStorage.removeItem('rider_voice_peer');sessionStorage.removeItem('rider_voice_closing');
+  };
+  let voiceStarting=false;
+  const startVoice=async()=>{
+    if(voiceStarting){setVoiceState('ready','Conectando Rider Voz…');return}
+    if(!selected.size){setVoiceState('ready','Añade al menos un Rider al grupo');return}
+    if(voiceActive||localVoiceStream){setVoiceState('active','Rider Voz ya está iniciado');return}
+    if(!navigator.mediaDevices?.getUserMedia){setVoiceState('ready','Micrófono no disponible en este dispositivo');return}
+    const startBtn=document.querySelector('#startVoice');voiceStarting=true;if(startBtn){startBtn.disabled=true;startBtn.setAttribute('aria-label','Conectando Rider Voz')}
+    try{
+      setVoiceState('ready','Solicitando acceso al micrófono…');
+      rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+      voiceAudioContext=new (window.AudioContext||window.webkitAudioContext)();const source=voiceAudioContext.createMediaStreamSource(rawVoiceStream),analyser=voiceAudioContext.createAnalyser(),destination=voiceAudioContext.createMediaStreamDestination();voxGain=voiceAudioContext.createGain();voxGain.gain.value=0;analyser.fftSize=512;source.connect(analyser);source.connect(voxGain);voxGain.connect(destination);localVoiceStream=destination.stream;window.riderVoiceLocalStream=localVoiceStream;
+      const audioTrack=rawVoiceStream.getAudioTracks()[0],samples=new Uint8Array(analyser.fftSize);const monitor=()=>{analyser.getByteTimeDomainData(samples);let total=0;for(const value of samples){const n=(value-128)/128;total+=n*n}const speaking=Math.sqrt(total/samples.length)>voxThreshold;const open=pttHeld||(voxEnabled&&speaking);if(voxGain)voxGain.gain.setTargetAtTime(open?1:0,voiceAudioContext.currentTime,.025);document.querySelector('#startVoice')?.classList.toggle('talking',open);voxTimer=requestAnimationFrame(monitor)};monitor();
+      if(audioTrack){audioTrack.onmute=()=>{if(voiceActive)setVoiceState('active','Micrófono interrumpido · esperando audio…')};audioTrack.onunmute=()=>{if(voiceActive)setVoiceState('active','Micrófono recuperado · Rider Voz activo')};audioTrack.onended=()=>{voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Micrófono desconectado · vuelve a iniciar Rider Voz')};const settings=audioTrack.getSettings?.()||{};const requested=['echoCancellation','noiseSuppression','autoGainControl'];const enabled=requested.filter(k=>settings[k]===true);const unavailable=requested.filter(k=>settings[k]===false);const label=enabled.length===3?'Audio optimizado: eco · ruido · ganancia':enabled.length?'Audio optimizado: '+enabled.length+'/3 filtros activos':'Audio del dispositivo activo';setVoiceState('ready',label+(unavailable.length?' · '+unavailable.length+' no disponibles':''))}
+      const muteBtn=document.querySelector('#mute');
+      if(muteBtn&&audioTrack){
+        muteBtn.classList.remove('muted');
+        muteBtn.querySelector('small').textContent='Micrófono ON';
+        muteBtn.onclick=e=>{audioTrack.enabled=!audioTrack.enabled;e.currentTarget.classList.toggle('muted',!audioTrack.enabled);e.currentTarget.querySelector('small').textContent=audioTrack.enabled?'Micrófono ON':'Micrófono OFF'};
+      }
+      setVoiceState('active','Rider Voz activo · micrófono preparado');
+      if(nativeVoice)nativeVoice.startBackgroundAudio().catch(()=>{});
+      const me=await currentUserId();
+      if(supabaseClient&&me){
+        const sessionId=sessionStorage.getItem('rider_voice_session');const channelKey=sessionId||[me,...selected.keys()].sort().join('-');const channel=supabaseClient.channel('rider-voice-'+channelKey,{config:{broadcast:{self:false}}});
+        const peers=new Map(),readyPeers=new Set(),readyAttempts=new Map();
+        const sendReady=async remoteId=>{remoteId=String(remoteId);if(readyPeers.has(remoteId))return;const tries=(readyAttempts.get(remoteId)||0)+1;readyAttempts.set(remoteId,tries);await channel.send({type:'broadcast',event:'ready',payload:{from:me,to:remoteId,attempt:tries}})};
+        const makePeer=async(remoteId,initiator)=>{
+          remoteId=String(remoteId);let pc=peers.get(remoteId);if(pc)return pc;
+          pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});peers.set(remoteId,pc);
+          localVoiceStream.getTracks().forEach(track=>pc.addTrack(track,localVoiceStream));
+          pc.ontrack=e=>{let audio=document.querySelector('audio[data-voice-rider="'+remoteId+'"]');if(!audio){audio=document.createElement('audio');audio.autoplay=true;audio.playsInline=true;audio.dataset.voiceRider=remoteId;document.body.appendChild(audio)}audio.srcObject=e.streams[0];audio.onplaying=()=>{const card=document.querySelector('[data-remove-rider="'+remoteId+'"]');if(card)card.classList.add('speaking')};audio.onpause=audio.onended=()=>{const card=document.querySelector('[data-remove-rider="'+remoteId+'"]');if(card)card.classList.remove('speaking')};audio.play().catch(()=>setVoiceState('active','Audio recibido · toca Volumen para escucharlo'))};
+          pc.onicecandidate=e=>{if(e.candidate)channel.send({type:'broadcast',event:'ice',payload:{from:me,to:remoteId,candidate:e.candidate}})};
+          pc.oniceconnectionstatechange=()=>{const s=pc.iceConnectionState;if(s==='checking')setVoiceState('active','Negociando ruta de audio…');if(s==='connected'||s==='completed')setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0);if(s==='failed')setVoiceState('active','Ruta de audio bloqueada · intentando alternativa…')};
+          pc.onicecandidateerror=e=>{const msg=e?.errorCode===701?'Servidor STUN no accesible':'Error de ruta ICE';setVoiceState('active',msg+' · buscando alternativa…')};
+          let reconnectTimer=null;
+          pc.onconnectionstatechange=async()=>{const s=pc.connectionState;if(s==='connected'){if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}setVoiceState('active','Rider Voz conectado · audio en directo');setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)}if(s==='disconnected'){setVoiceState('active','Conexión de voz inestable · reconectando…');if(String(me)<String(remoteId)&&!reconnectTimer)reconnectTimer=setTimeout(async()=>{reconnectTimer=null;if(pc.connectionState==='disconnected'&&pc.signalingState==='stable'){try{const offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);await channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}catch{setVoiceState('active','No se pudo recuperar la conexión de voz')}}},2500)}if(s==='failed'){setVoiceState('active','Reconectando Rider Voz…');if(String(me)<String(remoteId)&&pc.signalingState==='stable')try{const offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);await channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}catch{setVoiceState('active','No se pudo recuperar la conexión de voz')}}if(s==='closed'){if(reconnectTimer)clearTimeout(reconnectTimer);peers.delete(remoteId)}};
+          if(initiator&&readyPeers.has(remoteId)){const offer=await pc.createOffer();await pc.setLocalDescription(offer);channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}
+          return pc;
+        };
+        const flushIce=async pc=>{if(!pc?.remoteDescription)return;for(const candidate of (pc._pendingIce||[]).splice(0)){try{await pc.addIceCandidate(candidate)}catch{}}};
+        channel.on('broadcast',{event:'ready'},async({payload})=>{if(String(payload?.to)!==String(me))return;const remoteId=String(payload.from),wasReady=readyPeers.has(remoteId);readyPeers.add(remoteId);if(!wasReady)await channel.send({type:'broadcast',event:'ready',payload:{from:me,to:remoteId,ack:true}});if(String(me)<remoteId){const pc=await makePeer(remoteId,false);if(pc.signalingState==='stable'&&!pc.localDescription){const offer=await pc.createOffer();await pc.setLocalDescription(offer);await channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}}})
+          .on('broadcast',{event:'offer'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=await makePeer(payload.from,false);if(pc.signalingState!=='stable')return;await pc.setRemoteDescription(payload.sdp);await flushIce(pc);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);channel.send({type:'broadcast',event:'answer',payload:{from:me,to:payload.from,sdp:answer}})})
+          .on('broadcast',{event:'answer'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=peers.get(String(payload.from))||peers.get(payload.from);if(pc&&pc.signalingState==='have-local-offer'){await pc.setRemoteDescription(payload.sdp);await flushIce(pc)}})
+          .on('broadcast',{event:'ice'},async({payload})=>{if(String(payload?.to)!==String(me))return;const pc=await makePeer(payload.from,false);if(pc&&payload.candidate){if(pc.remoteDescription){try{await pc.addIceCandidate(payload.candidate)}catch{}}else{(pc._pendingIce||(pc._pendingIce=[])).push(payload.candidate)}}})
+          .on('broadcast',{event:'leave'},({payload})=>{if(payload?.to&&String(payload.to)!==String(me))return;const id=String(payload?.from||'');const pc=peers.get(id)||peers.get(payload?.from);if(pc){pc.close();peers.delete(id);peers.delete(payload?.from)}voiceStats.delete(id);readyPeers.delete(id);readyAttempts.delete(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio){try{audio.pause();audio.srcObject=null}catch{}audio.remove()}selected.delete(id);renderGroup();if(!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · el Rider ha salido');return}setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)})
+          .subscribe(async status=>{if(status==='SUBSCRIBED'){for(const remoteId of selected.keys())await sendReady(String(remoteId))}});const readyTimer=setInterval(()=>{if(!voiceActive)return;for(const remoteId of selected.keys())if(!readyPeers.has(String(remoteId))&&(readyAttempts.get(String(remoteId))||0)<6)sendReady(String(remoteId)).catch(()=>{})},1500);
+        const connectedCount=()=>[...peers.values()].filter(pc=>pc.connectionState==='connected').length;
+        const voiceStats=new Map();
+        let qualityBusy=false;
+        const refreshVoiceQuality=async()=>{if(!voiceActive||qualityBusy)return;qualityBusy=true;try{const n=connectedCount();let worst=0;for(const [remoteId,pc] of peers){if(pc.connectionState!=='connected')continue;try{const stats=await pc.getStats();let pair=null,inbound=null;stats.forEach(r=>{if(r.type==='candidate-pair'&&r.state==='succeeded'&&r.nominated)pair=r;if(r.type==='inbound-rtp'&&r.kind==='audio'&&!r.isRemote)inbound=r});const rtt=pair&&Number.isFinite(pair.currentRoundTripTime)?Math.round(pair.currentRoundTripTime*1000):null;const prev=voiceStats.get(remoteId)||{};let lossPct=null;if(inbound&&Number.isFinite(inbound.packetsLost)&&Number.isFinite(inbound.packetsReceived)){const lostDelta=Math.max(0,inbound.packetsLost-(prev.lost||0)),recvDelta=Math.max(0,inbound.packetsReceived-(prev.received||0)),total=lostDelta+recvDelta;if(total)lossPct=Math.round(lostDelta*100/total);voiceStats.set(remoteId,{rtt,lost:inbound.packetsLost,received:inbound.packetsReceived,lossPct});const card=document.querySelector('[data-remove-rider="'+remoteId+'"]');if(card){const q=(lossPct===null&&rtt===null)?'':((lossPct!==null&&lossPct>=8)||(rtt!==null&&rtt>=250))?'weak':((lossPct!==null&&lossPct>=3)||(rtt!==null&&rtt>=120))?'medium':'good';card.dataset.voiceQuality=q;card.title='Audio Rider'+(rtt===null?'':' · '+rtt+' ms')+(lossPct===null?'':' · '+lossPct+'% pérdida');let badge=card.querySelector('.voiceQualityBadge');if(!badge){badge=document.createElement('span');badge.className='voiceQualityBadge';card.appendChild(badge)}badge.textContent=q==='good'?'● AUDIO':q==='medium'?'● AUDIO':q==='weak'?'● AUDIO':'○ AUDIO';badge.setAttribute('aria-label',q==='good'?'Audio bueno':q==='medium'?'Audio medio':q==='weak'?'Audio débil':'Audio sin medir')}}else voiceStats.set(remoteId,{...prev,rtt});const score=Math.max(rtt===null?0:rtt>=250?2:rtt>=120?1:0,lossPct===null?0:lossPct>=8?2:lossPct>=3?1:0);worst=Math.max(worst,score)}catch{}}if(n)setVoiceState('active','Rider Voz conectado · '+n+' enlace'+(n===1?'':'s')+' de audio · '+(worst===0?'señal buena':worst===1?'señal media':'señal débil'))}finally{qualityBusy=false}};
+        let healthMisses=0;
+        const voiceHealthTimer=setInterval(()=>{if(!voiceActive)return;const total=peers.size,n=connectedCount();if(total&&n===0){healthMisses++;setVoiceState('active',healthMisses>=3?'Sin enlace de audio · revisa conexión':'Conectando audio Rider…')}else{healthMisses=0;if(n<total)setVoiceState('active','Rider Voz · '+n+'/'+total+' enlaces conectados');else if(n)refreshVoiceQuality()}},5000);
+        const networkChanged=async()=>{if(!voiceActive)return;if(!navigator.onLine){setVoiceState('active','Sin Internet · Rider Voz en pausa');return}setVoiceState('active','Red recuperada · reconectando voz…');for(const [remoteId,pc] of peers){if(String(me)>=String(remoteId)||pc.signalingState!=='stable')continue;try{const offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);await channel.send({type:'broadcast',event:'offer',payload:{from:me,to:remoteId,sdp:offer}})}catch{setVoiceState('active','Red recuperada · reintentando audio…')}}};
+        window.addEventListener('offline',networkChanged);window.addEventListener('online',networkChanged);
+        window.riderVoiceRtc={channel,peers,me,sessionId,voiceHealthTimer,readyTimer,refreshVoiceQuality,networkChanged,voiceStats};
+      }
+    }catch(err){
+      releaseVoiceMedia();
+      setVoiceState('ready',err?.name==='NotAllowedError'?'Permiso de micrófono denegado':'No se pudo activar el micrófono');
+    }finally{
+      voiceStarting=false;
+      if(startBtn){startBtn.disabled=false;startBtn.setAttribute('aria-label','Pulsa y habla')}
+    }
+  };
+  const syncVoiceMembers=async()=>{
+    const refreshed=await fetchCommunityRiders();window.communityRiders=refreshed;
+    const onlineIds=new Set(refreshed.filter(x=>x.state==='green').map(x=>String(x.id)));
+    let changed=false;
+    for(const id of [...selected.keys()]){if(!onlineIds.has(id)){selected.delete(id);const rtc=window.riderVoiceRtc;if(rtc){try{await rtc.channel.send({type:'broadcast',event:'leave',payload:{from:rtc.me,to:id}})}catch{}const pc=rtc.peers.get(id);if(pc){pc.close();rtc.peers.delete(id)}rtc.voiceStats?.delete?.(id);const audio=document.querySelector('audio[data-voice-rider="'+id+'"]');if(audio){try{audio.pause();audio.srcObject=null}catch{}audio.remove()}}changed=true}}
+    if(changed)renderGroup();
+    if(voiceActive&&!selected.size){voiceActive=false;releaseVoiceMedia();setVoiceState('ready','Grupo finalizado · sin Riders disponibles')}
+  };
+  const onVoiceVisible=()=>{if(document.visibilityState==='visible')syncVoiceMembers()};
+  const onBluetoothVisible=()=>{if(document.visibilityState==='visible'&&!bluetoothPicker.classList.contains('hidden'))renderBluetoothDevices()};
+  const onVoiceOnline=()=>syncVoiceMembers();
+  document.addEventListener('visibilitychange',onVoiceVisible);
+  document.addEventListener('visibilitychange',onBluetoothVisible);
+  window.addEventListener('online',onVoiceOnline);
+  const voiceStart=document.querySelector('#startVoice');
+  const pressStart=async e=>{e.preventDefault();pttHeld=true;if(!voiceActive)await startVoice();if(voxGain&&voiceAudioContext)voxGain.gain.setTargetAtTime(1,voiceAudioContext.currentTime,.015);voiceStart.classList.add('talking')};
+  const pressEnd=e=>{e?.preventDefault?.();pttHeld=false;if(!voxEnabled&&voxGain&&voiceAudioContext)voxGain.gain.setTargetAtTime(0,voiceAudioContext.currentTime,.025);if(!voxEnabled)voiceStart.classList.remove('talking')};
+  voiceStart.addEventListener('pointerdown',pressStart);voiceStart.addEventListener('pointerup',pressEnd);voiceStart.addEventListener('pointercancel',pressEnd);voiceStart.addEventListener('pointerleave',pressEnd);
+  if(invitedSession&&invitedPeer&&selected.has(String(invitedPeer))){setVoiceState('ready','Invitación aceptada · conectando Rider Voz…');setTimeout(()=>startVoice(),150)}
+  const voiceTimer=setInterval(checkVoiceCoverage,15000);
+  const stopVoiceWatch=()=>{clearInterval(voiceTimer);if(voiceRecognition){voiceRecognition.onend=null;voiceRecognition.stop();voiceRecognition=null}if(nativeVoice&&nativeCommandsOn)nativeVoice.stopCommandListening().catch(()=>{});if(nativeCommandHandle?.remove)nativeCommandHandle.remove();releaseVoiceMedia();document.removeEventListener('visibilitychange',onVoiceVisible);document.removeEventListener('visibilitychange',onBluetoothVisible);window.removeEventListener('online',onVoiceOnline);if(screenCleanup===stopVoiceWatch)screenCleanup=null};screenCleanup=stopVoiceWatch;
+  const originalBack=document.querySelector('#back').onclick;
+  document.querySelector('#back').onclick=()=>{stopVoiceWatch();originalBack()};
+  const originalLeave=leave.onclick;
+  leave.onclick=()=>{voiceActive=false;stopVoiceWatch();originalLeave();setVoiceState('ready','Manos libres · esperando grupo')};
+  renderGroup();
+}
 boot();
