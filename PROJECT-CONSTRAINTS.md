@@ -21,3 +21,15 @@ Todo desarrollo nuevo se hace sobre `rider-voz-trabajo-288`.
 Autorización nueva: evolucionar Comandos Rider a asistente/ordenador de a bordo y añadir en Ajustes un desplegable compacto con la lista de comandos. Regla funcional fija: toda orden de usuario debe ir precedida por «Rider»; la ayuda escrita mostrará siempre esa forma.
 
 Comunidad Rider y Rider Voz comparten las mismas fuentes de datos. El asistente no mantiene una segunda lista de Riders ni una base paralela: consulta presencia, grupo y ubicación de Comunidad Rider. Las preguntas de zona respetan el consentimiento de ubicación ya existente; si no está activo, el asistente debe indicarlo y no eludirlo.
+
+
+## Base confirmada en dispositivo: Rider Voz 288
+
+El usuario confirmó físicamente que Rider Voz 288 funciona. Queda congelada en `rider-voz-blindada-288`.
+Todo desarrollo posterior se realiza en `rider-voz-trabajo-289` o descendientes.
+
+Reglas nuevas del asistente:
+- Todas las órdenes y confirmaciones deben empezar por «Rider».
+- Si Rider no entiende una orden, responde únicamente «Repite».
+- Ajustes > Comandos Rider debe mostrar todas las capacidades de voz disponibles, agrupadas y cerradas por defecto.
+- La voz debe mantener su tono/pitch aprobado; solo se puede mejorar fluidez/cadencia y escoger una voz española instalada de mayor calidad.
