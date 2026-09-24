@@ -8,8 +8,8 @@ const SPAIN_BOUNDS=[[27.4,-18.7],[44.2,4.6]];
 const state={mode:'nearby',me:{...MADRID},map:null,meMarker:null,radius:null,riderLayers:[],selected:null,riders:[]};
 
 const fillerRiders=[
-  {name:'Rider Madrid 01',city:'Madrid',lat:40.4630,lng:-3.6400},
-  {name:'Rider Madrid 02',city:'Madrid',lat:40.3600,lng:-3.7700},
+  {name:'Rider Madrid 01',city:'Madrid',lat:40.6500,lng:-4.0500},
+  {name:'Rider Madrid 02',city:'Madrid',lat:40.1500,lng:-3.2000},
   {name:'Rider Norte',city:'Santander',lat:43.4623,lng:-3.8099},
   {name:'Rider Bilbao',city:'Bilbao',lat:43.2630,lng:-2.9350},
   {name:'Rider Barcelona',city:'Barcelona',lat:41.3874,lng:2.1686},
@@ -83,7 +83,7 @@ function makeFiller(){
 function buildShell(){
   app.innerHTML=`<main class="appShell">
     <header class="topbar"><button class="iconBtn" id="backBtn" aria-label="Volver">‹</button><div class="title"><span>COMUNIDAD</span> <b>RIDER</b></div><button class="iconBtn" id="settingsBtn" aria-label="Ajustes">⚙</button></header>
-    <section class="hero"><img src="assets/community-approved.jpg" alt="Riders al atardecer"></section>
+    <section class="hero"><img src="assets/community-approved.jpg" alt="Riders al atardecer"><div class="heroTextMask"></div><div class="heroCopy"><i></i><span>FORMA PARTE DE LA<br>COMUNIDAD SKATESUV</span></div></section>
     <section class="modeRow" aria-label="Zona del mapa">
       <button class="modeBtn active" id="nearBtn"><span class="modeIcon">⌖</span><strong>RIDERS EN MI ZONA</strong><small>radio 100 km</small></button>
       <button class="modeBtn" id="allBtn"><span class="modeIcon">◫</span><strong>EN TODAS LAS ZONAS</strong><small>mapa de España</small></button>
@@ -126,7 +126,11 @@ function redrawMap(){
   if(state.mode==='nearby'){
     state.radius=L.circle([state.me.lat,state.me.lng],{radius:100000,color:'#16ef7f',weight:1.5,opacity:.85,fillColor:'#16ef7f',fillOpacity:.07}).addTo(state.map);
     state.map.setView([state.me.lat,state.me.lng],8);
-  }else state.map.fitBounds(SPAIN_BOUNDS,{padding:[12,12]});
+  }else{
+    state.map.invalidateSize();
+    state.map.fitBounds([[36.0,-9.7],[43.9,3.4]],{padding:[18,18],animate:false});
+    setTimeout(()=>{state.map?.invalidateSize();state.map?.fitBounds([[36.0,-9.7],[43.9,3.4]],{padding:[18,18],animate:false});},120);
+  }
 }
 
 function setMode(mode){
@@ -211,11 +215,9 @@ async function refreshRealRiders(){
   try{
     await loadBackendDependency();
     const real=await fetchRealRiders();
-    if(real.length){
-      const demos=makeFiller();
-      state.riders=[...real,...demos.slice(0,Math.max(0,7-real.length))];
-      redrawMap();
-    }
+    const demos=makeFiller();
+    state.riders=[...real,...demos];
+    redrawMap();
   }catch{}
 }
 async function boot(){
