@@ -1,0 +1,6 @@
+node_modules/
+android/
+*.apk
+*.zip
+*.p12
+*.jks

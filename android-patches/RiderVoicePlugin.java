@@ -22,21 +22,15 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.getcapacitor.PermissionState;
-import com.eskatesuv.ridervoz.voicenext.RiderWakeWordEngine;
-import com.eskatesuv.ridervoz.voicenext.RiderWakeWordFactory;
-import com.eskatesuv.ridervoz.voicenext.RiderCommandEngine;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.Locale;
 
 @CapacitorPlugin(name = "RiderVoice", permissions = {
     @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
     @Permission(alias = "bluetooth", strings = { Manifest.permission.BLUETOOTH_CONNECT })
 })
 public class RiderVoicePlugin extends Plugin {
-    private RiderWakeWordEngine wakeEngine;
-    private RiderCommandEngine commandEngine;
-    private boolean keepListening = false;
-    private long commandSessionUntil = 0L;
-    private static final long COMMAND_SESSION_MS = 25000L; // Rider stays command-active for 25 s after wake word
 
     @PluginMethod
     public void setAudioRoute(PluginCall call) {
@@ -124,67 +118,6 @@ public class RiderVoicePlugin extends Plugin {
         call.resolve();
     }
 
-    @PluginMethod
-    public void startCommandListening(PluginCall call) {
-        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissionForAlias("microphone", call, "microphonePermissionResult"); return;
-        }
-        keepListening = true;
-        if (!armWakeWord()) { keepListening = false; call.reject("No se pudo iniciar Rider con sherpa-onnx"); return; }
-        call.resolve();
-    }
-
-    @PluginMethod
-    public void stopCommandListening(PluginCall call) {
-        keepListening = false;
-        commandSessionUntil = 0L;
-        stopEngines();
-        call.resolve();
-    }
-
-    @PluginMethod
-    public void testVoiceCommand(PluginCall call) {
-        if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissionForAlias("microphone", call, "microphonePermissionResult"); return;
-        }
-        stopEngines();
-        startCommandCapture();
-        call.resolve();
-    }
-
-    private boolean armWakeWord() {
-        stopEngines();
-        wakeEngine = RiderWakeWordFactory.INSTANCE.create(getContext(),
-            () -> { if (keepListening) { commandSessionUntil = System.currentTimeMillis() + COMMAND_SESSION_MS; if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; getActivity().runOnUiThread(() -> new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::startCommandCapture, 350)); } return kotlin.Unit.INSTANCE; },
-            error -> { emitVoiceError(error); return kotlin.Unit.INSTANCE; });
-        return wakeEngine != null && wakeEngine.start();
-    }
-
-    private void startCommandCapture() {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) { getActivity().runOnUiThread(this::startCommandCapture); return; }
-        commandEngine = new RiderCommandEngine(getContext(),
-            text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; },
-            error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; });
-        if (!commandEngine.start()) {
-            commandEngine = null;
-            emitVoiceError(new IllegalStateException("No se pudo iniciar el reconocimiento de comando"));
-            if (keepListening) getActivity().runOnUiThread(this::armWakeWord);
-        }
-    }
-
-    private void emitVoiceCommand(String text) {
-        JSObject data = new JSObject(); data.put("text", text); notifyListeners("voiceCommand", data);
-    }
-
-    private void emitVoiceError(Throwable error) {
-        JSObject data = new JSObject(); data.put("message", error.getMessage() == null ? "Error de voz" : error.getMessage()); notifyListeners("voiceCommandError", data);
-    }
-
-    private void stopEngines() {
-        if (wakeEngine != null) { wakeEngine.stop(); wakeEngine = null; }
-        if (commandEngine != null) { commandEngine.stop(); commandEngine = null; }
-    }
-
     @PermissionCallback
     private void bluetoothPermissionResult(PluginCall call) {
         if (getPermissionState("bluetooth") == PermissionState.GRANTED) setAudioRoute(call);
@@ -201,11 +134,4 @@ public class RiderVoicePlugin extends Plugin {
         if (getPermissionState("bluetooth") == PermissionState.GRANTED) selectBluetoothDevice(call); else call.reject("Permiso Bluetooth denegado");
     }
 
-    @PermissionCallback
-    private void microphonePermissionResult(PluginCall call) {
-        if (getPermissionState("microphone") == PermissionState.GRANTED) startCommandListening(call);
-        else call.reject("Permiso de micrófono denegado");
-    }
-
-    @Override protected void handleOnDestroy() { keepListening = false; stopEngines(); super.handleOnDestroy(); }
 }
