@@ -54,6 +54,8 @@ public final class RiderCommandsPlugin extends Plugin {
     private String lastPartial = "";
     private String lastRadioPartial = "";
     private int radioPartialHits;
+    private boolean radioCandidate;
+    private long radioCandidateAt;
     private int partialHits;
     private String lastEmitted = "";
     private long lastEmitAt;
@@ -106,7 +108,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(phrase);
             }
         } catch (Exception e) { call.reject("Gramática de comandos no válida"); return; }
-        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; lastEmitted = ""; lastEmitAt = 0;
+        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; radioCandidate = false; radioCandidateAt = 0; lastEmitted = ""; lastEmitAt = 0;
         worker.execute(() -> {
             try {
                 active = false;
@@ -151,8 +153,9 @@ public final class RiderCommandsPlugin extends Plugin {
                             if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
                             boolean exact = grammarPhrases.contains(partial);
                             boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
+                            boolean radioInProgress = radioCandidate && System.currentTimeMillis() - radioCandidateAt < 3000;
                             int stableHits = wakeOnly ? 5 : 2;
-                            if (exact && partialHits >= stableHits) emitTranscript(partial, true);
+                            if (exact && partialHits >= stableHits && !(wakeOnly && radioInProgress)) emitTranscript(partial, true);
                         }
                     }
                 }
@@ -170,21 +173,33 @@ public final class RiderCommandsPlugin extends Plugin {
             } else {
                 String partial = new JSONObject(radioRecognizer.getPartialResult()).optString("partial", "").trim();
                 if (partial.isEmpty()) { lastRadioPartial = ""; radioPartialHits = 0; return; }
+                String normalizedPartial = normalizeSpeech(partial);
+                if (normalizedPartial.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( .*)?")) {
+                    radioCandidate = true;
+                    radioCandidateAt = System.currentTimeMillis();
+                }
                 if (partial.equals(lastRadioPartial)) radioPartialHits++; else { lastRadioPartial = partial; radioPartialHits = 1; }
                 if (radioPartialHits >= 3) maybeEmitRadio(partial, false);
             }
         } catch (Exception ignored) {}
     }
 
-    private void maybeEmitRadio(String raw, boolean finalResult) {
-        if (raw == null || raw.trim().isEmpty()) return;
-        String normalized = Normalizer.normalize(raw.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+    private String normalizeSpeech(String raw) {
+        return Normalizer.normalize(String.valueOf(raw).toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
             .replaceAll("\\p{M}", "")
             .replaceAll("[^a-z0-9 ]", " ")
             .replaceAll("\\s+", " ")
             .trim();
+    }
+
+    private void maybeEmitRadio(String raw, boolean finalResult) {
+        if (raw == null || raw.trim().isEmpty()) return;
+        String normalized = normalizeSpeech(raw);
         boolean radio = normalized.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? .+");
         if (!radio) return;
+        radioCandidate = true;
+        radioCandidateAt = System.currentTimeMillis();
+        if (grammarPhrases.contains(normalized)) return;
         if (normalized.endsWith(" altavoz") || normalized.endsWith(" bluetooth") || normalized.endsWith(" sonido")) return;
         String stationTail = normalized.replaceFirst("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? ", "").trim();
         if (!finalResult && stationTail.split(" ").length < 2) return;
