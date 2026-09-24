@@ -15,6 +15,8 @@
     voiceOn: ['activar rider voz', 'activa rider voz', 'activar raider voz'],
     count: ['cuantos riders hay', 'cuantos raiders hay', 'cuantos riders estan conectados', 'cuantos hay conectados', 'cuantos estan conectados'],
     names: ['quien esta conectado', 'quienes estan conectados', 'que riders hay conectados'],
+    nearbyCount: ['cuantos riders hay en mi zona', 'cuantos raiders hay en mi zona', 'cuantos riders hay cerca', 'hay riders cerca'],
+    nearbyNames: ['que riders hay en mi zona', 'quienes hay en mi zona', 'quien hay cerca', 'que riders hay cerca'],
     repeat: ['repetir ultimo mensaje', 'repite el ultimo mensaje', 'repite'],
     leave: ['salir del grupo', 'sal del grupo'],
     emergency: ['emergencia', 'activar emergencia'],
@@ -29,8 +31,9 @@
       'Rider, activar Rider Voz', 'Rider, desactivar Rider Voz',
       'Rider, activar manos libres', 'Rider, desactivar manos libres'
     ]},
-    { title: 'Grupo', commands: [
-      'Rider, ¿quién está conectado?', 'Rider, ¿cuántos Riders hay?', 'Rider, salir del grupo'
+    { title: 'Comunidad Rider', commands: [
+      'Rider, ¿quién está conectado?', 'Rider, ¿cuántos Riders hay?',
+      'Rider, ¿cuántos Riders hay en mi zona?', 'Rider, ¿qué Riders hay cerca?', 'Rider, salir del grupo'
     ]},
     { title: 'Asistente', commands: [
       'Rider, repetir último mensaje', 'Rider, emergencia'
@@ -169,6 +172,19 @@
             const riders = await this.o.getRiders(); if (run !== this.generation) return;
             await this.reply(id === 'count' ? (riders.length === 1 ? 'Hay un Rider conectado' : 'Hay ' + riders.length + ' Riders conectados') :
               (riders.length ? 'Conectados: ' + riders.map(r => r.name || 'Rider').join(', ') : 'No hay Riders conectados')); break;
+          }
+          case 'nearbyCount': case 'nearbyNames': {
+            const nearby = await this.o.getNearbyRiders(); if (run !== this.generation) return;
+            if (!nearby?.available) {
+              await this.reply('Para saber qué Riders hay en tu zona, activa Riders en mi zona en Comunidad Rider'); break;
+            }
+            const riders = nearby.riders || [];
+            if (id === 'nearbyCount') {
+              await this.reply(riders.length === 1 ? 'Hay un Rider activo en tu zona' : riders.length ? 'Hay ' + riders.length + ' Riders activos en tu zona' : 'No hay Riders activos en tu zona');
+            } else {
+              await this.reply(riders.length ? 'En tu zona están: ' + riders.map(r => r.name || 'Rider').join(', ') : 'No hay Riders activos en tu zona');
+            }
+            break;
           }
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
           case 'leave': await this.reply('Saliendo del grupo'); if (run === this.generation) this.o.leave(); break;
