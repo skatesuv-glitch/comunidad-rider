@@ -262,3 +262,15 @@ test('radio parser never confuses radio with Rider Voz off',()=>{
   assert.equal(parse('Rider pon el bluetooth').id,'useBluetooth');
   assert.equal(parse('Rider desactivar Rider Voz').id,'voiceOff');
 });
+
+test('radio command layer stays independent from the rest of Rider',async()=>{
+  const {bot,out}=setup({
+    playRadio:async q=>({ok:true,name:q}),
+    stopRadio:async()=>{}
+  });
+  await bot.receive('Rider pon Rock FM');
+  assert.equal(out.said.at(-1),'Poniendo Rock FM');
+  assert.equal(bot.enabled,true);
+  await bot.receive('Rider que hora es');
+  assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
+});
