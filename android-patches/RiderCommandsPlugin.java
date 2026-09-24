@@ -425,17 +425,33 @@ public final class RiderCommandsPlugin extends Plugin {
             HttpURLConnection connection = null;
             try {
                 String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
-                URL url = new URL("https://de1.api.radio-browser.info/json/stations/search?name=" +
-                    encoded + "&hidebroken=true&is_https=true&order=clickcount&reverse=true&limit=20");
-                connection = (HttpURLConnection)url.openConnection();
-                connection.setConnectTimeout(3500);
-                connection.setReadTimeout(5000);
-                connection.setRequestProperty("User-Agent", "RiderVoz/2.0");
-                StringBuilder body = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                    String line; while ((line = reader.readLine()) != null) body.append(line);
+                JSONArray stations = null;
+                String[] servers = new String[]{
+                    "https://de1.api.radio-browser.info",
+                    "https://nl1.api.radio-browser.info"
+                };
+                Exception lastError = null;
+                for (String server : servers) {
+                    try {
+                        URL url = new URL(server + "/json/stations/search?name=" +
+                            encoded + "&hidebroken=true&is_https=true&order=clickcount&reverse=true&limit=20");
+                        connection = (HttpURLConnection)url.openConnection();
+                        connection.setConnectTimeout(3000);
+                        connection.setReadTimeout(4500);
+                        connection.setRequestProperty("User-Agent", "RiderVoz/2.0");
+                        StringBuilder body = new StringBuilder();
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                            String line; while ((line = reader.readLine()) != null) body.append(line);
+                        }
+                        stations = new JSONArray(body.toString());
+                        connection.disconnect(); connection = null;
+                        break;
+                    } catch (Exception serverError) {
+                        lastError = serverError;
+                        if (connection != null) { connection.disconnect(); connection = null; }
+                    }
                 }
-                JSONArray stations = new JSONArray(body.toString());
+                if (stations == null) throw (lastError == null ? new IOException("Sin servidores de radio") : lastError);
                 JSONObject chosen = null;
                 JSONObject contains = null;
                 String normalizedQuery = normalizeSpeech(query).replaceFirst("^radio ", "").trim();
