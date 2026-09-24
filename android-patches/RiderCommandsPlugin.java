@@ -8,10 +8,13 @@ import android.util.Base64;
 import com.getcapacitor.*;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import org.json.JSONObject;
+import org.json.JSONArray;
 import org.vosk.Model;
 import org.vosk.Recognizer;
 import java.io.*;
 import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,6 +32,11 @@ public final class RiderCommandsPlugin extends Plugin {
     private String ttsError;
     private PluginCall speechCall;
     private long speechId;
+    private final Set<String> grammarPhrases = new HashSet<>();
+    private String lastPartial = "";
+    private int partialHits;
+    private String lastEmitted = "";
+    private long lastEmitAt;
 
     @Override public void load() {
         main.post(() -> {
@@ -55,6 +63,15 @@ public final class RiderCommandsPlugin extends Plugin {
         final int rate = call.getInt("sampleRate", 16000);
         final String grammar = call.getString("grammar", "");
         if (rate < 8000 || rate > 96000 || grammar.isEmpty()) { call.reject("Formato de audio de comandos no válido"); return; }
+        grammarPhrases.clear();
+        try {
+            JSONArray phrases = new JSONArray(grammar);
+            for (int i = 0; i < phrases.length(); i++) {
+                String phrase = phrases.optString(i, "").trim();
+                if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(phrase);
+            }
+        } catch (Exception e) { call.reject("Gramática de comandos no válida"); return; }
+        lastPartial = ""; partialHits = 0; lastEmitted = ""; lastEmitAt = 0;
         worker.execute(() -> {
             try {
                 active = false;
@@ -88,12 +105,33 @@ public final class RiderCommandsPlugin extends Plugin {
                     byte[] bytes = Base64.decode(pcm, Base64.NO_WRAP);
                     if (recognizer.acceptWaveForm(bytes, bytes.length)) {
                         String text = new JSONObject(recognizer.getResult()).optString("text", "").trim();
-                        if (!text.isEmpty()) { JSObject event = new JSObject(); event.put("text", text); notifyListeners("transcript", event); }
+                        emitTranscript(text, false);
+                    } else {
+                        String partial = new JSONObject(recognizer.getPartialResult()).optString("partial", "").trim();
+                        if (partial.isEmpty()) { lastPartial = ""; partialHits = 0; }
+                        else {
+                            if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
+                            boolean exact = grammarPhrases.contains(partial);
+                            boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
+                            int stableHits = wakeOnly ? 5 : 2;
+                            if (exact && partialHits >= stableHits) emitTranscript(partial, true);
+                        }
                     }
                 }
                 call.resolve();
             } catch (Exception | LinkageError e) { active = false; call.reject("Error al procesar el audio de comandos: " + e.getMessage()); }
         });
+    }
+
+    private void emitTranscript(String text, boolean resetAfter) {
+        if (text == null) return;
+        text = text.trim();
+        if (text.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        if (text.equals(lastEmitted) && now - lastEmitAt < 1200) return;
+        lastEmitted = text; lastEmitAt = now; lastPartial = ""; partialHits = 0;
+        JSObject event = new JSObject(); event.put("text", text); notifyListeners("transcript", event);
+        if (resetAfter && recognizer != null) recognizer.reset();
     }
 
     @PluginMethod public void speak(PluginCall call) {
@@ -122,6 +160,7 @@ public final class RiderCommandsPlugin extends Plugin {
             // Keep a short tail gate so the speaker's last syllable cannot wake the bot.
             main.postDelayed(() -> worker.execute(() -> {
                 if (recognizer != null) recognizer.reset();
+                lastPartial = ""; partialHits = 0;
                 speaking = false;
                 if (error == null) call.resolve(); else call.reject(error);
             }), 250);
@@ -130,6 +169,7 @@ public final class RiderCommandsPlugin extends Plugin {
 
     @PluginMethod public void stop(PluginCall call) {
         generation.incrementAndGet(); active = false;
+        lastPartial = ""; partialHits = 0; lastEmitted = ""; lastEmitAt = 0;
         main.post(() -> {
             ++speechId;
             if (tts != null) tts.stop();
