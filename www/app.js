@@ -7,8 +7,15 @@ const MADRID={lat:40.4168,lng:-3.7038};
 const SPAIN_BOUNDS=[[27.4,-18.7],[44.2,4.6]];
 const state={mode:'nearby',me:{...MADRID},map:null,meMarker:null,radius:null,riderLayers:[],selected:null,riders:[]};
 
-const fillerNames=['Rider Norte','Rider Sierra','Rider Oeste','Rider Sur','Rider Centro','Rider Este'];
-const fillerOffsets=[[0.42,-0.31],[0.16,0.56],[-0.34,-0.49],[-0.51,0.24],[0.08,-0.22],[0.31,0.18]];
+const fillerRiders=[
+  {name:'Rider Madrid 01',city:'Madrid',lat:40.4168,lng:-3.7038},
+  {name:'Rider Madrid 02',city:'Madrid',lat:40.5150,lng:-3.6900},
+  {name:'Rider Norte',city:'Santander',lat:43.4623,lng:-3.8099},
+  {name:'Rider Bilbao',city:'Bilbao',lat:43.2630,lng:-2.9350},
+  {name:'Rider Barcelona',city:'Barcelona',lat:41.3874,lng:2.1686},
+  {name:'Rider Valencia',city:'Valencia',lat:39.4699,lng:-0.3763},
+  {name:'Rider Sevilla',city:'Sevilla',lat:37.3891,lng:-5.9845}
+];
 
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function kmBetween(a,b){const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lng-a.lng);const x=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
@@ -68,7 +75,7 @@ async function fetchRealRiders(){
 }
 
 function makeFiller(){
-  return fillerNames.map((name,i)=>({id:`demo-${i+1}`,name,city:'Rider de muestra',board:'eSkate SUV',lat:state.me.lat+fillerOffsets[i][0],lng:state.me.lng+fillerOffsets[i][1],online:false,lastSeen:new Date(Date.now()-(i+1)*45*60*1000).toISOString(),isDemo:true}));
+  return fillerRiders.map((r,i)=>({id:`demo-${i+1}`,name:r.name,city:r.city,board:'eSkate SUV',lat:r.lat,lng:r.lng,online:false,lastSeen:new Date(Date.now()-(i+1)*52*60*1000).toISOString(),isDemo:true}));
 }
 
 function buildShell(){
@@ -164,7 +171,7 @@ function showPrivacy(){
 
 function locateMe(){
   if(!navigator.geolocation){toast('Ubicación no disponible');return;}
-  navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};const fillers=state.riders.filter(r=>r.isDemo);fillers.forEach((r,i)=>{r.lat=state.me.lat+fillerOffsets[i][0];r.lng=state.me.lng+fillerOffsets[i][1]});redrawMap();toast('Ubicación actualizada')},()=>toast('No se ha podido obtener tu ubicación'),{enableHighAccuracy:true,timeout:8000,maximumAge:30000});
+  navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};redrawMap();toast('Ubicación actualizada')},()=>toast('No se ha podido obtener tu ubicación'),{enableHighAccuracy:true,timeout:8000,maximumAge:30000});
 }
 
 async function boot(){
@@ -175,7 +182,7 @@ async function boot(){
     state.riders=[...real];
     if(real.length<6)state.riders.push(...makeFiller().slice(0,6-real.length));
     initMap();
-    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};const fillers=state.riders.filter(r=>r.isDemo);fillers.forEach((r,i)=>{r.lat=state.me.lat+fillerOffsets[i][0];r.lng=state.me.lng+fillerOffsets[i][1]});redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
   }catch(err){showStartupError(err)}
 }
 boot().catch(showStartupError);
