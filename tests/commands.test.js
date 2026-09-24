@@ -234,3 +234,14 @@ test('wake pause also supports a free radio station name',async()=>{
   await bot.receive('pon Kiss efe eme');
   assert.equal(out.radio,'kiss fm');
 });
+
+test('every command shown in Settings is directly recognizable',()=>{
+  for(const group of helpGroups){
+    for(const command of group.commands){
+      if(command.includes('[nombre de emisora]'))continue;
+      const parsed=parse(command);
+      assert.ok(parsed.wake,command+' must require Rider');
+      assert.ok(parsed.id,command+' must map to a real intent');
+    }
+  }
+});
