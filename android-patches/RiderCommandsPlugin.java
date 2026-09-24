@@ -194,11 +194,25 @@ public final class RiderCommandsPlugin extends Plugin {
         lastRadioPartial = "";
         radioPartialHits = 0;
         lastRadioChangeAt = radioCandidateAt;
+        main.post(() -> setRadioDucked(true));
         try {
             radioRecognizer.reset();
-            for (byte[] chunk : preRoll) radioRecognizer.acceptWaveForm(chunk, chunk.length);
+            for (byte[] chunk : preRoll) {
+                if (radioRecognizer.acceptWaveForm(chunk, chunk.length)) {
+                    String replay = new JSONObject(radioRecognizer.getResult()).optString("text", "").trim();
+                    if (maybeEmitRadio(replay, true)) {
+                        endRadioMode(true);
+                        return;
+                    }
+                }
+            }
+            String partial = new JSONObject(radioRecognizer.getPartialResult()).optString("partial", "").trim();
+            if (!partial.isEmpty()) {
+                lastRadioPartial = partial;
+                radioPartialHits = 1;
+                lastRadioChangeAt = System.currentTimeMillis();
+            }
         } catch (Exception ignored) {}
-        main.post(() -> setRadioDucked(true));
     }
 
     private void endRadioMode(boolean accepted) {
