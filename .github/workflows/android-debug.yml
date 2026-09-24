@@ -2,7 +2,7 @@ name: Android debug APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, rider-voice-clean-rebuild]
+    branches: [main, rider-voice-clean-rebuild, rider-voz-blindada-287, rider-voz-trabajo-293]
   pull_request:
     branches: [main, rider-voice-clean-rebuild]
 jobs:
@@ -36,6 +36,17 @@ jobs:
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: rider-voz-clean-commands-286
+          name: rider-voz-trabajo-289
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Export apksigner tool
+        run: |
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p /tmp/rider-apksigner/lib
+          cp "$BT/apksigner" /tmp/rider-apksigner/apksigner
+          cp "$BT/lib/apksigner.jar" /tmp/rider-apksigner/lib/apksigner.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rider-apksigner-tool
+          path: /tmp/rider-apksigner
           if-no-files-found: error
