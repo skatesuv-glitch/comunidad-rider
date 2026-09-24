@@ -108,11 +108,14 @@
     const exact = lookup.get(order) || null;
     if (exact) return { wake, order, id: exact };
     if (wake) {
-      const radio = order.match(/^(?:pon|ponme|reproduce|escucha)(?: la)?(?: radio)?\s+(.+)$/);
+      const radio = order.match(/^(?:pon|ponme|reproduce|escucha)\s+(?:la\s+radio\s+)?(.+)$/);
       if (radio) {
-        let station = radio[1].trim();
-        if (station === 'los cuarenta') station = 'LOS40';
-        if (station === 'cadena cien') station = 'Cadena 100';
+        let station = radio[1].trim()
+          .replace(/\befe eme\b/g,'fm')
+          .replace(/\blos cuarenta\b/g,'los 40')
+          .replace(/\bcadena cien\b/g,'cadena 100');
+        if (station === 'los 40') station = 'LOS40';
+        if (station === 'cadena 100') station = 'Cadena 100';
         return { wake, order, id: 'radioNamed', station };
       }
     }
@@ -171,7 +174,8 @@
         this.processor.onaudioprocess = event => {
           if (!this.enabled || this.busy || run !== this.generation) return;
           if (this.inFlight) {
-            if (++this.overruns >= 4) this.fail(new Error('El teléfono no puede procesar el audio de comandos a tiempo'), run);
+            this.overruns++;
+            if (this.overruns === 8) this.status('Procesando audio…');
             return;
           }
           this.overruns = 0;
@@ -182,7 +186,10 @@
           }
           let binary = ''; for (const b of bytes) binary += String.fromCharCode(b);
           this.inFlight = true;
-          this.native.audio({ pcm: btoa(binary) }).catch(e => this.fail(e, run)).finally(() => { this.inFlight = false; });
+          this.native.audio({ pcm: btoa(binary) }).catch(e => this.fail(e, run)).finally(() => {
+            this.inFlight = false;
+            if (this.overruns) this.overruns = 0;
+          });
         };
         this.stream.getAudioTracks().forEach(t => t.addEventListener('ended', () => {
           if (this.enabled && run === this.generation) this.fail(new Error('Se ha desconectado el micrófono de comandos'), run);
@@ -414,13 +421,19 @@
             break;
           }
           case 'help': await this.reply('Puedo ayudarte con la marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio'); break;
-          case 'radioRock': {
-            const station = await this.o.playRadio?.('Rock FM'); if (run !== this.generation) return;
-            await this.reply(station?.name ? 'Poniendo ' + station.name : 'Poniendo Rock FM'); break;
-          }
-          case 'radioNamed': {
-            const station = await this.o.playRadio?.(parsed.station); if (run !== this.generation) return;
-            await this.reply(station?.name ? 'Poniendo ' + station.name : 'Poniendo ' + parsed.station); break;
+          case 'radioRock': case 'radioNamed': {
+            const requested = id === 'radioRock' ? 'Rock FM' : parsed.station;
+            try {
+              const station = await this.o.playRadio?.(requested); if (run !== this.generation) return;
+              if (!station?.ok && !station?.name) {
+                await this.reply(station?.message || 'No encuentro esa emisora', false);
+              } else {
+                await this.reply('Poniendo ' + (station.name || requested));
+              }
+            } catch {
+              await this.reply('No encuentro esa emisora', false);
+            }
+            break;
           }
           case 'radioStop': await this.o.stopRadio?.(); if (run !== this.generation) return; await this.reply('Radio detenida'); break;
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
