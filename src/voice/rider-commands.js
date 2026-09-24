@@ -123,13 +123,15 @@
   };
   const radioPrefixes = ['pon','ponme','reproduce','escucha'];
   const grammar = [...new Set(['rider', 'raider', '[unk]',
+    ...Object.values(orders).flat(),
     ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p)),
-    ...['rider', 'raider'].flatMap(w => radioPrefixes.map(p => w + ' ' + p))])];
+    ...['rider', 'raider'].flatMap(w => radioPrefixes.map(p => w + ' ' + p)),
+    ...radioPrefixes])];
 
   class Bot {
     constructor(options) {
       this.o = options; this.native = options.native; this.enabled = false;
-      this.generation = 0; this.busy = false; this.pending = null; this.deadline = 0;
+      this.generation = 0; this.busy = false; this.pending = null; this.deadline = 0; this.wakeUntil = 0;
       this.lastReply = ''; this.handles = []; this.starting = false;
     }
     status(text) { this.o.status(text); }
@@ -202,7 +204,7 @@
     }
     async stop() {
       ++this.generation; this.enabled = false; this.starting = false;
-      this.pending = null; this.deadline = 0; clearTimeout(this.timer); this.o.toggle(false);
+      this.pending = null; this.deadline = 0; this.wakeUntil = 0; clearTimeout(this.timer); this.o.toggle(false);
       if (this.processor) { this.processor.onaudioprocess = null; this.processor.disconnect(); }
       this.source?.disconnect(); this.silent?.disconnect();
       // All tracks here belong to this bot (clones or its own getUserMedia request).
@@ -231,14 +233,20 @@
     }
     async receive(raw, run = this.generation) {
       if (!this.enabled || this.busy || run !== this.generation) return;
-      const parsed = parse(raw);
-      // Regla fija: ninguna orden ni confirmación se ejecuta sin decir «Rider» delante.
-      if (!parsed.wake) return;
+      let parsed = parse(raw);
+      // «Rider» sigue siendo obligatorio. Se admite una pausa natural muy corta
+      // después del wake word, sin respuesta hablada que pise la orden.
+      const continuation = !parsed.wake && this.wakeUntil > Date.now();
+      if (!parsed.wake && !continuation) return;
+      if (continuation) parsed = parse('Rider ' + raw);
       this.busy = true; clearTimeout(this.timer);
       try {
         if (parsed.wake && !parsed.order) {
-          await this.reply('Te escucho', false); return;
+          this.wakeUntil = Date.now() + 1800;
+          this.status('Te escucho…');
+          return;
         }
+        this.wakeUntil = 0;
         let id = parsed.id;
         if (this.pending) {
           const pending = this.pending; this.pending = null; this.deadline = 0;
