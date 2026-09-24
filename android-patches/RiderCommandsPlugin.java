@@ -386,10 +386,10 @@ public final class RiderCommandsPlugin extends Plugin {
             try {
                 String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
                 URL url = new URL("https://de1.api.radio-browser.info/json/stations/search?name=" +
-                    encoded + "&hidebroken=true&order=clickcount&reverse=true&limit=20");
+                    encoded + "&hidebroken=true&is_https=true&order=clickcount&reverse=true&limit=20");
                 connection = (HttpURLConnection)url.openConnection();
-                connection.setConnectTimeout(7000);
-                connection.setReadTimeout(9000);
+                connection.setConnectTimeout(3500);
+                connection.setReadTimeout(5000);
                 connection.setRequestProperty("User-Agent", "RiderVoz/2.0");
                 StringBuilder body = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
@@ -397,13 +397,16 @@ public final class RiderCommandsPlugin extends Plugin {
                 }
                 JSONArray stations = new JSONArray(body.toString());
                 JSONObject chosen = null;
-                String normalizedQuery = query.toLowerCase(Locale.ROOT).replace("radio ", "").trim();
+                JSONObject contains = null;
+                String normalizedQuery = normalizeSpeech(query).replaceFirst("^radio ", "").trim();
                 for (int i = 0; i < stations.length(); i++) {
                     JSONObject station = stations.optJSONObject(i);
                     if (station == null) continue;
-                    String name = station.optString("name", "").toLowerCase(Locale.ROOT);
-                    if (name.equals(normalizedQuery) || name.contains(normalizedQuery)) { chosen = station; break; }
+                    String name = normalizeSpeech(station.optString("name", ""));
+                    if (name.equals(normalizedQuery)) { chosen = station; break; }
+                    if (contains == null && (name.contains(normalizedQuery) || normalizedQuery.contains(name))) contains = station;
                 }
+                if (chosen == null) chosen = contains;
                 if (chosen == null && stations.length() > 0) chosen = stations.optJSONObject(0);
                 if (chosen == null) {
                     JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No encuentro esa emisora"); call.resolve(out); return;
