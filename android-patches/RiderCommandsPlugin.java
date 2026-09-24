@@ -155,14 +155,14 @@ public final class RiderCommandsPlugin extends Plugin {
                         processRadioRecognition(bytes);
                     } else if (recognizer.acceptWaveForm(bytes, bytes.length)) {
                         String text = new JSONObject(recognizer.getResult()).optString("text", "").trim();
-                        if (isRadioPrefix(text)) beginRadioMode();
+                        if (isRadioLead(text)) beginRadioMode();
                         else emitTranscript(text, false);
                     } else {
                         String partial = new JSONObject(recognizer.getPartialResult()).optString("partial", "").trim();
                         if (partial.isEmpty()) { lastPartial = ""; partialHits = 0; }
                         else {
                             if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
-                            if (isRadioPrefix(partial)) {
+                            if (isRadioLead(partial)) {
                                 beginRadioMode();
                             } else {
                                 boolean exact = grammarPhrases.contains(partial);
@@ -174,7 +174,17 @@ public final class RiderCommandsPlugin extends Plugin {
                     }
                 }
                 call.resolve();
-            } catch (Exception | LinkageError e) { active = false; call.reject("Error al procesar el audio de comandos: " + e.getMessage()); }
+            } catch (Exception | LinkageError e) {
+                // Un fallo puntual de ASR no debe apagar Rider Voz.
+                try { if (recognizer != null) recognizer.reset(); } catch (Exception ignored) {}
+                try { if (radioRecognizer != null) radioRecognizer.reset(); } catch (Exception ignored) {}
+                radioCandidate = false;
+                radioCandidateAt = 0;
+                lastRadioPartial = "";
+                radioPartialHits = 0;
+                preRoll.clear();
+                call.resolve();
+            }
         });
     }
 
@@ -183,9 +193,11 @@ public final class RiderCommandsPlugin extends Plugin {
         while (preRoll.size() > 12) preRoll.removeFirst();
     }
 
-    private boolean isRadioPrefix(String raw) {
+    private boolean isRadioLead(String raw) {
         String n = normalizeSpeech(raw);
-        return n.matches("^(rider|raider) (pon|ponme|reproduce|escucha)$");
+        if (!n.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( .*)?$")) return false;
+        if (n.matches("^(rider|raider) (pon|ponme) (el )?(bluetooth|altavoz|sonido)$")) return false;
+        return true;
     }
 
     private void beginRadioMode() {
@@ -238,7 +250,13 @@ public final class RiderCommandsPlugin extends Plugin {
         try {
             if (radioRecognizer.acceptWaveForm(bytes, bytes.length)) {
                 String text = new JSONObject(radioRecognizer.getResult()).optString("text", "").trim();
-                if (!maybeEmitRadio(text, true)) endRadioMode(false);
+                String normalized = normalizeSpeech(text);
+                if (normalized.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( la radio| radio)?$")) {
+                    emitTranscript(normalized, true);
+                    endRadioMode(true);
+                } else if (!maybeEmitRadio(text, true)) {
+                    endRadioMode(false);
+                }
             } else {
                 String partial = new JSONObject(radioRecognizer.getPartialResult()).optString("partial", "").trim();
                 if (partial.isEmpty()) return;
