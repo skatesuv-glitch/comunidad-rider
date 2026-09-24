@@ -38,12 +38,14 @@ test('count and names use online riders, including the no-riders case',async()=>
   await bot.receive('Rider quién está conectado');assert.equal(out.said.at(-1),'Conectados: Ana, David');
   bot.o.getRiders=async()=>[];await bot.receive('Rider quién está conectado');assert.equal(out.said.at(-1),'No hay Riders conectados');
 });
-test('every command requires Rider even after wake-only prompt',async()=>{
+test('Rider is required but a short natural pause after wake is accepted',async()=>{
   const {bot,out}=setup();await bot.receive('subir volumen');assert.equal(out.volume,.5);
-  await bot.receive('Rider');assert.equal(out.said.at(-1),'Te escucho');
-  await bot.receive('subir volumen');assert.equal(out.volume,.5);
-  await bot.receive('Rider subir volumen');assert.equal(out.volume,.7);
+  await bot.receive('Rider');assert.equal(out.said.length,0);
+  await bot.receive('subir volumen');assert.equal(out.volume,.7);
   await bot.receive('bajar volumen');assert.equal(out.volume,.7);
+  bot.wakeUntil=Date.now()-1;
+  await bot.receive('bajar volumen');assert.equal(out.volume,.7);
+  await bot.receive('Rider bajar volumen');assert.equal(out.volume,.5);
 });
 test('disable VOX and voice without accidentally enabling',async()=>{
   const {bot,out}=setup();await bot.receive('Rider desactivar modo vox');assert.equal(out.vox,false);
@@ -224,4 +226,11 @@ test('radio failures do not kill the assistant',async()=>{
   assert.equal(bot.enabled,true);
   await bot.receive('Rider que hora es');
   assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
+});
+
+test('wake pause also supports a free radio station name',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider');
+  await bot.receive('pon Kiss efe eme');
+  assert.equal(out.radio,'kiss fm');
 });
