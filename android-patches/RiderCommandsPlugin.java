@@ -1,6 +1,8 @@
 package com.eskatesuv.ridervoz;
 
 import android.os.Handler;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -132,6 +134,38 @@ public final class RiderCommandsPlugin extends Plugin {
         lastEmitted = text; lastEmitAt = now; lastPartial = ""; partialHits = 0;
         JSObject event = new JSObject(); event.put("text", text); notifyListeners("transcript", event);
         if (resetAfter && recognizer != null) recognizer.reset();
+    }
+
+    @PluginMethod public void getOnboardSnapshot(PluginCall call) {
+        JSObject result = new JSObject();
+        try (Cursor cursor = getContext().getContentResolver().query(
+                Uri.parse("content://com.skatesuv.eskate.riderbridge/snapshot"),
+                new String[]{"json"}, null, null, null)) {
+            if (cursor == null || !cursor.moveToFirst()) {
+                result.put("available", false);
+                result.put("reason", "SKATESUV no tiene datos de a bordo disponibles");
+                call.resolve(result);
+                return;
+            }
+            String raw = cursor.getString(0);
+            if (raw == null || raw.trim().isEmpty()) {
+                result.put("available", false);
+                result.put("reason", "SKATESUV no tiene datos de a bordo disponibles");
+                call.resolve(result);
+                return;
+            }
+            JSONObject snapshot = new JSONObject(raw);
+            long sourceAt = snapshot.optLong("timestamp", 0L);
+            long age = sourceAt > 0L ? Math.max(0L, System.currentTimeMillis() - sourceAt) : Long.MAX_VALUE;
+            result.put("available", true);
+            result.put("json", raw);
+            result.put("ageMs", age);
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("available", false);
+            result.put("reason", "No se pudo leer el ordenador de a bordo de SKATESUV");
+            call.resolve(result);
+        }
     }
 
     @PluginMethod public void speak(PluginCall call) {
