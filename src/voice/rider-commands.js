@@ -131,6 +131,7 @@
   const fuzzyIntent = order => {
     order = canonicalOrder(order);
     if (!order || order.length < 5) return null;
+    if (/^(?:no|nunca|ni)\b/.test(order)) return null;
     let best=null, bestScore=0;
     for (const [id, phrases] of Object.entries(orders)) {
       if (strictIntents.has(id)) continue;
