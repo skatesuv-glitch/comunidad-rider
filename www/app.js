@@ -36,15 +36,17 @@ function loadCss(href){
   if(document.querySelector('link[data-dynamic="'+href+'"]'))return;
   const el=document.createElement('link');el.rel='stylesheet';el.href=href;el.dataset.dynamic=href;document.head.appendChild(el);
 }
-async function loadDependencies(){
-  loadCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-  const jobs=[];
-  if(!window.L)jobs.push(loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').catch(()=>false));
-  if(!window.supabase)jobs.push(loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2').catch(()=>false));
-  if(jobs.length)await Promise.allSettled(jobs);
+async function loadMapDependency(){
+  loadCss('vendor/leaflet.css');
+  if(!window.L)await loadScript('vendor/leaflet.js',2500);
+  return !!window.L;
+}
+async function loadBackendDependency(){
+  if(!window.supabase)await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',4500);
   if(window.supabase?.createClient){
     try{supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)}catch{supabase=null}
   }
+  return !!supabase;
 }
 function showStartupError(err){
   const map=document.querySelector('#map');
@@ -129,7 +131,7 @@ function redrawMap(){
 
 function setMode(mode){state.mode=mode;document.querySelector('#nearBtn').classList.toggle('active',mode==='nearby');document.querySelector('#allBtn').classList.toggle('active',mode==='all');document.querySelector('#riderCard').classList.add('hidden');redrawMap();}
 
-function selectRider(r){state.selected=r;const dist=kmBetween(state.me,r).toFixed(1);const card=document.querySelector('#riderCard');card.classList.remove('hidden');card.innerHTML=`<div class="drag"></div><button class="closeCard" id="closeCard">×</button><div class="riderTop"><div class="avatar ${r.online?'onlineRing':'grayRing'}">${esc(r.name.charAt(0).toUpperCase())}</div><div class="riderMeta"><h2>${esc(r.name)}</h2><p>${esc(r.city)} · A ${dist} km</p><small class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':timeAgo(r.lastSeen)}</small>${r.isDemo?'<em>Rider de muestra</em>':''}</div></div><div class="cardActions"><button id="messageBtn" ${r.isDemo?'disabled':''}>💬 <span>Mensaje</span></button><button class="invite" id="inviteBtn" ${r.isDemo?'disabled':''}>＋ <span>Invitar</span></button></div>`;
+function selectRider(r){state.selected=r;const dist=kmBetween(state.me,r).toFixed(1);const card=document.querySelector('#riderCard');card.classList.remove('hidden');card.innerHTML=`<div class="drag"></div><button class="closeCard" id="closeCard">×</button><div class="riderTop"><div class="avatar ${r.online?'onlineRing':'grayRing'}">${esc(r.name.charAt(0).toUpperCase())}</div><div class="riderMeta"><h2>${esc(r.name)}</h2><p>${esc(r.city)} · A ${dist} km</p><small class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':timeAgo(r.lastSeen)}</small>${r.isDemo?'<em>Rider de muestra</em>':''}</div></div><div class="cardActions"><button id="messageBtn">💬 <span>Mensaje</span></button><button class="invite" id="inviteBtn">＋ <span>Invitar</span></button></div>`;
   document.querySelector('#closeCard').onclick=()=>card.classList.add('hidden');
   document.querySelector('#messageBtn').onclick=()=>openChat(r);
   document.querySelector('#inviteBtn').onclick=()=>toast(`Invitación preparada para ${r.name}`);
@@ -174,15 +176,27 @@ function locateMe(){
   navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};redrawMap();toast('Ubicación actualizada')},()=>toast('No se ha podido obtener tu ubicación'),{enableHighAccuracy:true,timeout:8000,maximumAge:30000});
 }
 
+async function refreshRealRiders(){
+  try{
+    await loadBackendDependency();
+    const real=await fetchRealRiders();
+    if(real.length){
+      const demos=makeFiller();
+      state.riders=[...real,...demos.slice(0,Math.max(0,7-real.length))];
+      redrawMap();
+    }
+  }catch{}
+}
 async function boot(){
   buildShell();
+  state.riders=makeFiller();
   try{
-    await loadDependencies();
-    const real=await fetchRealRiders();
-    state.riders=[...real];
-    if(real.length<6)state.riders.push(...makeFiller().slice(0,6-real.length));
+    await loadMapDependency();
     initMap();
-    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
-  }catch(err){showStartupError(err)}
+  }catch(err){
+    showStartupError(err);
+  }
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
+  refreshRealRiders();
 }
 boot().catch(showStartupError);
