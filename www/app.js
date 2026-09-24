@@ -8,8 +8,8 @@ const SPAIN_BOUNDS=[[27.4,-18.7],[44.2,4.6]];
 const state={mode:'nearby',me:{...MADRID},map:null,meMarker:null,radius:null,riderLayers:[],selected:null,riders:[]};
 
 const fillerRiders=[
-  {name:'Rider Madrid 01',city:'Madrid',lat:40.4168,lng:-3.7038},
-  {name:'Rider Madrid 02',city:'Madrid',lat:40.5150,lng:-3.6900},
+  {name:'Rider Madrid 01',city:'Madrid',lat:40.4630,lng:-3.6400},
+  {name:'Rider Madrid 02',city:'Madrid',lat:40.3600,lng:-3.7700},
   {name:'Rider Norte',city:'Santander',lat:43.4623,lng:-3.8099},
   {name:'Rider Bilbao',city:'Bilbao',lat:43.2630,lng:-2.9350},
   {name:'Rider Barcelona',city:'Barcelona',lat:41.3874,lng:2.1686},
@@ -83,7 +83,7 @@ function makeFiller(){
 function buildShell(){
   app.innerHTML=`<main class="appShell">
     <header class="topbar"><button class="iconBtn" id="backBtn" aria-label="Volver">‹</button><div class="title"><span>COMUNIDAD</span> <b>RIDER</b></div><button class="iconBtn" id="settingsBtn" aria-label="Ajustes">⚙</button></header>
-    <section class="hero"><img src="assets/community-hero.jpg" alt="Riders al atardecer"><div class="heroShade"></div><div class="heroCopy"><i></i>FORMA PARTE DE LA<br>COMUNIDAD SKATESUV</div></section>
+    <section class="hero"><img src="assets/community-approved.png" alt="Riders al atardecer"></section>
     <section class="modeRow" aria-label="Zona del mapa">
       <button class="modeBtn active" id="nearBtn"><span class="modeIcon">⌖</span><strong>RIDERS EN MI ZONA</strong><small>radio 100 km</small></button>
       <button class="modeBtn" id="allBtn"><span class="modeIcon">◫</span><strong>EN TODAS LAS ZONAS</strong><small>mapa de España</small></button>
@@ -129,11 +129,19 @@ function redrawMap(){
   }else state.map.fitBounds(SPAIN_BOUNDS,{padding:[12,12]});
 }
 
-function setMode(mode){state.mode=mode;document.querySelector('#nearBtn').classList.toggle('active',mode==='nearby');document.querySelector('#allBtn').classList.toggle('active',mode==='all');document.querySelector('#riderCard').classList.add('hidden');redrawMap();}
+function setMode(mode){
+  state.mode=mode;
+  document.querySelector('#nearBtn').classList.toggle('active',mode==='nearby');
+  document.querySelector('#allBtn').classList.toggle('active',mode==='all');
+  redrawMap();
+  const shown=mode==='nearby'?state.riders.filter(r=>kmBetween(state.me,r)<=100):state.riders;
+  if(shown.length)selectRider(shown[0]);
+}
 
-function selectRider(r){state.selected=r;const dist=kmBetween(state.me,r).toFixed(1);const card=document.querySelector('#riderCard');card.classList.remove('hidden');card.innerHTML=`<div class="drag"></div><button class="closeCard" id="closeCard">×</button><div class="riderTop"><div class="avatar ${r.online?'onlineRing':'grayRing'}">${esc(r.name.charAt(0).toUpperCase())}</div><div class="riderMeta"><h2>${esc(r.name)}</h2><p>${esc(r.city)} · A ${dist} km</p><small class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':timeAgo(r.lastSeen)}</small>${r.isDemo?'<em>Rider de muestra</em>':''}</div></div><div class="cardActions"><button id="messageBtn">💬 <span>Mensaje</span></button><button class="invite" id="inviteBtn">＋ <span>Invitar</span></button></div>`;
+function selectRider(r){state.selected=r;const dist=kmBetween(state.me,r).toFixed(1);const card=document.querySelector('#riderCard');card.classList.remove('hidden');card.innerHTML=`<div class="drag"></div><button class="closeCard" id="closeCard">×</button><div class="riderTop"><div class="avatar ${r.online?'onlineRing':'grayRing'}">${esc(r.name.charAt(0).toUpperCase())}</div><div class="riderMeta"><h2>${esc(r.name)}</h2><p>${esc(r.city)} · A ${dist} km</p><small class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':timeAgo(r.lastSeen)}</small>${r.isDemo?'<em>Rider de muestra</em>':''}</div></div><div class="cardActions"><button id="messageBtn">💬 <span>Mensaje</span></button><button id="callBtn">☎ <span>Llamar</span></button><button class="invite" id="inviteBtn">＋ <span>Invitar</span></button></div>`;
   document.querySelector('#closeCard').onclick=()=>card.classList.add('hidden');
   document.querySelector('#messageBtn').onclick=()=>openChat(r);
+  document.querySelector('#callBtn').onclick=()=>openVoiceRider(r);
   document.querySelector('#inviteBtn').onclick=()=>toast(`Invitación preparada para ${r.name}`);
 }
 
@@ -193,6 +201,7 @@ async function boot(){
   try{
     await loadMapDependency();
     initMap();
+    if(state.riders.length)selectRider(state.riders[0]);
   }catch(err){
     showStartupError(err);
   }
