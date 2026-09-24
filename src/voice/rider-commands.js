@@ -15,19 +15,54 @@
     voiceOn: ['activar rider voz', 'activa rider voz', 'activar raider voz'],
     count: ['cuantos riders hay', 'cuantos raiders hay', 'cuantos riders estan conectados', 'cuantos hay conectados', 'cuantos estan conectados'],
     names: ['quien esta conectado', 'quienes estan conectados', 'que riders hay conectados'],
+    nearbyCount: ['cuantos riders hay en mi zona', 'cuantos raiders hay en mi zona', 'cuantos riders hay cerca', 'hay riders cerca'],
+    nearbyNames: ['que riders hay en mi zona', 'quienes hay en mi zona', 'quien hay cerca', 'que riders hay cerca'],
+    speed: ['a que velocidad voy', 'que velocidad llevo', 'velocidad actual', 'dime la velocidad'],
+    tripDistance: ['cuantos kilometros llevo', 'cuanta distancia llevo', 'distancia recorrida', 'cuantos km llevo'],
+    battery: ['que bateria me queda', 'cuanta bateria me queda', 'como voy de bateria', 'dime la bateria'],
+    autonomy: ['cuanta autonomia me queda', 'cuantos kilometros puedo hacer', 'cuantos km puedo hacer'],
+    remainingDistance: ['cuantos kilometros me quedan para llegar', 'cuantos km me quedan para llegar', 'cuanta distancia queda para llegar'],
+    remainingTime: ['cuanto tiempo falta para llegar', 'cuanto tardare en llegar', 'cuantos minutos faltan para llegar'],
+    eta: ['a que hora llego', 'a que hora llegare', 'hora de llegada'],
+    nextInstruction: ['cual es la siguiente indicacion', 'proxima indicacion', 'que tengo que hacer ahora'],
+    rideSummary: ['como voy', 'dame un resumen', 'resumen de marcha'],
     repeat: ['repetir ultimo mensaje', 'repite el ultimo mensaje', 'repite'],
     leave: ['salir del grupo', 'sal del grupo'],
     emergency: ['emergencia', 'activar emergencia'],
     yes: ['si', 'confirmar', 'confirmo', 'si confirmar'],
     no: ['no', 'cancelar', 'cancela']
   };
+  const helpGroups = [
+    { title: 'Audio', commands: [
+      'Rider, subir volumen', 'Rider, bajar volumen', 'Rider, silenciar', 'Rider, activar sonido'
+    ]},
+    { title: 'Rider Voz', commands: [
+      'Rider, activar Rider Voz', 'Rider, desactivar Rider Voz',
+      'Rider, activar manos libres', 'Rider, desactivar manos libres'
+    ]},
+    { title: 'Comunidad Rider', commands: [
+      'Rider, ¿quién está conectado?', 'Rider, ¿cuántos Riders hay?',
+      'Rider, ¿cuántos Riders hay en mi zona?', 'Rider, ¿qué Riders hay cerca?', 'Rider, salir del grupo'
+    ]},
+    { title: 'Ordenador de a bordo', commands: [
+      'Rider, ¿a qué velocidad voy?', 'Rider, ¿cuántos kilómetros llevo?',
+      'Rider, ¿qué batería me queda?', 'Rider, ¿cuánta autonomía me queda?', 'Rider, ¿cómo voy?'
+    ]},
+    { title: 'Navegación', commands: [
+      'Rider, ¿cuántos kilómetros me quedan para llegar?', 'Rider, ¿cuánto tiempo falta para llegar?',
+      'Rider, ¿a qué hora llego?', 'Rider, ¿cuál es la siguiente indicación?'
+    ]},
+    { title: 'Asistente', commands: [
+      'Rider, repetir último mensaje', 'Rider, emergencia'
+    ]}
+  ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
   const parse = raw => {
     const text = normalize(raw), wake = /^(?:rider|raider)\b/.test(text);
     const order = wake ? text.replace(/^(?:rider|raider)\b\s*/, '') : text;
     return { wake, order, id: lookup.get(order) || null };
   };
-  const grammar = [...new Set(['rider', 'raider', '[unk]', ...Object.values(orders).flat(),
+  const grammar = [...new Set(['rider', 'raider', '[unk]',
     ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p))])];
 
   class Bot {
@@ -37,6 +72,21 @@
       this.lastReply = ''; this.handles = []; this.starting = false;
     }
     status(text) { this.o.status(text); }
+    async onboard(maxAgeMs = 15000) {
+      const result = await this.o.getOnboard?.();
+      if (!result?.available) return { ok: false, reason: result?.reason || 'SKATESUV no tiene datos de a bordo disponibles' };
+      const age = Number(result.ageMs);
+      if (!Number.isFinite(age) || age > maxAgeMs) return { ok: false, reason: 'No tengo datos recientes de SKATESUV' };
+      let data = result.data;
+      if (!data && result.json) {
+        try { data = JSON.parse(result.json); } catch {}
+      }
+      return data ? { ok: true, data } : { ok: false, reason: 'No pude leer los datos de SKATESUV' };
+    }
+    getCaptureStream() {
+      const stream = this.stream;
+      return this.enabled && stream?.getAudioTracks().some(t => t.readyState === 'live') ? stream : null;
+    }
     async start() {
       if (this.enabled || this.starting) return;
       this.starting = true;
@@ -116,13 +166,13 @@
     }
     async receive(raw, run = this.generation) {
       if (!this.enabled || this.busy || run !== this.generation) return;
-      const parsed = parse(raw), awaiting = this.deadline > Date.now();
-      if (!parsed.wake && !awaiting) return;
-      if (!awaiting) this.pending = null;
+      const parsed = parse(raw);
+      // Regla fija: ninguna orden ni confirmación se ejecuta sin decir «Rider» delante.
+      if (!parsed.wake) return;
       this.busy = true; clearTimeout(this.timer);
       try {
         if (parsed.wake && !parsed.order) {
-          await this.reply('Te escucho', false); if (run === this.generation) this.armWindow(); return;
+          await this.reply('Te escucho', false); return;
         }
         let id = parsed.id;
         if (this.pending) {
@@ -132,7 +182,7 @@
           else { await this.reply('Acción cancelada. Di Rider y una nueva orden', false); return; }
         } else if ((id === 'leave' || id === 'emergency') && this.o.confirmations()) {
           this.pending = id;
-          await this.reply(id === 'leave' ? '¿Quieres salir del grupo? Di sí o no' : '¿Confirmas activar la alerta local de emergencia? Di sí o no', false);
+          await this.reply(id === 'leave' ? '¿Quieres salir del grupo? Di Rider sí o Rider no' : '¿Confirmas activar la alerta local de emergencia? Di Rider sí o Rider no', false);
           if (run === this.generation) this.armWindow(); return;
         }
         this.deadline = 0;
@@ -151,15 +201,87 @@
             await this.reply(id === 'count' ? (riders.length === 1 ? 'Hay un Rider conectado' : 'Hay ' + riders.length + ' Riders conectados') :
               (riders.length ? 'Conectados: ' + riders.map(r => r.name || 'Rider').join(', ') : 'No hay Riders conectados')); break;
           }
+          case 'nearbyCount': case 'nearbyNames': {
+            const nearby = await this.o.getNearbyRiders(); if (run !== this.generation) return;
+            if (!nearby?.available) {
+              await this.reply('Para saber qué Riders hay en tu zona, activa Riders en mi zona en Comunidad Rider'); break;
+            }
+            const riders = nearby.riders || [];
+            if (id === 'nearbyCount') {
+              await this.reply(riders.length === 1 ? 'Hay un Rider activo en tu zona' : riders.length ? 'Hay ' + riders.length + ' Riders activos en tu zona' : 'No hay Riders activos en tu zona');
+            } else {
+              await this.reply(riders.length ? 'En tu zona están: ' + riders.map(r => r.name || 'Rider').join(', ') : 'No hay Riders activos en tu zona');
+            }
+            break;
+          }
+          case 'speed': case 'tripDistance': case 'battery': case 'autonomy':
+          case 'remainingDistance': case 'remainingTime': case 'eta': case 'nextInstruction': case 'rideSummary': {
+            const onboard = await this.onboard(); if (run !== this.generation) return;
+            if (!onboard.ok) { await this.reply(onboard.reason, false); break; }
+            const d = onboard.data;
+            const one = n => Math.round(Number(n) * 10) / 10;
+            const spoken = n => String(one(n)).replace('.', ',');
+            if (id === 'speed') {
+              await this.reply('Vas a ' + Math.round(Number(d.speedKmh) || 0) + ' kilómetros por hora'); break;
+            }
+            if (id === 'tripDistance') {
+              await this.reply('Llevas ' + spoken(Number(d.tripDistanceKm) || 0) + ' kilómetros'); break;
+            }
+            if (id === 'battery') {
+              if (!d.bmsConnected || !Number.isFinite(Number(d.batteryPercent))) await this.reply('No tengo lectura de batería. Conecta el BMS en SKATESUV', false);
+              else await this.reply('Te queda un ' + Math.round(Number(d.batteryPercent)) + ' por ciento de batería');
+              break;
+            }
+            if (id === 'autonomy') {
+              if (!d.bmsConnected) await this.reply('No tengo lectura de batería. Conecta el BMS en SKATESUV', false);
+              else if (!Number.isFinite(Number(d.rangeKm)) || Number(d.rangeKm) <= 0) await this.reply('Todavía no tengo suficiente información para calcular la autonomía', false);
+              else await this.reply('La autonomía estimada es de ' + Math.round(Number(d.rangeKm)) + ' kilómetros');
+              break;
+            }
+            if (id === 'remainingDistance') {
+              if (!d.navigationActive || !Number.isFinite(Number(d.remainingDistanceKm))) await this.reply('No hay una navegación activa', false);
+              else await this.reply('Te quedan ' + spoken(d.remainingDistanceKm) + ' kilómetros para llegar');
+              break;
+            }
+            if (id === 'remainingTime') {
+              if (!d.navigationActive || !Number.isFinite(Number(d.remainingMinutes))) await this.reply('No hay una navegación activa', false);
+              else await this.reply('Te quedan aproximadamente ' + Math.round(Number(d.remainingMinutes)) + ' minutos');
+              break;
+            }
+            if (id === 'eta') {
+              if (!d.navigationActive || !Number.isFinite(Number(d.etaEpochMs))) await this.reply('No hay una navegación activa', false);
+              else {
+                const date = new Date(Number(d.etaEpochMs));
+                await this.reply('La llegada estimada es a las ' + date.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+              }
+              break;
+            }
+            if (id === 'nextInstruction') {
+              if (!d.navigationActive || !d.nextInstruction) await this.reply('No hay una siguiente indicación disponible', false);
+              else {
+                const meters = Number(d.nextInstructionDistanceMeters);
+                await this.reply(Number.isFinite(meters) ? 'En ' + (meters < 1000 ? Math.max(10,Math.round(meters/10)*10) + ' metros, ' : spoken(meters/1000) + ' kilómetros, ') + d.nextInstruction : d.nextInstruction);
+              }
+              break;
+            }
+            const parts = [
+              'Llevas ' + spoken(Number(d.tripDistanceKm) || 0) + ' kilómetros',
+              'vas a ' + Math.round(Number(d.speedKmh) || 0) + ' kilómetros por hora'
+            ];
+            if (d.bmsConnected && Number.isFinite(Number(d.batteryPercent))) parts.push('te queda un ' + Math.round(Number(d.batteryPercent)) + ' por ciento de batería');
+            if (d.navigationActive && Number.isFinite(Number(d.remainingDistanceKm))) parts.push('faltan ' + spoken(d.remainingDistanceKm) + ' kilómetros para llegar');
+            await this.reply(parts.join(', '));
+            break;
+          }
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
           case 'leave': await this.reply('Saliendo del grupo'); if (run === this.generation) this.o.leave(); break;
           case 'emergency': this.o.emergency(); await this.reply('Alerta local de emergencia activada. No se ha enviado ningún aviso a contactos'); break;
-          default: await this.reply('No he entendido la orden. Di Rider, subir volumen o cuántos Riders hay', false);
+          default: await this.reply('No he entendido la orden. Puedes preguntarme por la marcha, navegación, Comunidad Rider o audio', false);
         }
       } finally { if (run === this.generation) this.busy = false; }
     }
   }
-  const api = { parse, grammar, Bot, create: options => new Bot(options) };
+  const api = { parse, grammar, helpGroups, Bot, create: options => new Bot(options) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RiderCommands = api;
 })(typeof window === 'undefined' ? globalThis : window);

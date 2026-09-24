@@ -1,11 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Bot, parse } = require('../src/voice/rider-commands.js');
+const { Bot, parse, helpGroups } = require('../src/voice/rider-commands.js');
 function setup(overrides = {}) {
   const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true };
   const bot = new Bot({ native: { speak: async ({text}) => out.said.push(text) }, status:()=>{}, toggle:()=>{},
     confirmations:()=>true, getVolume:()=>out.volume,setVolume:v=>out.volume=v,setVox:async v=>out.vox=v,
-    getRiders:async()=>[{name:'Ana'},{name:'David'}],startVoice:async()=>true,stopVoice:()=>out.voice=false,
+    getRiders:async()=>[{name:'Ana'},{name:'David'}],getNearbyRiders:async()=>({available:true,riders:[{name:'Ana'}]}),
+    getOnboard:async()=>({available:true,ageMs:100,data:{speedKmh:23.6,tripDistanceKm:12.4,bmsConnected:true,batteryPercent:62,rangeKm:31,navigationActive:true,remainingDistanceKm:8.3,remainingMinutes:22,etaEpochMs:Date.now()+22*60000,nextInstruction:'Gira a la derecha',nextInstructionDistanceMeters:300}}),
+    startVoice:async()=>true,stopVoice:()=>out.voice=false,
     leave:()=>out.left++, emergency:()=>out.emergency++, ...overrides });
   bot.enabled=true;return { bot,out };
 }
@@ -31,13 +33,12 @@ test('count and names use online riders, including the no-riders case',async()=>
   await bot.receive('Rider quién está conectado');assert.equal(out.said.at(-1),'Conectados: Ana, David');
   bot.o.getRiders=async()=>[];await bot.receive('Rider quién está conectado');assert.equal(out.said.at(-1),'No hay Riders conectados');
 });
-test('two-part wake followed by command, and expiration',async()=>{
+test('every command requires Rider even after wake-only prompt',async()=>{
   const {bot,out}=setup();await bot.receive('subir volumen');assert.equal(out.volume,.5);
   await bot.receive('Rider');assert.equal(out.said.at(-1),'Te escucho');
-  await bot.receive('subir volumen');assert.equal(out.volume,.7);
+  await bot.receive('subir volumen');assert.equal(out.volume,.5);
+  await bot.receive('Rider subir volumen');assert.equal(out.volume,.7);
   await bot.receive('bajar volumen');assert.equal(out.volume,.7);
-  await bot.receive('Rider');bot.deadline=Date.now()-1;
-  await bot.receive('bajar volumen');assert.equal(out.volume,.7);clearTimeout(bot.timer);
 });
 test('disable VOX and voice without accidentally enabling',async()=>{
   const {bot,out}=setup();await bot.receive('Rider desactivar modo vox');assert.equal(out.vox,false);
@@ -46,14 +47,15 @@ test('disable VOX and voice without accidentally enabling',async()=>{
 test('important actions require voice confirmation and can be cancelled',async()=>{
   const {bot,out}=setup();await bot.receive('Rider salir del grupo');assert.equal(out.left,0);
   await bot.receive('no');assert.equal(out.left,0);
-  await bot.receive('Rider salir del grupo');await bot.receive('sí');assert.equal(out.left,1);
-  await bot.receive('Rider emergencia');await bot.receive('no');assert.equal(out.emergency,0);
-  await bot.receive('Rider emergencia');await bot.receive('si');assert.equal(out.emergency,1);
+  await bot.receive('Rider no');assert.equal(out.left,0);
+  await bot.receive('Rider salir del grupo');await bot.receive('Rider sí');assert.equal(out.left,1);
+  await bot.receive('Rider emergencia');await bot.receive('Rider no');assert.equal(out.emergency,0);
+  await bot.receive('Rider emergencia');await bot.receive('Rider si');assert.equal(out.emergency,1);
   assert.match(out.said.at(-1),/No se ha enviado/);
 });
 test('repeat speaks the last real response',async()=>{
   const {bot,out}=setup();await bot.receive('Rider subir volumen');await bot.receive('Rider');
-  await bot.receive('repetir último mensaje');assert.equal(out.said.at(-1),'Volumen 70 por ciento');
+  await bot.receive('Rider repetir último mensaje');assert.equal(out.said.at(-1),'Volumen 70 por ciento');
 });
 test('recognition is gated during an in-flight spoken response',async()=>{
   let finish;const {bot,out}=setup();bot.native.speak=()=>new Promise(r=>finish=r);
@@ -62,4 +64,51 @@ test('recognition is gated during an in-flight spoken response',async()=>{
 });
 test('stale transcript events cannot execute actions',async()=>{
   const {bot,out}=setup();bot.generation=2;await bot.receive('Rider subir volumen',1);assert.equal(out.volume,.5);
+});
+
+test('exposes only a live command capture for Rider Voz reuse',()=>{
+  const {bot}=setup();
+  const live={getAudioTracks:()=>[{readyState:'live'}]}, ended={getAudioTracks:()=>[{readyState:'ended'}]};
+  bot.stream=live;assert.equal(bot.getCaptureStream(),live);
+  bot.stream=ended;assert.equal(bot.getCaptureStream(),null);
+});
+
+test('settings command catalogue only shows Rider-prefixed commands',()=>{
+  assert.ok(helpGroups.length>=4);
+  for(const group of helpGroups){
+    assert.ok(group.title);
+    assert.ok(group.commands.length);
+    for(const command of group.commands) assert.match(command,/^Rider,/);
+  }
+});
+
+test('Community Rider data is available through Rider assistant',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider cuantos riders hay en mi zona');
+  assert.equal(out.said.at(-1),'Hay un Rider activo en tu zona');
+  bot.o.getNearbyRiders=async()=>({available:true,riders:[{name:'Ana'},{name:'David'}]});
+  await bot.receive('Rider que riders hay cerca');
+  assert.equal(out.said.at(-1),'En tu zona están: Ana, David');
+  bot.o.getNearbyRiders=async()=>({available:false,riders:[]});
+  await bot.receive('Rider cuantos riders hay en mi zona');
+  assert.match(out.said.at(-1),/activa Riders en mi zona en Comunidad Rider/);
+});
+
+test('onboard computer speaks real SKATESUV snapshot data',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider a que velocidad voy');assert.equal(out.said.at(-1),'Vas a 24 kilómetros por hora');
+  await bot.receive('Rider cuantos kilometros llevo');assert.equal(out.said.at(-1),'Llevas 12,4 kilómetros');
+  await bot.receive('Rider que bateria me queda');assert.equal(out.said.at(-1),'Te queda un 62 por ciento de batería');
+  await bot.receive('Rider cuanta autonomia me queda');assert.equal(out.said.at(-1),'La autonomía estimada es de 31 kilómetros');
+  await bot.receive('Rider cuantos kilometros me quedan para llegar');assert.equal(out.said.at(-1),'Te quedan 8,3 kilómetros para llegar');
+  await bot.receive('Rider cuanto tiempo falta para llegar');assert.equal(out.said.at(-1),'Te quedan aproximadamente 22 minutos');
+  await bot.receive('Rider cual es la siguiente indicacion');assert.match(out.said.at(-1),/300 metros, Gira a la derecha/);
+  await bot.receive('Rider como voy');assert.match(out.said.at(-1),/12,4 kilómetros.*24 kilómetros por hora.*62 por ciento.*8,3 kilómetros/);
+});
+
+test('onboard data must be fresh and never invented',async()=>{
+  const {bot,out}=setup({getOnboard:async()=>({available:true,ageMs:60000,data:{speedKmh:99}})});
+  await bot.receive('Rider a que velocidad voy');assert.equal(out.said.at(-1),'No tengo datos recientes de SKATESUV');
+  bot.o.getOnboard=async()=>({available:false,reason:'SKATESUV no disponible'});
+  await bot.receive('Rider que bateria me queda');assert.equal(out.said.at(-1),'SKATESUV no disponible');
 });
