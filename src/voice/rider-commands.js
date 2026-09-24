@@ -52,6 +52,7 @@
     recordStop: ['terminar ruta', 'finalizar grabacion', 'detener grabacion'],
     help: ['que puedes hacer', 'que comandos tengo', 'ayuda'],
     radioRock: ['pon rock fm', 'pon radio rock fm', 'ponme rock fm'],
+    radioPrompt: ['pon la radio', 'pon radio', 'ponme la radio', 'reproduce la radio'],
     radioStop: ['para la radio', 'parar la radio', 'apaga la radio', 'deten la radio'],
     repeat: ['repetir ultimo mensaje', 'repite el ultimo mensaje', 'repite'],
     leave: ['salir del grupo', 'sal del grupo'],
@@ -190,7 +191,9 @@
           }
           let binary = ''; for (const b of bytes) binary += String.fromCharCode(b);
           this.inFlight = true;
-          this.native.audio({ pcm: btoa(binary) }).catch(e => this.fail(e, run)).finally(() => {
+          this.native.audio({ pcm: btoa(binary) }).catch(() => {
+            if (run === this.generation && this.enabled) this.status('Repite');
+          }).finally(() => {
             this.inFlight = false;
             if (this.overruns) {
               const wasBusy = this.overruns >= 8;
@@ -435,6 +438,7 @@
             break;
           }
           case 'help': await this.reply('Puedo ayudarte con la marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio'); break;
+          case 'radioPrompt': await this.reply('¿Qué emisora?', false); break;
           case 'radioRock': case 'radioNamed': {
             const requested = id === 'radioRock' ? 'Rock FM' : parsed.station;
             try {
