@@ -5,7 +5,7 @@ function setup(overrides = {}) {
   const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true };
   const bot = new Bot({ native: { speak: async ({text}) => out.said.push(text) }, status:()=>{}, toggle:()=>{},
     confirmations:()=>true, getVolume:()=>out.volume,setVolume:v=>out.volume=v,setVox:async v=>out.vox=v,
-    getRiders:async()=>[{name:'Ana'},{name:'David'}],startVoice:async()=>true,stopVoice:()=>out.voice=false,
+    getRiders:async()=>[{name:'Ana'},{name:'David'}],getNearbyRiders:async()=>({available:true,riders:[{name:'Ana'}]}),startVoice:async()=>true,stopVoice:()=>out.voice=false,
     leave:()=>out.left++, emergency:()=>out.emergency++, ...overrides });
   bot.enabled=true;return { bot,out };
 }
@@ -78,4 +78,16 @@ test('settings command catalogue only shows Rider-prefixed commands',()=>{
     assert.ok(group.commands.length);
     for(const command of group.commands) assert.match(command,/^Rider,/);
   }
+});
+
+test('Community Rider data is available through Rider assistant',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider cuantos riders hay en mi zona');
+  assert.equal(out.said.at(-1),'Hay un Rider activo en tu zona');
+  bot.o.getNearbyRiders=async()=>({available:true,riders:[{name:'Ana'},{name:'David'}]});
+  await bot.receive('Rider que riders hay cerca');
+  assert.equal(out.said.at(-1),'En tu zona están: Ana, David');
+  bot.o.getNearbyRiders=async()=>({available:false,riders:[]});
+  await bot.receive('Rider cuantos riders hay en mi zona');
+  assert.match(out.said.at(-1),/activa Riders en mi zona en Comunidad Rider/);
 });
