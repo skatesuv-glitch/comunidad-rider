@@ -58,11 +58,11 @@ test('important actions require voice confirmation and can be cancelled',async()
   await bot.receive('Rider salir del grupo');await bot.receive('Rider sí');assert.equal(out.left,1);
   await bot.receive('Rider emergencia');await bot.receive('Rider no');assert.equal(out.emergency,0);
   await bot.receive('Rider emergencia');await bot.receive('Rider si');assert.equal(out.emergency,1);
-  assert.match(out.said.at(-1),/No se ha enviado/);
+  assert.match(out.said.at(-1),/No he avisado/);
 });
 test('repeat speaks the last real response',async()=>{
   const {bot,out}=setup();await bot.receive('Rider subir volumen');await bot.receive('Rider');
-  await bot.receive('Rider repetir último mensaje');assert.equal(out.said.at(-1),'Volumen 70 por ciento');
+  await bot.receive('Rider repetir último mensaje');assert.equal(out.said.at(-1),'Volumen al 70 por ciento');
 });
 test('recognition is gated during an in-flight spoken response',async()=>{
   let finish;const {bot,out}=setup();bot.native.speak=()=>new Promise(r=>finish=r);
@@ -105,8 +105,8 @@ test('onboard computer speaks real SKATESUV snapshot data',async()=>{
   const {bot,out}=setup();
   await bot.receive('Rider a que velocidad voy');assert.equal(out.said.at(-1),'Vas a 24 kilómetros por hora');
   await bot.receive('Rider cuantos kilometros llevo');assert.equal(out.said.at(-1),'Llevas 12,4 kilómetros');
-  await bot.receive('Rider que bateria me queda');assert.equal(out.said.at(-1),'Te queda un 62 por ciento de batería');
-  await bot.receive('Rider cuanta autonomia me queda');assert.equal(out.said.at(-1),'La autonomía estimada es de 31 kilómetros');
+  await bot.receive('Rider que bateria me queda');assert.equal(out.said.at(-1),'Te queda un 62 por ciento');
+  await bot.receive('Rider cuanta autonomia me queda');assert.equal(out.said.at(-1),'Te quedan unos 31 kilómetros');
   await bot.receive('Rider cuantos kilometros me quedan para llegar');assert.equal(out.said.at(-1),'Te quedan 8,3 kilómetros para llegar');
   await bot.receive('Rider cuanto tiempo falta para llegar');assert.equal(out.said.at(-1),'Te quedan aproximadamente 22 minutos');
   await bot.receive('Rider cual es la siguiente indicacion');assert.match(out.said.at(-1),/300 metros, Gira a la derecha/);
@@ -144,34 +144,34 @@ test('time, trip metrics and phone state commands work',async()=>{
   await bot.receive('Rider cuanto tiempo llevo');assert.equal(out.said.at(-1),'Llevas 52 minutos');
   await bot.receive('Rider cual es mi velocidad media');assert.equal(out.said.at(-1),'Tu velocidad media es de 14 kilómetros por hora');
   await bot.receive('Rider cual ha sido mi velocidad maxima');assert.equal(out.said.at(-1),'Tu velocidad máxima es de 39 kilómetros por hora');
-  await bot.receive('Rider que bateria tiene el movil');assert.equal(out.said.at(-1),'El móvil tiene un 71 por ciento de batería');
+  await bot.receive('Rider que bateria tiene el movil');assert.equal(out.said.at(-1),'El móvil está al 71 por ciento');
 });
 
 test('navigation, GPS and battery reach answers use real snapshot',async()=>{
   const {bot,out}=setup();
-  await bot.receive('Rider esta activa la navegacion');assert.equal(out.said.at(-1),'La navegación está activa');
+  await bot.receive('Rider esta activa la navegacion');assert.equal(out.said.at(-1),'Sí, vas con navegación');
   await bot.receive('Rider repite la ultima indicacion');assert.equal(out.said.at(-1),'Gira a la derecha');
-  await bot.receive('Rider tengo gps');assert.equal(out.said.at(-1),'GPS activo');
-  await bot.receive('Rider esta grabando la ruta');assert.equal(out.said.at(-1),'La ruta se está grabando');
-  await bot.receive('Rider llego al destino con esta bateria');assert.match(out.said.at(-1),/estimación actual.*31 kilómetros.*8,3/);
+  await bot.receive('Rider tengo gps');assert.equal(out.said.at(-1),'GPS listo');
+  await bot.receive('Rider esta grabando la ruta');assert.equal(out.said.at(-1),'Sí, estoy grabando la ruta');
+  await bot.receive('Rider llego al destino con esta bateria');assert.match(out.said.at(-1),/Sí llegas.*sobrado.*31 kilómetros.*8,3/);
 });
 
 test('internet bluetooth Rider Voz and audio route commands',async()=>{
   const {bot,out}=setup();
-  await bot.receive('Rider tengo internet');assert.equal(out.said.at(-1),'Tienes conexión a Internet');
-  await bot.receive('Rider tengo bluetooth');assert.equal(out.said.at(-1),'Bluetooth activo');
-  await bot.receive('Rider esta activo rider voz');assert.equal(out.said.at(-1),'Rider Voz está activo');
-  await bot.receive('Rider esta activo manos libres');assert.equal(out.said.at(-1),'Manos libres activo');
+  await bot.receive('Rider tengo internet');assert.equal(out.said.at(-1),'Sí, tienes Internet');
+  await bot.receive('Rider tengo bluetooth');assert.equal(out.said.at(-1),'Bluetooth listo');
+  await bot.receive('Rider esta activo rider voz');assert.equal(out.said.at(-1),'Rider Voz está listo');
+  await bot.receive('Rider esta activo manos libres');assert.equal(out.said.at(-1),'Manos libres listo');
   await bot.receive('Rider usar bluetooth');assert.equal(out.route,'bluetooth');
   await bot.receive('Rider usar altavoz');assert.equal(out.route,'speaker');
 });
 
 test('radio and short help commands',async()=>{
   const {bot,out}=setup();
-  await bot.receive('Rider pon rock fm');assert.equal(out.radio,'Rock FM');assert.equal(out.said.at(-1),'Poniendo Rock FM');
-  await bot.receive('Rider pon los cuarenta');assert.equal(out.radio,'LOS40');assert.equal(out.said.at(-1),'Poniendo LOS40');
-  await bot.receive('Rider para la radio');assert.equal(out.radio,null);assert.equal(out.said.at(-1),'Radio detenida');
-  await bot.receive('Rider que puedes hacer');assert.match(out.said.at(-1),/marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio/);
+  await bot.receive('Rider pon rock fm');assert.equal(out.radio,'Rock FM');assert.equal(out.said.at(-1),'Vale, pongo Rock FM');
+  await bot.receive('Rider pon los cuarenta');assert.equal(out.radio,'LOS40');assert.equal(out.said.at(-1),'Vale, pongo LOS40');
+  await bot.receive('Rider para la radio');assert.equal(out.radio,null);assert.equal(out.said.at(-1),'Radio fuera');
+  await bot.receive('Rider que puedes hacer');assert.match(out.said.at(-1),/Marcha, navegación, batería, Riders, audio, conexiones y radio/);
 });
 
 test('settings catalogue includes every public command family',()=>{
@@ -220,9 +220,9 @@ test('navigation and recording controls call SKATESUV actions',async()=>{
 });
 
 test('radio failures do not kill the assistant',async()=>{
-  const {bot,out}=setup({playRadio:async()=>({ok:false,message:'No encuentro esa emisora'})});
+  const {bot,out}=setup({playRadio:async()=>({ok:false,message:'Esa no la pillo. Prueba otra'})});
   await bot.receive('Rider pon emisora inventada');
-  assert.equal(out.said.at(-1),'No encuentro esa emisora');
+  assert.equal(out.said.at(-1),'Esa no la pillo. Prueba otra');
   assert.equal(bot.enabled,true);
   await bot.receive('Rider que hora es');
   assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
@@ -249,7 +249,7 @@ test('every command shown in Settings is directly recognizable',()=>{
 test('incomplete radio request never disables Rider',async()=>{
   const {bot,out}=setup();
   await bot.receive('Rider pon la radio');
-  assert.equal(out.said.at(-1),'¿Qué emisora?');
+  assert.equal(out.said.at(-1),'¿Cuál quieres?');
   assert.equal(bot.enabled,true);
   await bot.receive('Rider que hora es');
   assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
@@ -269,8 +269,39 @@ test('radio command layer stays independent from the rest of Rider',async()=>{
     stopRadio:async()=>{}
   });
   await bot.receive('Rider pon Rock FM');
-  assert.equal(out.said.at(-1),'Poniendo Rock FM');
+  assert.equal(out.said.at(-1),'Vale, pongo Rock FM');
   assert.equal(bot.enabled,true);
   await bot.receive('Rider que hora es');
   assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
+});
+
+test('natural phrasing is accepted without overusing Repite',()=>{
+  assert.equal(parse('Rider con esta bateria llego a mi destino').id,'canReach');
+  assert.equal(parse('Rider me puedes decir la hora').id,'timeNow');
+  assert.equal(parse('Rider como tengo la bateria').id,'battery');
+  assert.equal(parse('Rider como voy de velocidad').id,'speed');
+  assert.equal(parse('Rider que ora es').id,'timeNow');
+});
+
+test('sensitive commands stay strict even with fuzzy matching',()=>{
+  assert.equal(parse('Rider desativar rider boz').id,null);
+  assert.equal(parse('Rider salir del grup').id,null);
+  assert.equal(parse('Rider terminar navegasion').id,null);
+  assert.equal(parse('Rider apagar la radio').id,'radioStop');
+});
+
+test('battery reach answer has restrained Rider personality',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider con esta bateria llego a mi destino');
+  assert.match(out.said.at(-1),/Sí llegas.*Vas sobrado/);
+  bot.o.getOnboard=async()=>({available:true,ageMs:100,data:{bmsConnected:true,rangeKm:4,navigationActive:true,remainingDistanceKm:10}});
+  await bot.receive('Rider con esta bateria llego al destino');
+  assert.match(out.said.at(-1),/no llegas ni de coña.*6/);
+});
+
+test('radio diagnostic bypasses station search',async()=>{
+  const {bot,out}=setup({playRadio:async q=>{out.radio=q;return {ok:true,name:'Rock FM'}}});
+  await bot.receive('Rider prueba la radio');
+  assert.equal(out.radio,'Rock FM');
+  assert.equal(out.said.at(-1),'Radio lista');
 });
