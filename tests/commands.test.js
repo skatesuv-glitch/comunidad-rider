@@ -190,7 +190,8 @@ test('settings catalogue includes every public command family',()=>{
 test('generic radio command captures arbitrary station names',()=>{
   const a=parse('Rider pon Los 40');assert.equal(a.id,'radioNamed');assert.equal(a.station,'los 40');
   const b=parse('Rider pon Cadena Cien');assert.equal(b.id,'radioNamed');assert.equal(b.station,'Cadena 100');
-  const c=parse('Rider reproduce Radio Paradise');assert.equal(c.id,'radioNamed');assert.equal(c.station,'paradise');
+  const c=parse('Rider reproduce Radio Paradise');assert.equal(c.id,'radioNamed');assert.equal(c.station,'radio paradise');
+  const d=parse('Rider pon Kiss efe eme');assert.equal(d.id,'radioNamed');assert.equal(d.station,'kiss fm');
 });
 
 test('navigation and recording controls call SKATESUV actions',async()=>{
@@ -214,4 +215,13 @@ test('navigation and recording controls call SKATESUV actions',async()=>{
   assert.equal(bot.pending,'recordStop');
   await bot.receive('Rider no');
   assert.notEqual(out.controls.at(-1),'record_stop');
+});
+
+test('radio failures do not kill the assistant',async()=>{
+  const {bot,out}=setup({playRadio:async()=>({ok:false,message:'No encuentro esa emisora'})});
+  await bot.receive('Rider pon emisora inventada');
+  assert.equal(out.said.at(-1),'No encuentro esa emisora');
+  assert.equal(bot.enabled,true);
+  await bot.receive('Rider que hora es');
+  assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
 });
