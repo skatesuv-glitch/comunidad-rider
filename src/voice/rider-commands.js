@@ -262,7 +262,7 @@
         let id = parsed.id;
         if (this.pending) {
           const pending = this.pending; this.pending = null; this.deadline = 0;
-          if (id === 'no') { await this.reply('Cancelado', false); return; }
+          if (id === 'no') { await this.reply('Vale, cancelado', false); return; }
           if (id === 'yes') id = pending;
           else {
             this.pending = pending;
@@ -283,13 +283,13 @@
         switch (id) {
           case 'volumeUp': case 'volumeDown': {
             const value = Math.max(0, Math.min(1, Math.round((this.o.getVolume() + (id === 'volumeUp' ? .2 : -.2)) * 100) / 100));
-            this.o.setVolume(value); await this.reply('Volumen ' + Math.round(value * 100) + ' por ciento'); break;
+            this.o.setVolume(value); await this.reply('Volumen al ' + Math.round(value * 100) + ' por ciento'); break;
           }
-          case 'mute': this.o.setVolume(0); await this.reply('Audio silenciado'); break;
-          case 'unmute': this.o.setVolume(1); await this.reply('Sonido activado'); break;
-          case 'voxOn': case 'voxOff': await this.o.setVox(id === 'voxOn'); if (run !== this.generation) return; await this.reply(id === 'voxOn' ? 'Modo VOX activado' : 'Modo VOX desactivado'); break;
-          case 'voiceOn': { const active = await this.o.startVoice(); if (run !== this.generation) return; await this.reply(active ? 'Rider Voz activado' : 'Añade un Rider al grupo para iniciar la conversación'); break; }
-          case 'voiceOff': this.o.stopVoice(); await this.reply('Rider Voz desactivado'); break;
+          case 'mute': this.o.setVolume(0); await this.reply('Listo, silencio'); break;
+          case 'unmute': this.o.setVolume(1); await this.reply('Sonido listo'); break;
+          case 'voxOn': case 'voxOff': await this.o.setVox(id === 'voxOn'); if (run !== this.generation) return; await this.reply(id === 'voxOn' ? 'Manos libres listo' : 'Manos libres desactivado'); break;
+          case 'voiceOn': { const active = await this.o.startVoice(); if (run !== this.generation) return; await this.reply(active ? 'Rider Voz listo' : 'Primero añade un Rider al grupo'); break; }
+          case 'voiceOff': this.o.stopVoice(); await this.reply('Rider Voz parado'); break;
           case 'count': case 'names': {
             const riders = await this.o.getRiders(); if (run !== this.generation) return;
             await this.reply(id === 'count' ? (riders.length === 1 ? 'Hay un Rider conectado' : 'Hay ' + riders.length + ' Riders conectados') :
@@ -336,58 +336,58 @@
               await this.reply('Tu velocidad máxima es de ' + Math.round(Number(d.maximumSpeedKmh) || 0) + ' kilómetros por hora'); break;
             }
             if (id === 'battery') {
-              if (!d.bmsConnected || !Number.isFinite(Number(d.batteryPercent))) await this.reply('No tengo lectura de batería. Conecta el BMS en SKATESUV', false);
-              else await this.reply('Te queda un ' + Math.round(Number(d.batteryPercent)) + ' por ciento de batería');
+              if (!d.bmsConnected || !Number.isFinite(Number(d.batteryPercent))) await this.reply('No veo la batería. Conecta el BMS en SKATESUV', false);
+              else await this.reply('Te queda un ' + Math.round(Number(d.batteryPercent)) + ' por ciento');
               break;
             }
             if (id === 'autonomy') {
-              if (!d.bmsConnected) await this.reply('No tengo lectura de batería. Conecta el BMS en SKATESUV', false);
-              else if (!Number.isFinite(Number(d.rangeKm)) || Number(d.rangeKm) <= 0) await this.reply('Todavía no tengo suficiente información para calcular la autonomía', false);
-              else await this.reply('La autonomía estimada es de ' + Math.round(Number(d.rangeKm)) + ' kilómetros');
+              if (!d.bmsConnected) await this.reply('No veo la batería. Conecta el BMS en SKATESUV', false);
+              else if (!Number.isFinite(Number(d.rangeKm)) || Number(d.rangeKm) <= 0) await this.reply('Aún no tengo datos suficientes de autonomía', false);
+              else await this.reply('Te quedan unos ' + Math.round(Number(d.rangeKm)) + ' kilómetros');
               break;
             }
             if (id === 'canReach') {
               const range = Number(d.rangeKm), remaining = Number(d.remainingDistanceKm);
-              if (!d.navigationActive || !Number.isFinite(remaining)) await this.reply('No hay una navegación activa', false);
-              else if (!d.bmsConnected || !Number.isFinite(range) || range <= 0) await this.reply('Todavía no tengo suficiente información para estimarlo', false);
-              else if (range >= remaining) await this.reply('Con la estimación actual, la autonomía cubre la distancia. Tienes unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
-              else await this.reply('Con la estimación actual, la autonomía no cubre la distancia. Tienes unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              if (!d.navigationActive || !Number.isFinite(remaining)) await this.reply('Ahora mismo no llevas navegación', false);
+              else if (!d.bmsConnected || !Number.isFinite(range) || range <= 0) await this.reply('Aún no tengo datos suficientes para calcularlo', false);
+              else if (range >= remaining) await this.reply('Sí, con la estimación actual llegas. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              else await this.reply('Con la estimación actual no llegas. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
               break;
             }
             if (id === 'navigationState') {
-              await this.reply(d.navigationActive ? 'La navegación está activa' : 'La navegación no está activa'); break;
+              await this.reply(d.navigationActive ? 'Sí, vas con navegación' : 'No, ahora mismo no llevas navegación'); break;
             }
             if (id === 'repeatInstruction') {
-              if (!d.navigationActive || !d.nextInstruction) await this.reply('No hay una indicación disponible', false);
+              if (!d.navigationActive || !d.nextInstruction) await this.reply('Ahora mismo no tengo ninguna indicación', false);
               else await this.reply(d.nextInstruction);
               break;
             }
             if (id === 'gpsState') {
-              await this.reply(d.gpsAvailable ? 'GPS activo' : 'No tengo señal GPS disponible'); break;
+              await this.reply(d.gpsAvailable ? 'GPS listo' : 'Ahora mismo no pillo GPS'); break;
             }
             if (id === 'recordingState') {
-              await this.reply(d.recordingActive ? (d.recordingPaused ? 'La grabación de ruta está pausada' : 'La ruta se está grabando') : 'No se está grabando ninguna ruta'); break;
+              await this.reply(d.recordingActive ? (d.recordingPaused ? 'La grabación está pausada' : 'Sí, estoy grabando la ruta') : 'No estás grabando ninguna ruta'); break;
             }
             if (id === 'remainingDistance') {
-              if (!d.navigationActive || !Number.isFinite(Number(d.remainingDistanceKm))) await this.reply('No hay una navegación activa', false);
+              if (!d.navigationActive || !Number.isFinite(Number(d.remainingDistanceKm))) await this.reply('Ahora mismo no llevas navegación', false);
               else await this.reply('Te quedan ' + spoken(d.remainingDistanceKm) + ' kilómetros para llegar');
               break;
             }
             if (id === 'remainingTime') {
-              if (!d.navigationActive || !Number.isFinite(Number(d.remainingMinutes))) await this.reply('No hay una navegación activa', false);
+              if (!d.navigationActive || !Number.isFinite(Number(d.remainingMinutes))) await this.reply('Ahora mismo no llevas navegación', false);
               else await this.reply('Te quedan aproximadamente ' + Math.round(Number(d.remainingMinutes)) + ' minutos');
               break;
             }
             if (id === 'eta') {
-              if (!d.navigationActive || !Number.isFinite(Number(d.etaEpochMs))) await this.reply('No hay una navegación activa', false);
+              if (!d.navigationActive || !Number.isFinite(Number(d.etaEpochMs))) await this.reply('Ahora mismo no llevas navegación', false);
               else {
                 const date = new Date(Number(d.etaEpochMs));
-                await this.reply('La llegada estimada es a las ' + date.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+                await this.reply('Llegas sobre las ' + date.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
               }
               break;
             }
             if (id === 'nextInstruction') {
-              if (!d.navigationActive || !d.nextInstruction) await this.reply('No hay una siguiente indicación disponible', false);
+              if (!d.navigationActive || !d.nextInstruction) await this.reply('Todavía no tengo la siguiente indicación', false);
               else {
                 const meters = Number(d.nextInstructionDistanceMeters);
                 await this.reply(Number.isFinite(meters) ? 'En ' + (meters < 1000 ? Math.max(10,Math.round(meters/10)*10) + ' metros, ' : spoken(meters/1000) + ' kilómetros, ') + d.nextInstruction : d.nextInstruction);
@@ -412,23 +412,23 @@
             if (!d) { await this.reply('Ese dato no está disponible', false); break; }
             if (id === 'phoneBattery') {
               const value = Number(d.phoneBatteryPercent);
-              await this.reply(Number.isFinite(value) && value >= 0 ? 'El móvil tiene un ' + Math.round(value) + ' por ciento de batería' : 'No puedo leer la batería del móvil', false);
+              await this.reply(Number.isFinite(value) && value >= 0 ? 'El móvil está al ' + Math.round(value) + ' por ciento' : 'No consigo leer la batería del móvil', false);
             } else if (id === 'internetState') {
-              await this.reply(d.internet ? 'Tienes conexión a Internet' : 'No tienes conexión a Internet');
+              await this.reply(d.internet ? 'Sí, tienes Internet' : 'Ahora mismo no tienes Internet');
             } else {
-              await this.reply(d.bluetooth ? 'Bluetooth activo' : 'Bluetooth desactivado');
+              await this.reply(d.bluetooth ? 'Bluetooth listo' : 'Bluetooth apagado');
             }
             break;
           }
-          case 'voiceState': await this.reply(this.o.isVoiceActive?.() ? 'Rider Voz está activo' : 'Rider Voz no está activo'); break;
-          case 'voxState': await this.reply(this.o.isVoxActive?.() ? 'Manos libres activo' : 'Manos libres desactivado'); break;
+          case 'voiceState': await this.reply(this.o.isVoiceActive?.() ? 'Rider Voz está listo' : 'Rider Voz está parado'); break;
+          case 'voxState': await this.reply(this.o.isVoxActive?.() ? 'Manos libres listo' : 'Manos libres apagado'); break;
           case 'useBluetooth': {
             const ok = await this.o.setAudioRoute?.('bluetooth'); if (run !== this.generation) return;
-            await this.reply(ok === false ? 'No pude activar el audio Bluetooth' : 'Audio por Bluetooth'); break;
+            await this.reply(ok === false ? 'No he podido poner el Bluetooth' : 'Listo, audio por Bluetooth'); break;
           }
           case 'useSpeaker': {
             const ok = await this.o.setAudioRoute?.('speaker'); if (run !== this.generation) return;
-            await this.reply(ok === false ? 'No pude activar el altavoz' : 'Audio por altavoz'); break;
+            await this.reply(ok === false ? 'No he podido poner el altavoz' : 'Listo, audio por altavoz'); break;
           }
           case 'navigationStart': case 'navigationPause': case 'navigationResume': case 'navigationStop':
           case 'recordStart': case 'recordPause': case 'recordResume': case 'recordStop': {
@@ -439,29 +439,35 @@
               recordResume:'record_resume', recordStop:'record_stop'
             })[id];
             const result = await this.o.controlSkatesuv?.(action); if (run !== this.generation) return;
-            await this.reply(result?.message || (result?.ok ? 'Orden ejecutada' : 'No se pudo ejecutar la orden'), !!result?.ok);
+            const natural = {
+              navigationStart:'Navegación en marcha', navigationPause:'Navegación pausada',
+              navigationResume:'Seguimos', navigationStop:'Navegación parada',
+              recordStart:'Grabando ruta', recordPause:'Grabación pausada',
+              recordResume:'Seguimos grabando', recordStop:'Ruta guardada'
+            }[id];
+            await this.reply(result?.ok ? natural : (result?.message || 'No he podido hacerlo'), !!result?.ok);
             break;
           }
-          case 'help': await this.reply('Puedo ayudarte con la marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio'); break;
-          case 'radioPrompt': await this.reply('¿Qué emisora?', false); break;
+          case 'help': await this.reply('Marcha, navegación, batería, Riders, audio, conexiones y radio'); break;
+          case 'radioPrompt': await this.reply('¿Cuál quieres?', false); break;
           case 'radioRock': case 'radioNamed': {
             const requested = id === 'radioRock' ? 'Rock FM' : parsed.station;
             try {
               const station = await this.o.playRadio?.(requested); if (run !== this.generation) return;
               if (!station?.ok && !station?.name) {
-                await this.reply(station?.message || 'No encuentro esa emisora', false);
+                await this.reply(station?.message || 'Esa no la pillo. Prueba otra', false);
               } else {
-                await this.reply('Poniendo ' + (station.name || requested));
+                await this.reply('Vale, pongo ' + (station.name || requested));
               }
             } catch {
-              await this.reply('No encuentro esa emisora', false);
+              await this.reply('Esa no la pillo. Prueba otra', false);
             }
             break;
           }
-          case 'radioStop': await this.o.stopRadio?.(); if (run !== this.generation) return; await this.reply('Radio detenida'); break;
-          case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
-          case 'leave': await this.reply('Saliendo del grupo'); if (run === this.generation) this.o.leave(); break;
-          case 'emergency': this.o.emergency(); await this.reply('Alerta local de emergencia activada. No se ha enviado ningún aviso a contactos'); break;
+          case 'radioStop': await this.o.stopRadio?.(); if (run !== this.generation) return; await this.reply('Radio fuera'); break;
+          case 'repeat': await this.reply(this.lastReply || 'Todavía no tengo nada que repetir', false); break;
+          case 'leave': await this.reply('Vale, salgo del grupo'); if (run === this.generation) this.o.leave(); break;
+          case 'emergency': this.o.emergency(); await this.reply('Alerta local activada. No he avisado a ningún contacto'); break;
           default: await this.reply('Repite', false);
         }
       } finally { if (run === this.generation) this.busy = false; }
