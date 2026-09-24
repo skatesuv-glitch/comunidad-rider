@@ -22,4 +22,5 @@ if not any(x.get(key+'name')=='.RiderVoiceService' for x in app.findall('service
 queries=m.find('queries')
 if queries is None:queries=ET.SubElement(m,'queries')
 intent=ET.SubElement(queries,'intent');ET.SubElement(intent,'action',{key+'name':'android.intent.action.TTS_SERVICE'})
+provider=ET.SubElement(queries,'provider');provider.set(key+'authorities','com.skatesuv.eskate.riderbridge')
 tree.write(p,encoding='utf-8',xml_declaration=True)
