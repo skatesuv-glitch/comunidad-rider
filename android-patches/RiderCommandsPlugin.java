@@ -554,7 +554,7 @@ public final class RiderCommandsPlugin extends Plugin {
         ExoPlayer player = radioPlayer;
         if (player == null) return;
         try {
-            player.setVolume(ducked ? 0.18f : 1.0f, ducked ? 0.18f : 1.0f);
+            player.setVolume(ducked ? 0.18f : 1.0f);
             radioDucked = ducked;
         } catch (Exception ignored) {}
     }
