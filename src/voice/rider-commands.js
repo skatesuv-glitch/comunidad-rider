@@ -123,9 +123,14 @@
     return { wake, order, id: null };
   };
   const radioPrefixes = ['pon','ponme','reproduce','escucha'];
+  const commonRadioPhrases = [
+    'pon los 40','pon europa fm','pon kiss fm','pon cadena 100',
+    'pon cadena ser','pon cope','pon onda cero','pon radio 3','pon rock fm'
+  ];
   const grammar = [...new Set(['rider', 'raider', '[unk]',
-    ...Object.values(orders).flat(),
+    ...Object.values(orders).flat(), ...commonRadioPhrases,
     ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p)),
+    ...['rider', 'raider'].flatMap(w => commonRadioPhrases.map(p => w + ' ' + p)),
     ...['rider', 'raider'].flatMap(w => radioPrefixes.map(p => w + ' ' + p)),
     ...radioPrefixes])];
 
