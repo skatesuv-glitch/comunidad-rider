@@ -41,7 +41,7 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
     },
     playRadio:async query=>{
       if(!commandsNative?.playRadio)throw new Error('Radio no disponible');
-      return await commandsNative.playRadio({query});
+      return await commandsNative.playRadio({query,voiceActive});
     },
     stopRadio:async()=>{if(commandsNative?.stopRadio)await commandsNative.stopRadio()},
     controlSkatesuv:async action=>{
