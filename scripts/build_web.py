@@ -57,15 +57,17 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
     leave:()=>leave.click(),
     emergency:()=>setVoiceState(voiceActive?'active':'ready','EMERGENCIA · alerta local confirmada')
   });
+  if(window.riderRadioGroupWatch)clearInterval(window.riderRadioGroupWatch);
+  let riderRadioWasBlocked=false;
+  window.riderRadioGroupWatch=setInterval(()=>{
+    const blocked=riderGroupConnected();
+    if(blocked&&!riderRadioWasBlocked&&commandsNative?.stopRadio)commandsNative.stopRadio().catch(()=>{});
+    riderRadioWasBlocked=blocked;
+  },350);
   commandToggle.onclick=async()=>{if(riderCommands.starting)return;if(riderCommands.enabled){await riderCommands.stop();commandStatus.textContent='Comandos de voz desactivados'}else await riderCommands.start()};'''+s[b:]
 old="if(voiceRecognition){voiceRecognition.onend=null;voiceRecognition.stop();voiceRecognition=null}if(nativeVoice&&nativeCommandsOn)nativeVoice.stopCommandListening().catch(()=>{});if(nativeCommandHandle?.remove)nativeCommandHandle.remove();"
 assert old in s
 s=s.replace(old,"riderCommands.stop().catch(()=>{});")
-# When a real Rider-to-Rider audio link connects, music is disabled immediately.
-rtc_radio_old="setVoiceState('active','Rider Voz conectado · audio en directo');setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)"
-rtc_radio_new="if(commandsNative?.stopRadio)commandsNative.stopRadio().catch(()=>{});setVoiceState('active','Rider Voz conectado · audio en directo');setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)"
-assert rtc_radio_old in s
-s=s.replace(rtc_radio_old,rtc_radio_new,1)
 # If command listening already owns the browser microphone, Rider Voz clones that
 # MediaStream instead of opening a second getUserMedia capture.
 capture_old="rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});"
