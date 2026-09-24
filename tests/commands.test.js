@@ -112,3 +112,21 @@ test('onboard data must be fresh and never invented',async()=>{
   bot.o.getOnboard=async()=>({available:false,reason:'SKATESUV no disponible'});
   await bot.receive('Rider que bateria me queda');assert.equal(out.said.at(-1),'SKATESUV no disponible');
 });
+
+test('unknown commands only say Repite',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider frase que no existe');
+  assert.equal(out.said.at(-1),'Repite');
+});
+
+test('unknown confirmation says Repite and keeps pending action',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider salir del grupo');
+  assert.equal(bot.pending,'leave');
+  await bot.receive('Rider quizá');
+  assert.equal(out.said.at(-1),'Repite');
+  assert.equal(bot.pending,'leave');
+  await bot.receive('Rider no');
+  assert.equal(out.left,0);
+  assert.equal(bot.pending,null);
+});
