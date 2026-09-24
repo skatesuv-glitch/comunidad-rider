@@ -14,6 +14,12 @@ def non_commands(s,is_new):
   a=s.index('  const commandsNative=');b=s.index('\n',s.index('  commandToggle.onclick=',a))
   s=s[:a]+s[b:]
   s=s.replace('riderCommands.stop().catch(()=>{});','')
+  s=s.replace("const commandInput=riderCommands.getCaptureStream?.();rawVoiceStream=commandInput?.getAudioTracks().some(t=>t.readyState==='live')?commandInput.clone():await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});","rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});")
+  settings_new='<div class="rvCommandExamples"><p><b>Di siempre «Rider» delante de la orden.</b></p></div><button class="rvSettingsLink" id="allCommandsToggle" type="button" aria-expanded="false"><span><strong>Ver todos los comandos</strong><small>Lista completa por categorías</small></span><b id="allCommandsArrow">›</b></button><div class="rvCommandExamples hidden" id="allCommandsList"></div>'
+  settings_old='<div class="rvCommandExamples"><p><b>Rider,</b> subir volumen · bajar volumen · silenciar · activar sonido</p><p><b>Rider,</b> activar/desactivar Rider Voz · activar/desactivar modo VOX</p><p><b>Rider,</b> ¿quién está conectado? · repetir último mensaje</p><p><b>Con confirmación:</b> salir del grupo · emergencia</p></div>'
+  s=s.replace(settings_new,settings_old)
+  bind_extra="\n  const allCommandsToggle=document.querySelector('#allCommandsToggle'),allCommandsList=document.querySelector('#allCommandsList'),allCommandsArrow=document.querySelector('#allCommandsArrow');\n  if(allCommandsList){allCommandsList.innerHTML=(window.RiderCommands?.helpGroups||[]).map(group=>'<p><b>'+esc(group.title)+'</b><br>'+group.commands.map(esc).join('<br>')+'</p>').join('')}\n  if(allCommandsToggle)allCommandsToggle.onclick=()=>{const open=allCommandsList.classList.toggle('hidden')===false;allCommandsToggle.setAttribute('aria-expanded',open?'true':'false');if(allCommandsArrow)allCommandsArrow.textContent=open?'⌄':'›'};"
+  s=s.replace(bind_extra,'')
  else:
   a=s.index('  const runVoiceCommand=raw=>');b=s.index('\n',s.index('  let nativeCommandHandle=',a))
   s=s[:a]+s[b:]
