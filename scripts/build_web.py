@@ -19,6 +19,12 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
     startVoice:async()=>{await startVoice();return voiceActive},
     stopVoice:()=>{releaseVoiceMedia();setVoiceState('ready','Rider Voz desactivado')},
     getRiders:async()=>{const riders=await fetchCommunityRiders();return riders.filter(r=>r.state==='green')},
+    getNearbyRiders:async()=>{
+      if(!state.locationConsent||!state.locationSharing)return {available:false,riders:[]};
+      await refreshSharedLocation().catch(()=>false);
+      const riders=await fetchCommunityRiders();
+      return {available:true,riders:riders.filter(r=>r.state==='green'&&Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)))}
+    },
     leave:()=>leave.click(),
     emergency:()=>setVoiceState(voiceActive?'active':'ready','EMERGENCIA · alerta local confirmada')
   });
