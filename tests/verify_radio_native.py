@@ -19,6 +19,8 @@ checks = {
     "normaliza gramática": "grammarPhrases.add(normalizeSpeech(phrase))",
     "radio conocida va directa": "if (isExactKnownRadio(text))",
     "radio conocida parcial va directa": "if (isExactKnownRadio(partial))",
+    "ducking al 6 por ciento": "player.setVolume(ducked ? 0.06f : 1.0f)",
+    "ducking en hilo principal": "main.post(() -> {",
 }
 for label, needle in checks.items():
     if needle not in s:
@@ -29,4 +31,4 @@ segment = s[s.index("private void startRadioCandidates"):s.index("@PluginMethod 
 if "STATE_READY" in segment:
     raise SystemExit("FAIL radio native: todavía acepta STATE_READY como éxito")
 
-print("PASS: radio native requires real playback, has fallbacks and bypasses second ASR for known stations")
+print("PASS: radio native playback intact and ducking is applied on the main player thread")
