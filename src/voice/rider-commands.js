@@ -192,7 +192,11 @@
           this.inFlight = true;
           this.native.audio({ pcm: btoa(binary) }).catch(e => this.fail(e, run)).finally(() => {
             this.inFlight = false;
-            if (this.overruns) this.overruns = 0;
+            if (this.overruns) {
+              const wasBusy = this.overruns >= 8;
+              this.overruns = 0;
+              if (wasBusy && this.enabled && !this.busy) this.status('Escuchando «Rider…»');
+            }
           });
         };
         this.stream.getAudioTracks().forEach(t => t.addEventListener('ended', () => {
