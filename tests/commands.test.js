@@ -245,3 +245,12 @@ test('every command shown in Settings is directly recognizable',()=>{
     }
   }
 });
+
+test('incomplete radio request never disables Rider',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider pon la radio');
+  assert.equal(out.said.at(-1),'¿Qué emisora?');
+  assert.equal(bot.enabled,true);
+  await bot.receive('Rider que hora es');
+  assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
+});
