@@ -42,6 +42,14 @@
     useBluetooth: ['usar bluetooth', 'audio por bluetooth', 'pon el bluetooth'],
     useSpeaker: ['usar altavoz', 'audio por altavoz', 'pon el altavoz'],
     recordingState: ['esta grabando la ruta', 'estoy grabando la ruta', 'estado de grabacion'],
+    navigationStart: ['iniciar navegacion', 'empieza la navegacion', 'comenzar navegacion'],
+    navigationPause: ['pausar navegacion', 'pausa la navegacion'],
+    navigationResume: ['continuar navegacion', 'reanudar navegacion', 'sigue la navegacion'],
+    navigationStop: ['detener navegacion', 'parar navegacion', 'terminar navegacion'],
+    recordStart: ['empezar a grabar ruta', 'iniciar grabacion de ruta', 'grabar ruta'],
+    recordPause: ['pausar grabacion', 'pausa la grabacion'],
+    recordResume: ['continuar grabacion', 'reanudar grabacion'],
+    recordStop: ['terminar ruta', 'finalizar grabacion', 'detener grabacion'],
     help: ['que puedes hacer', 'que comandos tengo', 'ayuda'],
     radioRock: ['pon rock fm', 'pon radio rock fm', 'ponme rock fm'],
     radioStop: ['para la radio', 'parar la radio', 'apaga la radio', 'deten la radio'],
@@ -77,13 +85,16 @@
       'Rider, ¿está activa la navegación?', 'Rider, ¿cuántos kilómetros me quedan para llegar?',
       'Rider, ¿cuánto tiempo falta para llegar?', 'Rider, ¿a qué hora llego?',
       'Rider, ¿cuál es la siguiente indicación?', 'Rider, repite la última indicación',
-      'Rider, ¿está grabando la ruta?'
+      'Rider, iniciar navegación', 'Rider, pausar navegación', 'Rider, continuar navegación',
+      'Rider, detener navegación', 'Rider, ¿está grabando la ruta?',
+      'Rider, empezar a grabar ruta', 'Rider, pausar grabación',
+      'Rider, continuar grabación', 'Rider, finalizar grabación'
     ]},
     { title: 'Conexiones', commands: [
       'Rider, ¿tengo GPS?', 'Rider, ¿tengo Internet?', 'Rider, ¿tengo Bluetooth?'
     ]},
     { title: 'Radio', commands: [
-      'Rider, pon Rock FM', 'Rider, para la radio'
+      'Rider, pon [nombre de emisora]', 'Rider, para la radio'
     ]},
     { title: 'Asistente', commands: [
       'Rider, ¿qué hora es?', 'Rider, ¿qué puedes hacer?', 'Rider, repetir último mensaje'
@@ -93,7 +104,18 @@
   const parse = raw => {
     const text = normalize(raw), wake = /^(?:rider|raider)\b/.test(text);
     const order = wake ? text.replace(/^(?:rider|raider)\b\s*/, '') : text;
-    return { wake, order, id: lookup.get(order) || null };
+    const exact = lookup.get(order) || null;
+    if (exact) return { wake, order, id: exact };
+    if (wake) {
+      const radio = order.match(/^(?:pon|ponme|reproduce|escucha)(?: la)?(?: radio)?\s+(.+)$/);
+      if (radio) {
+        let station = radio[1].trim();
+        if (station === 'los cuarenta') station = 'LOS40';
+        if (station === 'cadena cien') station = 'Cadena 100';
+        return { wake, order, id: 'radioNamed', station };
+      }
+    }
+    return { wake, order, id: null };
   };
   const grammar = [...new Set(['rider', 'raider', '[unk]',
     ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p))])];
@@ -218,9 +240,13 @@
             if (run === this.generation) this.armWindow();
             return;
           }
-        } else if ((id === 'leave' || id === 'emergency') && this.o.confirmations()) {
+        } else if ((id === 'leave' || id === 'emergency' || id === 'navigationStop' || id === 'recordStop') && this.o.confirmations()) {
           this.pending = id;
-          await this.reply(id === 'leave' ? '¿Quieres salir del grupo? Di Rider sí o Rider no' : '¿Confirmas activar la alerta local de emergencia? Di Rider sí o Rider no', false);
+          const question = id === 'leave' ? '¿Quieres salir del grupo?' :
+            id === 'emergency' ? '¿Confirmas activar la alerta local de emergencia?' :
+            id === 'navigationStop' ? '¿Quieres detener la navegación?' :
+            '¿Quieres finalizar la grabación de ruta?';
+          await this.reply(question + ' Di Rider sí o Rider no', false);
           if (run === this.generation) this.armWindow(); return;
         }
         this.deadline = 0;
@@ -374,10 +400,26 @@
             const ok = await this.o.setAudioRoute?.('speaker'); if (run !== this.generation) return;
             await this.reply(ok === false ? 'No pude activar el altavoz' : 'Audio por altavoz'); break;
           }
+          case 'navigationStart': case 'navigationPause': case 'navigationResume': case 'navigationStop':
+          case 'recordStart': case 'recordPause': case 'recordResume': case 'recordStop': {
+            const action = ({
+              navigationStart:'navigation_start', navigationPause:'navigation_pause',
+              navigationResume:'navigation_resume', navigationStop:'navigation_stop',
+              recordStart:'record_start', recordPause:'record_pause',
+              recordResume:'record_resume', recordStop:'record_stop'
+            })[id];
+            const result = await this.o.controlSkatesuv?.(action); if (run !== this.generation) return;
+            await this.reply(result?.message || (result?.ok ? 'Orden ejecutada' : 'No se pudo ejecutar la orden'), !!result?.ok);
+            break;
+          }
           case 'help': await this.reply('Puedo ayudarte con la marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio'); break;
           case 'radioRock': {
             const station = await this.o.playRadio?.('Rock FM'); if (run !== this.generation) return;
             await this.reply(station?.name ? 'Poniendo ' + station.name : 'Poniendo Rock FM'); break;
+          }
+          case 'radioNamed': {
+            const station = await this.o.playRadio?.(parsed.station); if (run !== this.generation) return;
+            await this.reply(station?.name ? 'Poniendo ' + station.name : 'Poniendo ' + parsed.station); break;
           }
           case 'radioStop': await this.o.stopRadio?.(); if (run !== this.generation) return; await this.reply('Radio detenida'); break;
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
