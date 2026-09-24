@@ -31,6 +31,19 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
       if(!result?.available)return result||{available:false};
       try{return {...result,data:JSON.parse(result.json)}}catch{return {available:false,reason:'No pude leer los datos de SKATESUV'}}
     },
+    getDeviceStatus:async()=>commandsNative?.getDeviceStatus?await commandsNative.getDeviceStatus():null,
+    isVoiceActive:()=>voiceActive,
+    isVoxActive:()=>voxEnabled,
+    setAudioRoute:async route=>{
+      audioRoute=route;
+      if(!nativeVoice)return false;
+      try{await nativeVoice.setAudioRoute({route});return true}catch{return false}
+    },
+    playRadio:async query=>{
+      if(!commandsNative?.playRadio)throw new Error('Radio no disponible');
+      return await commandsNative.playRadio({query});
+    },
+    stopRadio:async()=>{if(commandsNative?.stopRadio)await commandsNative.stopRadio()},
     leave:()=>leave.click(),
     emergency:()=>setVoiceState(voiceActive?'active':'ready','EMERGENCIA · alerta local confirmada')
   });
