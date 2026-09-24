@@ -138,7 +138,30 @@ function setMode(mode){
   if(shown.length)selectRider(shown[0]);
 }
 
-function selectRider(r){state.selected=r;const dist=kmBetween(state.me,r).toFixed(1);const card=document.querySelector('#riderCard');card.classList.remove('hidden');card.innerHTML=`<div class="drag"></div><button class="closeCard" id="closeCard">×</button><div class="riderTop"><div class="avatar ${r.online?'onlineRing':'grayRing'}">${esc(r.name.charAt(0).toUpperCase())}</div><div class="riderMeta"><h2>${esc(r.name)}</h2><p>${esc(r.city)} · A ${dist} km</p><small class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':timeAgo(r.lastSeen)}</small>${r.isDemo?'<em>Rider de muestra</em>':''}</div></div><div class="cardActions"><button id="messageBtn">💬 <span>Mensaje</span></button><button id="callBtn">☎ <span>Llamar</span></button><button class="invite" id="inviteBtn">＋ <span>Invitar</span></button></div>`;
+function selectRider(r){
+  state.selected=r;
+  const dist=kmBetween(state.me,r).toFixed(1);
+  const card=document.querySelector('#riderCard');
+  card.classList.remove('hidden');
+  const common=r.isDemo?3:8;
+  card.innerHTML=`<div class="drag"></div>
+    <button class="closeCard" id="closeCard">×</button>
+    <div class="riderTop">
+      <div class="avatar ${r.online?'onlineRing':'grayRing'}"><span class="avatarHelmet">R</span><i class="presenceDot ${r.online?'on':'off'}"></i></div>
+      <div class="riderMeta">
+        <h2>${esc(r.name)}</h2>
+        <p>⌖ ${esc(r.city)} · A ${dist} km</p>
+      </div>
+      <div class="riderSide">
+        <strong class="${r.online?'statusOn':'statusOff'}">● ${r.online?'Conectado':'Última conexión'}</strong>
+        <small>♟ ${common} rutas en común</small>
+      </div>
+    </div>
+    <div class="cardActions">
+      <button id="messageBtn">💬 <span>Mensaje</span></button>
+      <button id="callBtn">☎ <span>Hablar</span></button>
+      <button class="invite" id="inviteBtn">♟ <span>Invitar</span></button>
+    </div>`;
   document.querySelector('#closeCard').onclick=()=>card.classList.add('hidden');
   document.querySelector('#messageBtn').onclick=()=>openChat(r);
   document.querySelector('#callBtn').onclick=()=>openVoiceRider(r);
@@ -196,13 +219,12 @@ async function refreshRealRiders(){
   }catch{}
 }
 async function boot(){
-  buildShell();
   state.riders=makeFiller();
+  buildShell();
+  if(state.riders.length) selectRider(state.riders[0]);
   try{
     await loadMapDependency();
     initMap();
-    if(state.riders.length) selectRider(state.riders[0]);
-    if(state.riders.length)selectRider(state.riders[0]);
   }catch(err){
     showStartupError(err);
   }
