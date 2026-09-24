@@ -26,6 +26,25 @@
     eta: ['a que hora llego', 'a que hora llegare', 'hora de llegada'],
     nextInstruction: ['cual es la siguiente indicacion', 'proxima indicacion', 'que tengo que hacer ahora'],
     rideSummary: ['como voy', 'dame un resumen', 'resumen de marcha'],
+    timeNow: ['que hora es', 'dime la hora', 'hora actual'],
+    tripTime: ['cuanto tiempo llevo', 'cuanto tiempo llevo de ruta', 'tiempo de marcha'],
+    averageSpeed: ['cual es mi velocidad media', 'que velocidad media llevo', 'velocidad media'],
+    maxSpeed: ['cual ha sido mi velocidad maxima', 'que velocidad maxima llevo', 'velocidad maxima'],
+    phoneBattery: ['que bateria tiene el movil', 'cuanta bateria tiene el movil', 'bateria del telefono', 'bateria del movil'],
+    canReach: ['llego al destino con esta bateria', 'me da la bateria para llegar', 'tengo bateria para llegar'],
+    navigationState: ['esta activa la navegacion', 'tengo navegacion activa', 'estado de navegacion'],
+    repeatInstruction: ['repite la ultima indicacion', 'repite la indicacion', 'repetir indicacion'],
+    gpsState: ['tengo gps', 'esta activo el gps', 'estado del gps'],
+    internetState: ['tengo internet', 'hay internet', 'estado de internet'],
+    bluetoothState: ['tengo bluetooth', 'esta activo el bluetooth', 'estado de bluetooth'],
+    voiceState: ['esta activo rider voz', 'estado de rider voz'],
+    voxState: ['esta activo manos libres', 'esta activo el manos libres', 'estado de manos libres'],
+    useBluetooth: ['usar bluetooth', 'audio por bluetooth', 'pon el bluetooth'],
+    useSpeaker: ['usar altavoz', 'audio por altavoz', 'pon el altavoz'],
+    recordingState: ['esta grabando la ruta', 'estoy grabando la ruta', 'estado de grabacion'],
+    help: ['que puedes hacer', 'que comandos tengo', 'ayuda'],
+    radioRock: ['pon rock fm', 'pon radio rock fm', 'ponme rock fm'],
+    radioStop: ['para la radio', 'parar la radio', 'apaga la radio', 'deten la radio'],
     repeat: ['repetir ultimo mensaje', 'repite el ultimo mensaje', 'repite'],
     leave: ['salir del grupo', 'sal del grupo'],
     emergency: ['emergencia', 'activar emergencia'],
@@ -34,26 +53,40 @@
   };
   const helpGroups = [
     { title: 'Audio', commands: [
-      'Rider, subir volumen', 'Rider, bajar volumen', 'Rider, silenciar', 'Rider, activar sonido'
+      'Rider, subir volumen', 'Rider, bajar volumen', 'Rider, silenciar', 'Rider, activar sonido',
+      'Rider, usar Bluetooth', 'Rider, usar altavoz'
     ]},
     { title: 'Rider Voz', commands: [
       'Rider, activar Rider Voz', 'Rider, desactivar Rider Voz',
-      'Rider, activar manos libres', 'Rider, desactivar manos libres'
+      'Rider, activar manos libres', 'Rider, desactivar manos libres',
+      'Rider, ¿está activo Rider Voz?', 'Rider, ¿está activo manos libres?'
     ]},
     { title: 'Comunidad Rider', commands: [
       'Rider, ¿quién está conectado?', 'Rider, ¿cuántos Riders hay?',
-      'Rider, ¿cuántos Riders hay en mi zona?', 'Rider, ¿qué Riders hay cerca?', 'Rider, salir del grupo'
+      'Rider, ¿cuántos Riders hay en mi zona?', 'Rider, ¿qué Riders hay cerca?',
+      'Rider, salir del grupo', 'Rider, emergencia'
     ]},
     { title: 'Ordenador de a bordo', commands: [
       'Rider, ¿a qué velocidad voy?', 'Rider, ¿cuántos kilómetros llevo?',
-      'Rider, ¿qué batería me queda?', 'Rider, ¿cuánta autonomía me queda?', 'Rider, ¿cómo voy?'
+      'Rider, ¿cuánto tiempo llevo?', 'Rider, ¿cuál es mi velocidad media?',
+      'Rider, ¿cuál ha sido mi velocidad máxima?', 'Rider, ¿qué batería me queda?',
+      'Rider, ¿qué batería tiene el móvil?', 'Rider, ¿cuánta autonomía me queda?',
+      'Rider, ¿llego al destino con esta batería?', 'Rider, ¿cómo voy?'
     ]},
     { title: 'Navegación', commands: [
-      'Rider, ¿cuántos kilómetros me quedan para llegar?', 'Rider, ¿cuánto tiempo falta para llegar?',
-      'Rider, ¿a qué hora llego?', 'Rider, ¿cuál es la siguiente indicación?'
+      'Rider, ¿está activa la navegación?', 'Rider, ¿cuántos kilómetros me quedan para llegar?',
+      'Rider, ¿cuánto tiempo falta para llegar?', 'Rider, ¿a qué hora llego?',
+      'Rider, ¿cuál es la siguiente indicación?', 'Rider, repite la última indicación',
+      'Rider, ¿está grabando la ruta?'
+    ]},
+    { title: 'Conexiones', commands: [
+      'Rider, ¿tengo GPS?', 'Rider, ¿tengo Internet?', 'Rider, ¿tengo Bluetooth?'
+    ]},
+    { title: 'Radio', commands: [
+      'Rider, pon Rock FM', 'Rider, para la radio'
     ]},
     { title: 'Asistente', commands: [
-      'Rider, repetir último mensaje', 'Rider, emergencia'
+      'Rider, ¿qué hora es?', 'Rider, ¿qué puedes hacer?', 'Rider, repetir último mensaje'
     ]}
   ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
@@ -220,7 +253,10 @@
             break;
           }
           case 'speed': case 'tripDistance': case 'battery': case 'autonomy':
-          case 'remainingDistance': case 'remainingTime': case 'eta': case 'nextInstruction': case 'rideSummary': {
+          case 'remainingDistance': case 'remainingTime': case 'eta': case 'nextInstruction':
+          case 'rideSummary': case 'tripTime': case 'averageSpeed': case 'maxSpeed':
+          case 'canReach': case 'navigationState': case 'repeatInstruction': case 'gpsState':
+          case 'recordingState': {
             const onboard = await this.onboard(); if (run !== this.generation) return;
             if (!onboard.ok) { await this.reply(onboard.reason, false); break; }
             const d = onboard.data;
@@ -232,6 +268,17 @@
             if (id === 'tripDistance') {
               await this.reply('Llevas ' + spoken(Number(d.tripDistanceKm) || 0) + ' kilómetros'); break;
             }
+            if (id === 'tripTime') {
+              const seconds = Math.max(0, Math.round(Number(d.elapsedSeconds) || 0));
+              const hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60);
+              await this.reply(hours ? 'Llevas ' + hours + ' horas y ' + minutes + ' minutos' : 'Llevas ' + minutes + ' minutos'); break;
+            }
+            if (id === 'averageSpeed') {
+              await this.reply('Tu velocidad media es de ' + Math.round(Number(d.averageSpeedKmh) || 0) + ' kilómetros por hora'); break;
+            }
+            if (id === 'maxSpeed') {
+              await this.reply('Tu velocidad máxima es de ' + Math.round(Number(d.maximumSpeedKmh) || 0) + ' kilómetros por hora'); break;
+            }
             if (id === 'battery') {
               if (!d.bmsConnected || !Number.isFinite(Number(d.batteryPercent))) await this.reply('No tengo lectura de batería. Conecta el BMS en SKATESUV', false);
               else await this.reply('Te queda un ' + Math.round(Number(d.batteryPercent)) + ' por ciento de batería');
@@ -242,6 +289,28 @@
               else if (!Number.isFinite(Number(d.rangeKm)) || Number(d.rangeKm) <= 0) await this.reply('Todavía no tengo suficiente información para calcular la autonomía', false);
               else await this.reply('La autonomía estimada es de ' + Math.round(Number(d.rangeKm)) + ' kilómetros');
               break;
+            }
+            if (id === 'canReach') {
+              const range = Number(d.rangeKm), remaining = Number(d.remainingDistanceKm);
+              if (!d.navigationActive || !Number.isFinite(remaining)) await this.reply('No hay una navegación activa', false);
+              else if (!d.bmsConnected || !Number.isFinite(range) || range <= 0) await this.reply('Todavía no tengo suficiente información para estimarlo', false);
+              else if (range >= remaining) await this.reply('Con la estimación actual, la autonomía cubre la distancia. Tienes unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              else await this.reply('Con la estimación actual, la autonomía no cubre la distancia. Tienes unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              break;
+            }
+            if (id === 'navigationState') {
+              await this.reply(d.navigationActive ? 'La navegación está activa' : 'La navegación no está activa'); break;
+            }
+            if (id === 'repeatInstruction') {
+              if (!d.navigationActive || !d.nextInstruction) await this.reply('No hay una indicación disponible', false);
+              else await this.reply(d.nextInstruction);
+              break;
+            }
+            if (id === 'gpsState') {
+              await this.reply(d.gpsAvailable ? 'GPS activo' : 'No tengo señal GPS disponible'); break;
+            }
+            if (id === 'recordingState') {
+              await this.reply(d.recordingActive ? (d.recordingPaused ? 'La grabación de ruta está pausada' : 'La ruta se está grabando') : 'No se está grabando ninguna ruta'); break;
             }
             if (id === 'remainingDistance') {
               if (!d.navigationActive || !Number.isFinite(Number(d.remainingDistanceKm))) await this.reply('No hay una navegación activa', false);
@@ -278,6 +347,39 @@
             await this.reply(parts.join(', '));
             break;
           }
+          case 'timeNow': {
+            const now = new Date();
+            await this.reply('Son las ' + now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})); break;
+          }
+          case 'phoneBattery': case 'internetState': case 'bluetoothState': {
+            const d = await this.o.getDeviceStatus?.(); if (run !== this.generation) return;
+            if (!d) { await this.reply('Ese dato no está disponible', false); break; }
+            if (id === 'phoneBattery') {
+              const value = Number(d.phoneBatteryPercent);
+              await this.reply(Number.isFinite(value) && value >= 0 ? 'El móvil tiene un ' + Math.round(value) + ' por ciento de batería' : 'No puedo leer la batería del móvil', false);
+            } else if (id === 'internetState') {
+              await this.reply(d.internet ? 'Tienes conexión a Internet' : 'No tienes conexión a Internet');
+            } else {
+              await this.reply(d.bluetooth ? 'Bluetooth activo' : 'Bluetooth desactivado');
+            }
+            break;
+          }
+          case 'voiceState': await this.reply(this.o.isVoiceActive?.() ? 'Rider Voz está activo' : 'Rider Voz no está activo'); break;
+          case 'voxState': await this.reply(this.o.isVoxActive?.() ? 'Manos libres activo' : 'Manos libres desactivado'); break;
+          case 'useBluetooth': {
+            const ok = await this.o.setAudioRoute?.('bluetooth'); if (run !== this.generation) return;
+            await this.reply(ok === false ? 'No pude activar el audio Bluetooth' : 'Audio por Bluetooth'); break;
+          }
+          case 'useSpeaker': {
+            const ok = await this.o.setAudioRoute?.('speaker'); if (run !== this.generation) return;
+            await this.reply(ok === false ? 'No pude activar el altavoz' : 'Audio por altavoz'); break;
+          }
+          case 'help': await this.reply('Puedo ayudarte con la marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio'); break;
+          case 'radioRock': {
+            const station = await this.o.playRadio?.('Rock FM'); if (run !== this.generation) return;
+            await this.reply(station?.name ? 'Poniendo ' + station.name : 'Poniendo Rock FM'); break;
+          }
+          case 'radioStop': await this.o.stopRadio?.(); if (run !== this.generation) return; await this.reply('Radio detenida'); break;
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
           case 'leave': await this.reply('Saliendo del grupo'); if (run === this.generation) this.o.leave(); break;
           case 'emergency': this.o.emergency(); await this.reply('Alerta local de emergencia activada. No se ha enviado ningún aviso a contactos'); break;
