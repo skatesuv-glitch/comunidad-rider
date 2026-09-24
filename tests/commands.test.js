@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Bot, parse, helpGroups } = require('../src/voice/rider-commands.js');
 function setup(overrides = {}) {
-  const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true, route:'speaker', radio:null };
+  const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true, route:'speaker', radio:null, controls:[] };
   const bot = new Bot({ native: { speak: async ({text}) => out.said.push(text) }, status:()=>{}, toggle:()=>{},
     confirmations:()=>true, getVolume:()=>out.volume,setVolume:v=>out.volume=v,setVox:async v=>out.vox=v,
     getRiders:async()=>[{name:'Ana'},{name:'David'}],getNearbyRiders:async()=>({available:true,riders:[{name:'Ana'}]}),
@@ -10,7 +10,8 @@ function setup(overrides = {}) {
     getDeviceStatus:async()=>({phoneBatteryPercent:71,internet:true,bluetooth:true}),
     isVoiceActive:()=>out.voice,isVoxActive:()=>out.vox,
     setAudioRoute:async route=>{out.route=route;return true},
-    playRadio:async query=>{out.radio=query;return {name:'Rock FM'}},stopRadio:async()=>{out.radio=null},
+    playRadio:async query=>{out.radio=query;return {name:query}},stopRadio:async()=>{out.radio=null},
+    controlSkatesuv:async action=>{out.controls.push(action);return {ok:true,message:'OK '+action}},
     startVoice:async()=>true,stopVoice:()=>out.voice=false,
     leave:()=>out.left++, emergency:()=>out.emergency++, ...overrides });
   bot.enabled=true;return { bot,out };
@@ -166,6 +167,7 @@ test('internet bluetooth Rider Voz and audio route commands',async()=>{
 test('radio and short help commands',async()=>{
   const {bot,out}=setup();
   await bot.receive('Rider pon rock fm');assert.equal(out.radio,'Rock FM');assert.equal(out.said.at(-1),'Poniendo Rock FM');
+  await bot.receive('Rider pon los cuarenta');assert.equal(out.radio,'LOS40');assert.equal(out.said.at(-1),'Poniendo LOS40');
   await bot.receive('Rider para la radio');assert.equal(out.radio,null);assert.equal(out.said.at(-1),'Radio detenida');
   await bot.receive('Rider que puedes hacer');assert.match(out.said.at(-1),/marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio/);
 });
@@ -177,7 +179,39 @@ test('settings catalogue includes every public command family',()=>{
     'Rider, ¿cuál ha sido mi velocidad máxima?','Rider, ¿qué batería tiene el móvil?',
     'Rider, ¿llego al destino con esta batería?','Rider, ¿está activa la navegación?',
     'Rider, repite la última indicación','Rider, ¿tengo GPS?','Rider, ¿tengo Internet?',
-    'Rider, ¿tengo Bluetooth?','Rider, pon Rock FM','Rider, para la radio'
+    'Rider, ¿tengo Bluetooth?','Rider, pon [nombre de emisora]','Rider, para la radio',
+    'Rider, iniciar navegación','Rider, pausar navegación','Rider, continuar navegación',
+    'Rider, detener navegación','Rider, empezar a grabar ruta','Rider, pausar grabación',
+    'Rider, continuar grabación','Rider, finalizar grabación'
   ];
   for(const command of expected)assert.ok(all.includes(command),command);
+});
+
+test('generic radio command captures arbitrary station names',()=>{
+  const a=parse('Rider pon Los 40');assert.equal(a.id,'radioNamed');assert.equal(a.station,'los 40');
+  const b=parse('Rider pon Cadena Cien');assert.equal(b.id,'radioNamed');assert.equal(b.station,'Cadena 100');
+  const c=parse('Rider reproduce Radio Paradise');assert.equal(c.id,'radioNamed');assert.equal(c.station,'paradise');
+});
+
+test('navigation and recording controls call SKATESUV actions',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider iniciar navegacion');assert.equal(out.controls.at(-1),'navigation_start');
+  await bot.receive('Rider pausar navegacion');assert.equal(out.controls.at(-1),'navigation_pause');
+  await bot.receive('Rider continuar navegacion');assert.equal(out.controls.at(-1),'navigation_resume');
+
+  await bot.receive('Rider detener navegacion');
+  assert.notEqual(out.controls.at(-1),'navigation_stop');
+  assert.equal(bot.pending,'navigationStop');
+  await bot.receive('Rider si');
+  assert.equal(out.controls.at(-1),'navigation_stop');
+
+  await bot.receive('Rider empezar a grabar ruta');assert.equal(out.controls.at(-1),'record_start');
+  await bot.receive('Rider pausar grabacion');assert.equal(out.controls.at(-1),'record_pause');
+  await bot.receive('Rider continuar grabacion');assert.equal(out.controls.at(-1),'record_resume');
+
+  await bot.receive('Rider finalizar grabacion');
+  assert.notEqual(out.controls.at(-1),'record_stop');
+  assert.equal(bot.pending,'recordStop');
+  await bot.receive('Rider no');
+  assert.notEqual(out.controls.at(-1),'record_stop');
 });
