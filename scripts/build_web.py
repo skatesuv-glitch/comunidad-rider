@@ -26,5 +26,11 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
 old="if(voiceRecognition){voiceRecognition.onend=null;voiceRecognition.stop();voiceRecognition=null}if(nativeVoice&&nativeCommandsOn)nativeVoice.stopCommandListening().catch(()=>{});if(nativeCommandHandle?.remove)nativeCommandHandle.remove();"
 assert old in s
 s=s.replace(old,"riderCommands.stop().catch(()=>{});")
+# If command listening already owns the browser microphone, Rider Voz clones that
+# MediaStream instead of opening a second getUserMedia capture.
+capture_old="rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});"
+capture_new="const commandInput=riderCommands.getCaptureStream?.();rawVoiceStream=commandInput?.getAudioTracks().some(t=>t.readyState==='live')?commandInput.clone():await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});"
+assert capture_old in s
+s=s.replace(capture_old,capture_new,1)
 prefix=(root/'src/voice/rider-commands.js').read_text()+'\n/* APPROVED APP — only command integration below is replaced. */\n'
 (root/'www/app.js').write_text(prefix+s)
