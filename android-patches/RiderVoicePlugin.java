@@ -155,7 +155,7 @@ public class RiderVoicePlugin extends Plugin {
     private boolean armWakeWord() {
         stopEngines();
         wakeEngine = RiderWakeWordFactory.INSTANCE.create(getContext(),
-            () -> { if (keepListening) { commandSessionUntil = System.currentTimeMillis() + COMMAND_SESSION_MS; if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; startCommandCapture(); } return kotlin.Unit.INSTANCE; },
+            () -> { if (keepListening) { commandSessionUntil = System.currentTimeMillis() + COMMAND_SESSION_MS; if (wakeEngine != null) wakeEngine.stop(); wakeEngine = null; getActivity().runOnUiThread(() -> new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::startCommandCapture, 350)); } return kotlin.Unit.INSTANCE; },
             error -> { emitVoiceError(error); return kotlin.Unit.INSTANCE; });
         return wakeEngine != null && wakeEngine.start();
     }
