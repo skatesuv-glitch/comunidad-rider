@@ -98,7 +98,7 @@
     ]},
     { title: 'Asistente', commands: [
       'Rider, ¿qué hora es?', 'Rider, ¿qué puedes hacer?', 'Rider, repetir último mensaje',
-      'Rider, sí (confirmar)', 'Rider, no (cancelar)'
+      'Rider, sí', 'Rider, no'
     ]}
   ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
