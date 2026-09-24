@@ -74,7 +74,7 @@ function makeFiller(){
 function buildShell(){
   app.innerHTML=`<main class="appShell">
     <header class="topbar"><button class="iconBtn" id="backBtn" aria-label="Volver">‹</button><div class="title"><span>COMUNIDAD</span> <b>RIDER</b></div><button class="iconBtn" id="settingsBtn" aria-label="Ajustes">⚙</button></header>
-    <section class="hero"><img src="assets/community-hero.jpg" alt="Riders al atardecer"><div class="heroShade"></div><div class="heroCopy">CONECTA, RUEDA<br>Y FORMA PARTE<br>DE ALGO MÁS GRANDE.<i></i></div></section>
+    <section class="hero"><img src="assets/community-hero.jpg" alt="Riders al atardecer"><div class="heroShade"></div><div class="heroCopy">FORMA PARTE DE LA<br>COMUNIDAD SKATESUV<i></i></div></section>
     <section class="modeRow" aria-label="Zona del mapa">
       <button class="modeBtn active" id="nearBtn"><span class="modeIcon">⌖</span><strong>RIDERS EN MI ZONA</strong><small>radio 100 km</small></button>
       <button class="modeBtn" id="allBtn"><span class="modeIcon">◫</span><strong>EN TODAS LAS ZONAS</strong><small>mapa de España</small></button>
