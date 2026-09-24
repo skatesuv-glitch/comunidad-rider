@@ -6,7 +6,7 @@ for p in (root/'android-patches').glob('*.java'): shutil.copy2(p,java/p.name)
 model=Path(sys.argv[1])
 shutil.copytree(model,root/'android/app/src/main/assets/rider-model',dirs_exist_ok=True)
 p=root/'android/app/build.gradle';s=p.read_text()
-s=s.replace('versionCode 1\n','versionCode 288\n').replace('versionName "1.0"','versionName "2.0-assistant-288"')
+s=s.replace('versionCode 1\n','versionCode 289\n').replace('versionName "1.0"','versionName "2.0-assistant-289"')
 if 'vosk-android' not in s:s=s.replace('dependencies {','dependencies {\n    implementation "com.alphacephei:vosk-android:0.3.75"\n    implementation "net.java.dev.jna:jna:5.18.1@aar"')
 p.write_text(s)
 p=root/'android/app/src/main/AndroidManifest.xml'
