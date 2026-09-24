@@ -23,6 +23,7 @@ import org.vosk.Model;
 import org.vosk.Recognizer;
 import java.io.*;
 import java.util.Locale;
+import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Comparator;
@@ -40,6 +41,7 @@ public final class RiderCommandsPlugin extends Plugin {
     private final Handler main = new Handler(Looper.getMainLooper());
     private Model model;
     private Recognizer recognizer;
+    private Recognizer radioRecognizer;
     private TextToSpeech tts;
     private volatile boolean active, speaking, destroyed;
     private final java.util.concurrent.atomic.AtomicInteger generation = new java.util.concurrent.atomic.AtomicInteger();
@@ -49,6 +51,8 @@ public final class RiderCommandsPlugin extends Plugin {
     private long speechId;
     private final Set<String> grammarPhrases = new HashSet<>();
     private String lastPartial = "";
+    private String lastRadioPartial = "";
+    private int radioPartialHits;
     private int partialHits;
     private String lastEmitted = "";
     private long lastEmitAt;
@@ -106,6 +110,7 @@ public final class RiderCommandsPlugin extends Plugin {
             try {
                 active = false;
                 if (recognizer != null) { recognizer.close(); recognizer = null; }
+                if (radioRecognizer != null) { radioRecognizer.close(); radioRecognizer = null; }
                 if (model == null) {
                     File root = new File(getContext().getFilesDir(), "rider-model-es-042-v1");
                     File ready = new File(root, ".complete");
@@ -113,6 +118,7 @@ public final class RiderCommandsPlugin extends Plugin {
                     model = new Model(root.getAbsolutePath());
                 }
                 recognizer = new Recognizer(model, rate, grammar);
+                radioRecognizer = new Recognizer(model, rate);
                 main.post(() -> waitForVoice(call, 0, run));
             } catch (Exception | LinkageError e) { call.reject("No se pudo preparar el reconocimiento local: " + e.getMessage()); }
         });
@@ -133,6 +139,7 @@ public final class RiderCommandsPlugin extends Plugin {
             try {
                 if (active && !speaking && recognizer != null) {
                     byte[] bytes = Base64.decode(pcm, Base64.NO_WRAP);
+                    processRadioRecognition(bytes);
                     if (recognizer.acceptWaveForm(bytes, bytes.length)) {
                         String text = new JSONObject(recognizer.getResult()).optString("text", "").trim();
                         emitTranscript(text, false);
@@ -153,6 +160,36 @@ public final class RiderCommandsPlugin extends Plugin {
         });
     }
 
+    private void processRadioRecognition(byte[] bytes) {
+        if (radioRecognizer == null || speaking || !active) return;
+        try {
+            if (radioRecognizer.acceptWaveForm(bytes, bytes.length)) {
+                String text = new JSONObject(radioRecognizer.getResult()).optString("text", "").trim();
+                maybeEmitRadio(text, true);
+            } else {
+                String partial = new JSONObject(radioRecognizer.getPartialResult()).optString("partial", "").trim();
+                if (partial.isEmpty()) { lastRadioPartial = ""; radioPartialHits = 0; return; }
+                if (partial.equals(lastRadioPartial)) radioPartialHits++; else { lastRadioPartial = partial; radioPartialHits = 1; }
+                if (radioPartialHits >= 3) maybeEmitRadio(partial, false);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void maybeEmitRadio(String raw, boolean finalResult) {
+        if (raw == null || raw.trim().isEmpty()) return;
+        String normalized = Normalizer.normalize(raw.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .replaceAll("[^a-z0-9 ]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        boolean radio = normalized.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? .+");
+        if (!radio) return;
+        if (normalized.endsWith(" altavoz") || normalized.endsWith(" bluetooth") || normalized.endsWith(" sonido")) return;
+        emitTranscript(normalized, finalResult);
+        lastRadioPartial = ""; radioPartialHits = 0;
+        if (finalResult && radioRecognizer != null) radioRecognizer.reset();
+    }
+
     private void emitTranscript(String text, boolean resetAfter) {
         if (text == null) return;
         text = text.trim();
@@ -162,6 +199,26 @@ public final class RiderCommandsPlugin extends Plugin {
         lastEmitted = text; lastEmitAt = now; lastPartial = ""; partialHits = 0;
         JSObject event = new JSObject(); event.put("text", text); notifyListeners("transcript", event);
         if (resetAfter && recognizer != null) recognizer.reset();
+    }
+
+    @PluginMethod public void controlSkatesuv(PluginCall call) {
+        final String action = call.getString("action", "").trim();
+        if (action.isEmpty() || action.length() > 40) { call.reject("Orden SKATESUV no válida"); return; }
+        try {
+            Bundle result = getContext().getContentResolver().call(
+                Uri.parse("content://com.skatesuv.eskate.riderbridge"),
+                "control", action, null
+            );
+            JSObject out = new JSObject();
+            out.put("ok", result != null && result.getBoolean("ok", false));
+            out.put("message", result == null ? "SKATESUV no respondió" : result.getString("message", "Orden ejecutada"));
+            call.resolve(out);
+        } catch (Exception e) {
+            JSObject out = new JSObject();
+            out.put("ok", false);
+            out.put("message", "No pude comunicar con SKATESUV");
+            call.resolve(out);
+        }
     }
 
     @PluginMethod public void getOnboardSnapshot(PluginCall call) {
@@ -336,6 +393,7 @@ public final class RiderCommandsPlugin extends Plugin {
             // Keep a short tail gate so the speaker's last syllable cannot wake the bot.
             main.postDelayed(() -> worker.execute(() -> {
                 if (recognizer != null) recognizer.reset();
+                if (radioRecognizer != null) radioRecognizer.reset();
                 lastPartial = ""; partialHits = 0;
                 speaking = false;
                 setRadioDucked(false);
@@ -353,6 +411,7 @@ public final class RiderCommandsPlugin extends Plugin {
             if (speechCall != null) { speechCall.reject("Respuesta cancelada"); speechCall = null; }
             worker.execute(() -> {
                 if (recognizer != null) { recognizer.close(); recognizer = null; }
+                if (radioRecognizer != null) { radioRecognizer.close(); radioRecognizer = null; }
                 speaking = false; call.resolve();
             });
         });
@@ -373,7 +432,7 @@ public final class RiderCommandsPlugin extends Plugin {
         generation.incrementAndGet(); destroyed = true; active = false;
         main.removeCallbacksAndMessages(null);
         main.post(() -> { stopRadioPlayer(); if (tts != null) { tts.stop(); tts.shutdown(); } });
-        worker.execute(() -> { if (recognizer != null) { recognizer.close(); recognizer = null; } if (model != null) { model.close(); model = null; } });
+        worker.execute(() -> { if (recognizer != null) { recognizer.close(); recognizer = null; } if (radioRecognizer != null) { radioRecognizer.close(); radioRecognizer = null; } if (model != null) { model.close(); model = null; } });
         // Delayed callbacks may still drain. No work is accepted from JS after plugin destruction.
         super.handleOnDestroy();
     }
