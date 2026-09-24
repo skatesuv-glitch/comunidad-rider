@@ -2,7 +2,7 @@ name: Android debug APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, rider-voice-clean-rebuild, rider-voz-blindada-287, rider-voz-trabajo-289]
+    branches: [main, rider-voice-clean-rebuild, rider-voz-blindada-287, rider-voz-trabajo-290]
   pull_request:
     branches: [main, rider-voice-clean-rebuild]
 jobs:
