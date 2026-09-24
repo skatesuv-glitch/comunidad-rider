@@ -190,7 +190,7 @@ test('settings catalogue includes every public command family',()=>{
 });
 
 test('generic radio command captures arbitrary station names',()=>{
-  const a=parse('Rider pon Los 40');assert.equal(a.id,'radioNamed');assert.equal(a.station,'los 40');
+  const a=parse('Rider pon Los 40');assert.equal(a.id,'radioNamed');assert.equal(a.station,'LOS40');
   const b=parse('Rider pon Cadena Cien');assert.equal(b.id,'radioNamed');assert.equal(b.station,'Cadena 100');
   const c=parse('Rider reproduce Radio Paradise');assert.equal(c.id,'radioNamed');assert.equal(c.station,'radio paradise');
   const d=parse('Rider pon Kiss efe eme');assert.equal(d.id,'radioNamed');assert.equal(d.station,'kiss fm');
