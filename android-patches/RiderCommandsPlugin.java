@@ -160,6 +160,8 @@ public final class RiderCommandsPlugin extends Plugin {
                     } else if (recognizer.acceptWaveForm(bytes, bytes.length)) {
                         JSONObject result = new JSONObject(recognizer.getResult());
                         String text = result.optString("text", "").trim();
+                        String normalizedText = normalizeSpeech(text);
+                        if (normalizedText.startsWith("rider ") || normalizedText.startsWith("raider ") || normalizedText.equals("rider") || normalizedText.equals("raider")) duckRadioForWake();
                         if (isRadioLead(text)) {
                             beginRadioMode();
                         } else if (isProtectedOff(text) && !wasStablePartial(text)) {
@@ -173,6 +175,8 @@ public final class RiderCommandsPlugin extends Plugin {
                         String partial = new JSONObject(recognizer.getPartialResult()).optString("partial", "").trim();
                         if (partial.isEmpty()) { lastPartial = ""; partialHits = 0; }
                         else {
+                            String normalizedPartial = normalizeSpeech(partial);
+                            if (normalizedPartial.equals("rider") || normalizedPartial.equals("raider") || normalizedPartial.startsWith("rider ") || normalizedPartial.startsWith("raider ")) duckRadioForWake();
                             if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
                             if (isRadioLead(partial)) {
                                 beginRadioMode();
@@ -216,6 +220,14 @@ public final class RiderCommandsPlugin extends Plugin {
     private boolean wasStablePartial(String raw) {
         String n = normalizeSpeech(raw);
         return n.equals(normalizeSpeech(lastPartial)) && partialHits >= 2;
+    }
+
+    private void duckRadioForWake() {
+        if (radioPlayer == null) return;
+        setRadioDucked(true);
+        main.postDelayed(() -> {
+            if (!speaking && radioPlayer != null) setRadioDucked(false);
+        }, 5000);
     }
 
     private boolean isRadioLead(String raw) {
@@ -414,12 +426,34 @@ public final class RiderCommandsPlugin extends Plugin {
         }
     }
 
+    private String[] directStation(String query) {
+        String q = normalizeSpeech(query);
+        if (q.equals("rock fm") || q.equals("rockfm"))
+            return new String[]{"https://rockfm-cope.flumotion.com/playlist.m3u8", "Rock FM"};
+        if (q.equals("los40") || q.equals("los 40") || q.equals("los cuarenta"))
+            return new String[]{"https://playerservices.streamtheworld.com/api/livestream-redirect/Los40.mp3", "LOS40"};
+        if (q.equals("kiss fm") || q.equals("kissfm"))
+            return new String[]{"https://kissfm.kissfmradio.cires21.com/kissfm.mp3", "Kiss FM"};
+        if (q.equals("cadena 100") || q.equals("cadena cien"))
+            return new String[]{"https://cadena100-cope.flumotion.com/chunks.m3u8", "Cadena 100"};
+        if (q.equals("europa fm") || q.equals("europa"))
+            return new String[]{"https://radio-atres-live.ondacero.es/api/livestream-redirect/EFMAAC.aac", "Europa FM"};
+        if (q.equals("radio 3") || q.equals("radio tres"))
+            return new String[]{"https://rtvelivestream.rtve.es/rtvesec/rne/rne_r3_main.m3u8", "Radio 3"};
+        return null;
+    }
+
     @PluginMethod public void playRadio(PluginCall call) {
         final String query = call.getString("query", "").trim();
         if (query.isEmpty() || query.length() > 80) {
             JSObject out = new JSObject(); out.put("ok", false); out.put("message", "Emisora no válida"); call.resolve(out); return;
         }
         String cacheKey = normalizeSpeech(query);
+        String[] direct = directStation(query);
+        if (direct != null) {
+            main.post(() -> startRadioPlayer(direct[0], direct[1], call));
+            return;
+        }
         String[] cached = radioCache.get(cacheKey);
         if (cached != null) {
             main.post(() -> startRadioPlayer(cached[0], cached[1], call));
@@ -438,7 +472,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 for (String server : servers) {
                     try {
                         URL url = new URL(server + "/json/stations/search?name=" +
-                            encoded + "&hidebroken=true&is_https=true&order=clickcount&reverse=true&limit=20");
+                            encoded + "&hidebroken=true&order=clickcount&reverse=true&limit=20");
                         connection = (HttpURLConnection)url.openConnection();
                         connection.setConnectTimeout(3000);
                         connection.setReadTimeout(4500);
