@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -431,24 +432,36 @@ public final class RiderCommandsPlugin extends Plugin {
         try {
             stopRadioPlayer();
             MediaPlayer player = new MediaPlayer();
+            AtomicBoolean settled = new AtomicBoolean(false);
             player.setAudioAttributes(new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build());
             player.setDataSource(url);
             player.setOnPreparedListener(p -> {
+                if (!settled.compareAndSet(false, true)) {
+                    try { p.release(); } catch (Exception ignored) {}
+                    return;
+                }
                 radioPlayer = p;
                 radioStationName = name;
                 p.start();
                 JSObject result = new JSObject(); result.put("ok", true); result.put("name", name); call.resolve(result);
             });
             player.setOnErrorListener((p, what, extra) -> {
+                if (!settled.compareAndSet(false, true)) return true;
                 try { p.release(); } catch (Exception ignored) {}
                 if (radioPlayer == p) radioPlayer = null;
                 JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora no pudo iniciar la reproducción"); call.resolve(out);
                 return true;
             });
             player.prepareAsync();
+            main.postDelayed(() -> {
+                if (!settled.compareAndSet(false, true)) return;
+                try { player.reset(); player.release(); } catch (Exception ignored) {}
+                if (radioPlayer == player) radioPlayer = null;
+                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora tarda demasiado en responder"); call.resolve(out);
+            }, 6000);
         } catch (Exception e) {
             JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No se pudo reproducir la emisora"); call.resolve(out);
         }
