@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Bot, parse } = require('../src/voice/rider-commands.js');
+const { Bot, parse, helpGroups } = require('../src/voice/rider-commands.js');
 function setup(overrides = {}) {
   const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true };
   const bot = new Bot({ native: { speak: async ({text}) => out.said.push(text) }, status:()=>{}, toggle:()=>{},
@@ -69,4 +69,13 @@ test('exposes only a live command capture for Rider Voz reuse',()=>{
   const live={getAudioTracks:()=>[{readyState:'live'}]}, ended={getAudioTracks:()=>[{readyState:'ended'}]};
   bot.stream=live;assert.equal(bot.getCaptureStream(),live);
   bot.stream=ended;assert.equal(bot.getCaptureStream(),null);
+});
+
+test('settings command catalogue only shows Rider-prefixed commands',()=>{
+  assert.ok(helpGroups.length>=4);
+  for(const group of helpGroups){
+    assert.ok(group.title);
+    assert.ok(group.commands.length);
+    for(const command of group.commands) assert.match(command,/^Rider,/);
+  }
 });
