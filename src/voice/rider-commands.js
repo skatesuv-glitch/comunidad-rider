@@ -179,7 +179,12 @@
           const pending = this.pending; this.pending = null; this.deadline = 0;
           if (id === 'no') { await this.reply('Cancelado', false); return; }
           if (id === 'yes') id = pending;
-          else { await this.reply('Acción cancelada. Di Rider y una nueva orden', false); return; }
+          else {
+            this.pending = pending;
+            await this.reply('Repite', false);
+            if (run === this.generation) this.armWindow();
+            return;
+          }
         } else if ((id === 'leave' || id === 'emergency') && this.o.confirmations()) {
           this.pending = id;
           await this.reply(id === 'leave' ? '¿Quieres salir del grupo? Di Rider sí o Rider no' : '¿Confirmas activar la alerta local de emergencia? Di Rider sí o Rider no', false);
@@ -276,7 +281,7 @@
           case 'repeat': await this.reply(this.lastReply || 'Todavía no hay un mensaje para repetir', false); break;
           case 'leave': await this.reply('Saliendo del grupo'); if (run === this.generation) this.o.leave(); break;
           case 'emergency': this.o.emergency(); await this.reply('Alerta local de emergencia activada. No se ha enviado ningún aviso a contactos'); break;
-          default: await this.reply('No he entendido la orden. Puedes preguntarme por la marcha, navegación, Comunidad Rider o audio', false);
+          default: await this.reply('Repite', false);
         }
       } finally { if (run === this.generation) this.busy = false; }
     }
