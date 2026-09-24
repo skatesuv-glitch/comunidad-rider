@@ -79,3 +79,5 @@ jobs:
           if-no-files-found: error
 
 # integration build Build Rider V2 locked bot fix - mobile ARM ABIs only
+
+# compile Rider voice mic handoff fix ce60ce6
