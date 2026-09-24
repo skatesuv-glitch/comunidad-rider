@@ -25,6 +25,11 @@ jobs:
           distribution: temurin
           java-version: "21"
       - run: npm install
+      - name: Bundle Leaflet locally
+        run: |
+          mkdir -p www/vendor
+          cp node_modules/leaflet/dist/leaflet.js www/vendor/leaflet.js
+          cp node_modules/leaflet/dist/leaflet.css www/vendor/leaflet.css
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build debug APK
