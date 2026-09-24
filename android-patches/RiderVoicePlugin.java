@@ -161,6 +161,7 @@ public class RiderVoicePlugin extends Plugin {
     }
 
     private void startCommandCapture() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) { getActivity().runOnUiThread(this::startCommandCapture); return; }
         commandEngine = new RiderCommandEngine(getContext(),
             text -> { emitVoiceCommand("Rider " + text); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; },
             error -> { emitVoiceError(error); commandEngine = null; if (keepListening) getActivity().runOnUiThread(() -> { if (System.currentTimeMillis() < commandSessionUntil) startCommandCapture(); else armWakeWord(); }); return kotlin.Unit.INSTANCE; });
