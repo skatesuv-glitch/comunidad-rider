@@ -83,7 +83,7 @@ function makeFiller(){
 function buildShell(){
   app.innerHTML=`<main class="appShell">
     <header class="topbar"><button class="iconBtn" id="backBtn" aria-label="Volver">‹</button><div class="title"><span>COMUNIDAD</span> <b>RIDER</b></div><button class="iconBtn" id="settingsBtn" aria-label="Ajustes">⚙</button></header>
-    <section class="hero"><img src="assets/community-approved.png" alt="Riders al atardecer"></section>
+    <section class="hero"><img src="assets/community-approved.jpg" alt="Riders al atardecer"></section>
     <section class="modeRow" aria-label="Zona del mapa">
       <button class="modeBtn active" id="nearBtn"><span class="modeIcon">⌖</span><strong>RIDERS EN MI ZONA</strong><small>radio 100 km</small></button>
       <button class="modeBtn" id="allBtn"><span class="modeIcon">◫</span><strong>EN TODAS LAS ZONAS</strong><small>mapa de España</small></button>
@@ -201,6 +201,7 @@ async function boot(){
   try{
     await loadMapDependency();
     initMap();
+    if(state.riders.length) selectRider(state.riders[0]);
     if(state.riders.length)selectRider(state.riders[0]);
   }catch(err){
     showStartupError(err);
