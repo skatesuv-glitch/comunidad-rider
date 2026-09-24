@@ -1,6 +1,6 @@
 const SUPABASE_URL='https://hnjgfppzgqeobsavyzal.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_7GinSOXWplq3vLmtQmKMAw_xom0bg3A';
-const supabase=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)||null;
+let supabase=null;
 
 const app=document.querySelector('#app');
 const MADRID={lat:40.4168,lng:-3.7038};
@@ -14,6 +14,36 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function kmBetween(a,b){const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lng-a.lng);const x=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
 function timeAgo(iso){if(!iso)return 'Última conexión';const s=Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/1000));if(s<60)return 'Última conexión: hace un momento';if(s<3600)return `Última conexión: hace ${Math.floor(s/60)} min`;if(s<86400)return `Última conexión: hace ${Math.floor(s/3600)} h`;return `Última conexión: hace ${Math.floor(s/86400)} d`;}
 function toast(msg){const old=document.querySelector('.toast');old?.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),250)},2200);}
+
+function loadScript(src,timeout=7000){
+  return new Promise((resolve,reject)=>{
+    const el=document.createElement('script');
+    const timer=setTimeout(()=>{el.remove();reject(new Error('Timeout '+src))},timeout);
+    el.src=src;el.async=true;
+    el.onload=()=>{clearTimeout(timer);resolve(true)};
+    el.onerror=()=>{clearTimeout(timer);reject(new Error('No se pudo cargar '+src))};
+    document.head.appendChild(el);
+  });
+}
+function loadCss(href){
+  if(document.querySelector('link[data-dynamic="'+href+'"]'))return;
+  const el=document.createElement('link');el.rel='stylesheet';el.href=href;el.dataset.dynamic=href;document.head.appendChild(el);
+}
+async function loadDependencies(){
+  loadCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  const jobs=[];
+  if(!window.L)jobs.push(loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').catch(()=>false));
+  if(!window.supabase)jobs.push(loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2').catch(()=>false));
+  if(jobs.length)await Promise.allSettled(jobs);
+  if(window.supabase?.createClient){
+    try{supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)}catch{supabase=null}
+  }
+}
+function showStartupError(err){
+  const map=document.querySelector('#map');
+  if(map)map.innerHTML='<div class="mapFallback">COMUNIDAD RIDER<br><small>No se pudo iniciar el mapa. La app sigue operativa.</small></div>';
+  console.error('Comunidad Rider startup error',err);
+}
 
 async function currentUser(){if(!supabase)return null;try{const {data}=await supabase.auth.getUser();return data?.user||null}catch{return null}}
 
@@ -139,11 +169,13 @@ function locateMe(){
 
 async function boot(){
   buildShell();
-  const real=await fetchRealRiders();
-  state.riders=[...real];
-  if(real.length<6)state.riders.push(...makeFiller().slice(0,6-real.length));
-  initMap();
-  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};const fillers=state.riders.filter(r=>r.isDemo);fillers.forEach((r,i)=>{r.lat=state.me.lat+fillerOffsets[i][0];r.lng=state.me.lng+fillerOffsets[i][1]});redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
+  try{
+    await loadDependencies();
+    const real=await fetchRealRiders();
+    state.riders=[...real];
+    if(real.length<6)state.riders.push(...makeFiller().slice(0,6-real.length));
+    initMap();
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{state.me={lat:p.coords.latitude,lng:p.coords.longitude};const fillers=state.riders.filter(r=>r.isDemo);fillers.forEach((r,i)=>{r.lat=state.me.lat+fillerOffsets[i][0];r.lng=state.me.lng+fillerOffsets[i][1]});redrawMap();},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:120000});
+  }catch(err){showStartupError(err)}
 }
-
-boot();
+boot().catch(showStartupError);
