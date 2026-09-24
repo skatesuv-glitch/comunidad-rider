@@ -17,21 +17,25 @@
     names: ['quien esta conectado', 'quienes estan conectados', 'que riders hay conectados'],
     nearbyCount: ['cuantos riders hay en mi zona', 'cuantos raiders hay en mi zona', 'cuantos riders hay cerca', 'hay riders cerca'],
     nearbyNames: ['que riders hay en mi zona', 'quienes hay en mi zona', 'quien hay cerca', 'que riders hay cerca'],
-    speed: ['a que velocidad voy', 'que velocidad llevo', 'velocidad actual', 'dime la velocidad'],
+    speed: ['a que velocidad voy', 'que velocidad llevo', 'velocidad actual', 'dime la velocidad', 'como voy de velocidad'],
     tripDistance: ['cuantos kilometros llevo', 'cuanta distancia llevo', 'distancia recorrida', 'cuantos km llevo'],
-    battery: ['que bateria me queda', 'cuanta bateria me queda', 'como voy de bateria', 'dime la bateria'],
+    battery: ['que bateria me queda', 'cuanta bateria me queda', 'como voy de bateria', 'dime la bateria', 'como tengo la bateria'],
     autonomy: ['cuanta autonomia me queda', 'cuantos kilometros puedo hacer', 'cuantos km puedo hacer'],
     remainingDistance: ['cuantos kilometros me quedan para llegar', 'cuantos km me quedan para llegar', 'cuanta distancia queda para llegar'],
     remainingTime: ['cuanto tiempo falta para llegar', 'cuanto tardare en llegar', 'cuantos minutos faltan para llegar'],
     eta: ['a que hora llego', 'a que hora llegare', 'hora de llegada'],
     nextInstruction: ['cual es la siguiente indicacion', 'proxima indicacion', 'que tengo que hacer ahora'],
     rideSummary: ['como voy', 'dame un resumen', 'resumen de marcha'],
-    timeNow: ['que hora es', 'dime la hora', 'hora actual'],
+    timeNow: ['que hora es', 'dime la hora', 'hora actual', 'me dices la hora', 'puedes decirme la hora'],
     tripTime: ['cuanto tiempo llevo', 'cuanto tiempo llevo de ruta', 'tiempo de marcha'],
     averageSpeed: ['cual es mi velocidad media', 'que velocidad media llevo', 'velocidad media'],
     maxSpeed: ['cual ha sido mi velocidad maxima', 'que velocidad maxima llevo', 'velocidad maxima'],
     phoneBattery: ['que bateria tiene el movil', 'cuanta bateria tiene el movil', 'bateria del telefono', 'bateria del movil'],
-    canReach: ['llego al destino con esta bateria', 'me da la bateria para llegar', 'tengo bateria para llegar'],
+    canReach: [
+      'llego al destino con esta bateria', 'me da la bateria para llegar', 'tengo bateria para llegar',
+      'con esta bateria llego a mi destino', 'con esta bateria llego al destino',
+      'me alcanza la bateria para llegar', 'me llega la bateria para el destino'
+    ],
     navigationState: ['esta activa la navegacion', 'tengo navegacion activa', 'estado de navegacion'],
     repeatInstruction: ['repite la ultima indicacion', 'repite la indicacion', 'repetir indicacion'],
     gpsState: ['tengo gps', 'esta activo el gps', 'estado del gps'],
@@ -53,6 +57,7 @@
     help: ['que puedes hacer', 'que comandos tengo', 'ayuda'],
     radioRock: ['pon rock fm', 'pon radio rock fm', 'ponme rock fm'],
     radioPrompt: ['pon la radio', 'pon radio', 'ponme la radio', 'reproduce la radio'],
+    radioTest: ['prueba la radio', 'probar la radio'],
     radioStop: ['para la radio', 'parar la radio', 'apaga la radio', 'deten la radio'],
     repeat: ['repetir ultimo mensaje', 'repite el ultimo mensaje', 'repite'],
     leave: ['salir del grupo', 'sal del grupo'],
@@ -115,12 +120,22 @@
     }
     return prev[b.length];
   };
+  const canonicalOrder = order => String(order||'')
+    .replace(/^(?:oye\s+)?(?:me puedes decir|puedes decirme|me dices|dime por favor|por favor)\s+/,'')
+    .replace(/\bpor favor\b/g,'')
+    .replace(/\bmi destino\b/g,'destino')
+    .replace(/\bkilometros\b/g,'km')
+    .replace(/\s+/g,' ')
+    .trim();
+
   const fuzzyIntent = order => {
+    order = canonicalOrder(order);
     if (!order || order.length < 5) return null;
     let best=null, bestScore=0;
     for (const [id, phrases] of Object.entries(orders)) {
       if (strictIntents.has(id)) continue;
-      for (const phrase of phrases) {
+      for (const rawPhrase of phrases) {
+        const phrase=canonicalOrder(rawPhrase);
         const max=Math.max(order.length,phrase.length);
         if (Math.abs(order.length-phrase.length) > Math.max(6, Math.floor(max*.35))) continue;
         const score=1-(editDistance(order,phrase)/max);
@@ -485,6 +500,15 @@
           }
           case 'help': await this.reply('Marcha, navegación, batería, Riders, audio, conexiones y radio'); break;
           case 'radioPrompt': await this.reply('¿Cuál quieres?', false); break;
+          case 'radioTest': {
+            try {
+              const station = await this.o.playRadio?.('Rock FM'); if (run !== this.generation) return;
+              await this.reply(station?.ok ? 'Radio lista' : ('La radio falla al reproducir: ' + (station?.message || 'sin detalle')), false);
+            } catch {
+              await this.reply('La radio falla antes de reproducir', false);
+            }
+            break;
+          }
           case 'radioRock': case 'radioNamed': {
             const requested = id === 'radioRock' ? 'Rock FM' : parsed.station;
             try {
