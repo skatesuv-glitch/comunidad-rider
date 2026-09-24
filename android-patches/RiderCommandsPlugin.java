@@ -81,6 +81,7 @@ public final class RiderCommandsPlugin extends Plugin {
     private ExoPlayer radioPlayer;
     private String radioStationName = "";
     private boolean radioDucked;
+    private long radioWakeDuckUntil;
 
     @Override public void load() {
         main.post(() -> {
@@ -235,10 +236,19 @@ public final class RiderCommandsPlugin extends Plugin {
 
     private void duckRadioForWake() {
         if (radioPlayer == null) return;
+        radioWakeDuckUntil = Math.max(radioWakeDuckUntil, System.currentTimeMillis() + 10000L);
         setRadioDucked(true);
-        main.postDelayed(() -> {
-            if (!speaking && radioPlayer != null) setRadioDucked(false);
-        }, 5000);
+        main.postDelayed(this::maybeReleaseRadioWakeDuck, 10000L);
+    }
+
+    private void maybeReleaseRadioWakeDuck() {
+        if (radioPlayer == null || speaking) return;
+        long wait = radioWakeDuckUntil - System.currentTimeMillis();
+        if (wait > 0L) {
+            main.postDelayed(this::maybeReleaseRadioWakeDuck, wait);
+            return;
+        }
+        setRadioDucked(false);
     }
 
     private boolean isExactKnownRadio(String raw) {
@@ -468,6 +478,15 @@ public final class RiderCommandsPlugin extends Plugin {
     @PluginMethod public void playRadio(PluginCall call) {
         final String query = call.getString("query", "").trim();
         final boolean riderVoiceActive = call.getBoolean("voiceActive", false);
+        final boolean groupConnected = call.getBoolean("groupConnected", false);
+        if (groupConnected) {
+            stopRadioPlayer();
+            JSObject out = new JSObject();
+            out.put("ok", false);
+            out.put("message", "Con Rider Voz conectado, la radio queda apagada");
+            call.resolve(out);
+            return;
+        }
         if (!riderVoiceActive) {
             try {
                 AudioManager audio = (AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
@@ -660,7 +679,7 @@ public final class RiderCommandsPlugin extends Plugin {
     }
 
     private void stopRadioPlayer() {
-        ExoPlayer player = radioPlayer; radioPlayer = null; radioStationName = ""; radioDucked = false;
+        ExoPlayer player = radioPlayer; radioPlayer = null; radioStationName = ""; radioDucked = false; radioWakeDuckUntil = 0L;
         if (player != null) {
             try { player.stop(); } catch (Exception ignored) {}
             try { player.release(); } catch (Exception ignored) {}
@@ -671,7 +690,7 @@ public final class RiderCommandsPlugin extends Plugin {
         ExoPlayer player = radioPlayer;
         if (player == null) return;
         try {
-            player.setVolume(ducked ? 0.18f : 1.0f);
+            player.setVolume(ducked ? 0.06f : 1.0f);
             radioDucked = ducked;
         } catch (Exception ignored) {}
     }
