@@ -6,6 +6,7 @@ s='\n'.join(l for l in s.split('\n') if not l.startswith('  const say=text=>'))
 a=s.index('  const runVoiceCommand=raw=>')
 b=s.index('\n',s.index('  let nativeCommandHandle=',a))
 s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null;
+  const riderGroupConnected=()=>voiceActive&&!!window.riderVoiceRtc&&[...window.riderVoiceRtc.peers.values()].some(pc=>pc.connectionState==='connected');
   const riderCommands=window.RiderCommands.create({
     native:commandsNative,
     status:text=>{commandStatus.textContent=text},
@@ -41,7 +42,12 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
     },
     playRadio:async query=>{
       if(!commandsNative?.playRadio)throw new Error('Radio no disponible');
-      return await commandsNative.playRadio({query,voiceActive});
+      const groupConnected=riderGroupConnected();
+      if(groupConnected){
+        if(commandsNative?.stopRadio)await commandsNative.stopRadio().catch(()=>{});
+        return {ok:false,message:'Con Rider Voz conectado, la radio queda apagada'};
+      }
+      return await commandsNative.playRadio({query,voiceActive,groupConnected});
     },
     stopRadio:async()=>{if(commandsNative?.stopRadio)await commandsNative.stopRadio()},
     controlSkatesuv:async action=>{
@@ -55,6 +61,11 @@ s=s[:a]+'''  const commandsNative=window.Capacitor?.Plugins?.RiderCommands||null
 old="if(voiceRecognition){voiceRecognition.onend=null;voiceRecognition.stop();voiceRecognition=null}if(nativeVoice&&nativeCommandsOn)nativeVoice.stopCommandListening().catch(()=>{});if(nativeCommandHandle?.remove)nativeCommandHandle.remove();"
 assert old in s
 s=s.replace(old,"riderCommands.stop().catch(()=>{});")
+# When a real Rider-to-Rider audio link connects, music is disabled immediately.
+rtc_radio_old="setVoiceState('active','Rider Voz conectado · audio en directo');setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)"
+rtc_radio_new="if(commandsNative?.stopRadio)commandsNative.stopRadio().catch(()=>{});setVoiceState('active','Rider Voz conectado · audio en directo');setTimeout(()=>window.riderVoiceRtc?.refreshVoiceQuality?.(),0)"
+assert rtc_radio_old in s
+s=s.replace(rtc_radio_old,rtc_radio_new,1)
 # If command listening already owns the browser microphone, Rider Voz clones that
 # MediaStream instead of opening a second getUserMedia capture.
 capture_old="rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});"
