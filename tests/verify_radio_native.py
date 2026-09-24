@@ -14,6 +14,8 @@ checks = {
     "prueba siguiente stream": "startRadioCandidates(candidates, index + 1",
     "tts no roba foco a radio": "player.setAudioAttributes(attrs, false)",
     "reanuda radio tras tts": "if (rp.getPlaybackState() == Player.STATE_READY && !rp.isPlaying()) rp.play()",
+    "sale de modo voip para radio": "audio.setMode(AudioManager.MODE_NORMAL)",
+    "respeta Rider Voz activo": 'call.getBoolean("voiceActive", false)',
 }
 for label, needle in checks.items():
     if needle not in s:
