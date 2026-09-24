@@ -14,6 +14,7 @@ def non_commands(s,is_new):
   a=s.index('  const commandsNative=');b=s.index('\n',s.index('  commandToggle.onclick=',a))
   s=s[:a]+s[b:]
   s=s.replace('riderCommands.stop().catch(()=>{});','')
+  s=s.replace("const commandInput=riderCommands.getCaptureStream?.();rawVoiceStream=commandInput?.getAudioTracks().some(t=>t.readyState==='live')?commandInput.clone():await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});","rawVoiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation,noiseSuppression:noiseReduction,autoGainControl:true},video:false});")
  else:
   a=s.index('  const runVoiceCommand=raw=>');b=s.index('\n',s.index('  let nativeCommandHandle=',a))
   s=s[:a]+s[b:]

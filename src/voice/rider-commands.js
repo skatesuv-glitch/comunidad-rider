@@ -37,6 +37,10 @@
       this.lastReply = ''; this.handles = []; this.starting = false;
     }
     status(text) { this.o.status(text); }
+    getCaptureStream() {
+      const stream = this.stream;
+      return this.enabled && stream?.getAudioTracks().some(t => t.readyState === 'live') ? stream : null;
+    }
     async start() {
       if (this.enabled || this.starting) return;
       this.starting = true;

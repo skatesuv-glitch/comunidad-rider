@@ -63,3 +63,10 @@ test('recognition is gated during an in-flight spoken response',async()=>{
 test('stale transcript events cannot execute actions',async()=>{
   const {bot,out}=setup();bot.generation=2;await bot.receive('Rider subir volumen',1);assert.equal(out.volume,.5);
 });
+
+test('exposes only a live command capture for Rider Voz reuse',()=>{
+  const {bot}=setup();
+  const live={getAudioTracks:()=>[{readyState:'live'}]}, ended={getAudioTracks:()=>[{readyState:'ended'}]};
+  bot.stream=live;assert.equal(bot.getCaptureStream(),live);
+  bot.stream=ended;assert.equal(bot.getCaptureStream(),null);
+});
