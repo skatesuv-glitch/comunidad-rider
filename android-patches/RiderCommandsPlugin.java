@@ -154,9 +154,17 @@ public final class RiderCommandsPlugin extends Plugin {
                     if (radioCandidate) {
                         processRadioRecognition(bytes);
                     } else if (recognizer.acceptWaveForm(bytes, bytes.length)) {
-                        String text = new JSONObject(recognizer.getResult()).optString("text", "").trim();
-                        if (isRadioLead(text)) beginRadioMode();
-                        else emitTranscript(text, false);
+                        JSONObject result = new JSONObject(recognizer.getResult());
+                        String text = result.optString("text", "").trim();
+                        if (isRadioLead(text)) {
+                            beginRadioMode();
+                        } else if (isProtectedOff(text) && !wasStablePartial(text)) {
+                            recognizer.reset();
+                            lastPartial = "";
+                            partialHits = 0;
+                        } else {
+                            emitTranscript(text, false);
+                        }
                     } else {
                         String partial = new JSONObject(recognizer.getPartialResult()).optString("partial", "").trim();
                         if (partial.isEmpty()) { lastPartial = ""; partialHits = 0; }
@@ -167,7 +175,8 @@ public final class RiderCommandsPlugin extends Plugin {
                             } else {
                                 boolean exact = grammarPhrases.contains(partial);
                                 boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
-                                int stableHits = wakeOnly ? 5 : 2;
+                                boolean protectedOff = isProtectedOff(partial);
+                                int stableHits = wakeOnly ? 5 : (protectedOff ? 4 : 2);
                                 if (exact && partialHits >= stableHits) emitTranscript(partial, true);
                             }
                         }
@@ -191,6 +200,18 @@ public final class RiderCommandsPlugin extends Plugin {
     private void rememberPreRoll(byte[] bytes) {
         preRoll.addLast(Arrays.copyOf(bytes, bytes.length));
         while (preRoll.size() > 12) preRoll.removeFirst();
+    }
+
+    private boolean isProtectedOff(String raw) {
+        String n = normalizeSpeech(raw);
+        return n.equals("rider desactivar rider voz") ||
+               n.equals("rider desactiva rider voz") ||
+               n.equals("raider desactivar raider voz");
+    }
+
+    private boolean wasStablePartial(String raw) {
+        String n = normalizeSpeech(raw);
+        return n.equals(normalizeSpeech(lastPartial)) && partialHits >= 2;
     }
 
     private boolean isRadioLead(String raw) {
