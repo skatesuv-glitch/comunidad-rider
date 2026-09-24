@@ -103,6 +103,32 @@
     ]}
   ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
+  const strictIntents = new Set(['voiceOff','voxOff','leave','emergency','navigationStop','recordStop','yes','no']);
+  const editDistance = (a,b) => {
+    const prev = Array.from({length:b.length+1},(_,i)=>i), cur = new Array(b.length+1);
+    for(let i=1;i<=a.length;i++){
+      cur[0]=i;
+      for(let j=1;j<=b.length;j++) cur[j]=Math.min(
+        cur[j-1]+1, prev[j]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)
+      );
+      for(let j=0;j<=b.length;j++) prev[j]=cur[j];
+    }
+    return prev[b.length];
+  };
+  const fuzzyIntent = order => {
+    if (!order || order.length < 5) return null;
+    let best=null, bestScore=0;
+    for (const [id, phrases] of Object.entries(orders)) {
+      if (strictIntents.has(id)) continue;
+      for (const phrase of phrases) {
+        const max=Math.max(order.length,phrase.length);
+        if (Math.abs(order.length-phrase.length) > Math.max(6, Math.floor(max*.35))) continue;
+        const score=1-(editDistance(order,phrase)/max);
+        if(score>bestScore){best={id,phrase,score};bestScore=score;}
+      }
+    }
+    return bestScore>=0.78 ? best : null;
+  };
   const parse = raw => {
     const text = normalize(raw), wake = /^(?:rider|raider)\b/.test(text);
     const order = wake ? text.replace(/^(?:rider|raider)\b\s*/, '') : text;
@@ -119,6 +145,8 @@
         if (station === 'cadena 100') station = 'Cadena 100';
         return { wake, order, id: 'radioNamed', station };
       }
+      const fuzzy=fuzzyIntent(order);
+      if(fuzzy) return { wake, order, id:fuzzy.id, fuzzy:true, score:fuzzy.score };
     }
     return { wake, order, id: null };
   };
@@ -350,8 +378,15 @@
               const range = Number(d.rangeKm), remaining = Number(d.remainingDistanceKm);
               if (!d.navigationActive || !Number.isFinite(remaining)) await this.reply('Ahora mismo no llevas navegación', false);
               else if (!d.bmsConnected || !Number.isFinite(range) || range <= 0) await this.reply('Aún no tengo datos suficientes para calcularlo', false);
-              else if (range >= remaining) await this.reply('Sí, con la estimación actual llegas. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
-              else await this.reply('Con la estimación actual no llegas. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              else if (range >= remaining) {
+                const margen = range - remaining;
+                await this.reply(margen >= 8
+                  ? 'Sí llegas. Vas sobrado. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining)
+                  : 'Sí llegas, pero sin alegrías. Te quedan unos ' + Math.round(range) + ' kilómetros y faltan ' + spoken(remaining));
+              } else {
+                const falta = remaining - range;
+                await this.reply('Con esa batería no llegas ni de coña. Te faltan unos ' + spoken(falta) + ' kilómetros');
+              }
               break;
             }
             if (id === 'navigationState') {
