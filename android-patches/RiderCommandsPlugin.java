@@ -124,7 +124,7 @@ public final class RiderCommandsPlugin extends Plugin {
             JSONArray phrases = new JSONArray(grammar);
             for (int i = 0; i < phrases.length(); i++) {
                 String phrase = phrases.optString(i, "").trim();
-                if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(phrase);
+                if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(normalizeSpeech(phrase));
             }
         } catch (Exception e) { call.reject("Gramática de comandos no válida"); return; }
         lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; radioCandidate = false; radioCandidateAt = 0; lastRadioChangeAt = 0; preRoll.clear(); lastEmitted = ""; lastEmitAt = 0;
@@ -169,7 +169,9 @@ public final class RiderCommandsPlugin extends Plugin {
                         String text = result.optString("text", "").trim();
                         String normalizedText = normalizeSpeech(text);
                         if (normalizedText.startsWith("rider ") || normalizedText.startsWith("raider ") || normalizedText.equals("rider") || normalizedText.equals("raider")) duckRadioForWake();
-                        if (isRadioLead(text)) {
+                        if (isExactKnownRadio(text)) {
+                            emitTranscript(normalizedText, true);
+                        } else if (isRadioLead(text)) {
                             beginRadioMode();
                         } else if (isProtectedOff(text) && !wasStablePartial(text)) {
                             recognizer.reset();
@@ -185,10 +187,12 @@ public final class RiderCommandsPlugin extends Plugin {
                             String normalizedPartial = normalizeSpeech(partial);
                             if (normalizedPartial.equals("rider") || normalizedPartial.equals("raider") || normalizedPartial.startsWith("rider ") || normalizedPartial.startsWith("raider ")) duckRadioForWake();
                             if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
-                            if (isRadioLead(partial)) {
+                            if (isExactKnownRadio(partial)) {
+                                if (partialHits >= 2) emitTranscript(normalizedPartial, true);
+                            } else if (isRadioLead(partial)) {
                                 beginRadioMode();
                             } else {
-                                boolean exact = grammarPhrases.contains(partial);
+                                boolean exact = grammarPhrases.contains(normalizedPartial);
                                 boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
                                 boolean protectedOff = isProtectedOff(partial);
                                 int stableHits = wakeOnly ? 5 : (protectedOff ? 4 : 2);
@@ -235,6 +239,11 @@ public final class RiderCommandsPlugin extends Plugin {
         main.postDelayed(() -> {
             if (!speaking && radioPlayer != null) setRadioDucked(false);
         }, 5000);
+    }
+
+    private boolean isExactKnownRadio(String raw) {
+        String n = normalizeSpeech(raw);
+        return grammarPhrases.contains(n) && isRadioLead(n);
     }
 
     private boolean isRadioLead(String raw) {
