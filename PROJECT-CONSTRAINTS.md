@@ -19,3 +19,5 @@ La rama `rider-voz-blindada-287` queda como base intocable.
 Todo desarrollo nuevo se hace sobre `rider-voz-trabajo-288`.
 
 Autorización nueva: evolucionar Comandos Rider a asistente/ordenador de a bordo y añadir en Ajustes un desplegable compacto con la lista de comandos. Regla funcional fija: toda orden de usuario debe ir precedida por «Rider»; la ayuda escrita mostrará siempre esa forma.
+
+Comunidad Rider y Rider Voz comparten las mismas fuentes de datos. El asistente no mantiene una segunda lista de Riders ni una base paralela: consulta presencia, grupo y ubicación de Comunidad Rider. Las preguntas de zona respetan el consentimiento de ubicación ya existente; si no está activo, el asistente debe indicarlo y no eludirlo.
