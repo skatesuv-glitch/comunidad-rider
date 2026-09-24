@@ -505,7 +505,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (speechCall == call && id.equals(Long.toString(speechId))) {
                     tts.stop(); finishSpeech(id, "La respuesta de voz ha tardado demasiado");
                 }
-            }, 30000);
+            }, 12000);
         });
     }
     private void finishSpeech(String id, String error) {
