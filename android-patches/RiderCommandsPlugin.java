@@ -2,9 +2,17 @@ package com.eskatesuv.ridervoz;
 
 import android.os.Handler;
 import android.database.Cursor;
+import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
+import android.os.BatteryManager;
 import android.net.Uri;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Base64;
 import com.getcapacitor.*;
@@ -17,6 +25,11 @@ import java.io.*;
 import java.util.Locale;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Comparator;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,6 +52,9 @@ public final class RiderCommandsPlugin extends Plugin {
     private int partialHits;
     private String lastEmitted = "";
     private long lastEmitAt;
+    private MediaPlayer radioPlayer;
+    private String radioStationName = "";
+    private boolean radioDucked;
 
     @Override public void load() {
         main.post(() -> {
@@ -49,6 +65,18 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
                     ttsError = "Instala una voz en español en los ajustes de texto a voz de Android"; return;
                 }
+                // Mantiene el tono del motor del teléfono, pero prioriza la voz española local
+                // de mayor calidad y una cadencia apenas más natural.
+                try {
+                    Voice best = tts.getVoices().stream()
+                        .filter(v -> "es".equals(v.getLocale().getLanguage()))
+                        .filter(v -> !v.isNetworkConnectionRequired())
+                        .max(Comparator.comparingInt((Voice v) ->
+                            v.getQuality() + ("ES".equals(v.getLocale().getCountry()) ? 1000 : 0)))
+                        .orElse(null);
+                    if (best != null) tts.setVoice(best);
+                } catch (Exception ignored) {}
+                tts.setSpeechRate(1.03f);
                 tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                     public void onStart(String id) {}
                     public void onDone(String id) { finishSpeech(id, null); }
@@ -168,9 +196,123 @@ public final class RiderCommandsPlugin extends Plugin {
         }
     }
 
+    @PluginMethod public void getDeviceStatus(PluginCall call) {
+        JSObject result = new JSObject();
+        try {
+            BatteryManager battery = (BatteryManager)getContext().getSystemService(Context.BATTERY_SERVICE);
+            int batteryPercent = battery == null ? -1 : battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            result.put("phoneBatteryPercent", batteryPercent >= 0 ? batteryPercent : JSONObject.NULL);
+
+            ConnectivityManager cm = (ConnectivityManager)getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            boolean online = false;
+            if (cm != null) {
+                android.net.Network network = cm.getActiveNetwork();
+                NetworkCapabilities caps = network == null ? null : cm.getNetworkCapabilities(network);
+                online = caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+            }
+            result.put("internet", online);
+
+            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+            result.put("bluetooth", adapter != null && adapter.isEnabled());
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("No se pudo consultar el estado del teléfono", e);
+        }
+    }
+
+    @PluginMethod public void playRadio(PluginCall call) {
+        final String query = call.getString("query", "").trim();
+        if (query.isEmpty() || query.length() > 80) { call.reject("Emisora no válida"); return; }
+        worker.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
+                URL url = new URL("https://de1.api.radio-browser.info/json/stations/search?name=" +
+                    encoded + "&countrycode=ES&hidebroken=true&order=clickcount&reverse=true&limit=12");
+                connection = (HttpURLConnection)url.openConnection();
+                connection.setConnectTimeout(7000);
+                connection.setReadTimeout(9000);
+                connection.setRequestProperty("User-Agent", "RiderVoz/2.0");
+                StringBuilder body = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    String line; while ((line = reader.readLine()) != null) body.append(line);
+                }
+                JSONArray stations = new JSONArray(body.toString());
+                JSONObject chosen = null;
+                String normalizedQuery = query.toLowerCase(Locale.ROOT).replace("radio ", "").trim();
+                for (int i = 0; i < stations.length(); i++) {
+                    JSONObject station = stations.optJSONObject(i);
+                    if (station == null) continue;
+                    String name = station.optString("name", "").toLowerCase(Locale.ROOT);
+                    if (name.equals(normalizedQuery) || name.contains(normalizedQuery)) { chosen = station; break; }
+                }
+                if (chosen == null && stations.length() > 0) chosen = stations.optJSONObject(0);
+                if (chosen == null) { call.reject("No encontré esa emisora"); return; }
+                String streamUrl = chosen.optString("url_resolved", chosen.optString("url", ""));
+                String stationName = chosen.optString("name", query).trim();
+                if (streamUrl.isEmpty()) { call.reject("La emisora no tiene audio disponible"); return; }
+                final String finalUrl = streamUrl, finalName = stationName;
+                main.post(() -> startRadioPlayer(finalUrl, finalName, call));
+            } catch (Exception e) {
+                call.reject("No se pudo abrir la radio: " + e.getMessage());
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    private void startRadioPlayer(String url, String name, PluginCall call) {
+        try {
+            stopRadioPlayer();
+            MediaPlayer player = new MediaPlayer();
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build());
+            player.setDataSource(url);
+            player.setOnPreparedListener(p -> {
+                radioPlayer = p;
+                radioStationName = name;
+                p.start();
+                JSObject result = new JSObject(); result.put("name", name); call.resolve(result);
+            });
+            player.setOnErrorListener((p, what, extra) -> {
+                try { p.release(); } catch (Exception ignored) {}
+                if (radioPlayer == p) radioPlayer = null;
+                call.reject("La emisora no pudo iniciar la reproducción");
+                return true;
+            });
+            player.prepareAsync();
+        } catch (Exception e) {
+            call.reject("No se pudo reproducir la emisora", e);
+        }
+    }
+
+    @PluginMethod public void stopRadio(PluginCall call) {
+        main.post(() -> { stopRadioPlayer(); call.resolve(); });
+    }
+
+    private void stopRadioPlayer() {
+        MediaPlayer player = radioPlayer; radioPlayer = null; radioStationName = ""; radioDucked = false;
+        if (player != null) {
+            try { player.stop(); } catch (Exception ignored) {}
+            try { player.release(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void setRadioDucked(boolean ducked) {
+        MediaPlayer player = radioPlayer;
+        if (player == null) return;
+        try {
+            player.setVolume(ducked ? 0.18f : 1.0f, ducked ? 0.18f : 1.0f);
+            radioDucked = ducked;
+        } catch (Exception ignored) {}
+    }
+
     @PluginMethod public void speak(PluginCall call) {
         final String text = call.getString("text", "");
         speaking = true; // Gate PCM before the reply; recognition cannot hear its own TTS.
+        setRadioDucked(true);
         main.post(() -> {
             if (!active || !ttsReady || destroyed) { speaking = false; call.reject("La respuesta de voz no está disponible"); return; }
             if (text.isEmpty() || text.length() > 3000) { speaking = false; call.reject("Respuesta de voz no válida"); return; }
@@ -196,6 +338,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (recognizer != null) recognizer.reset();
                 lastPartial = ""; partialHits = 0;
                 speaking = false;
+                setRadioDucked(false);
                 if (error == null) call.resolve(); else call.reject(error);
             }), 250);
         });
@@ -229,7 +372,7 @@ public final class RiderCommandsPlugin extends Plugin {
     @Override protected void handleOnDestroy() {
         generation.incrementAndGet(); destroyed = true; active = false;
         main.removeCallbacksAndMessages(null);
-        main.post(() -> { if (tts != null) { tts.stop(); tts.shutdown(); } });
+        main.post(() -> { stopRadioPlayer(); if (tts != null) { tts.stop(); tts.shutdown(); } });
         worker.execute(() -> { if (recognizer != null) { recognizer.close(); recognizer = null; } if (model != null) { model.close(); model = null; } });
         // Delayed callbacks may still drain. No work is accepted from JS after plugin destruction.
         super.handleOnDestroy();
