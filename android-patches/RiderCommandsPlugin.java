@@ -668,12 +668,14 @@ public final class RiderCommandsPlugin extends Plugin {
     }
 
     private void setRadioDucked(boolean ducked) {
-        ExoPlayer player = radioPlayer;
-        if (player == null) return;
-        try {
-            player.setVolume(ducked ? 0.18f : 1.0f);
-            radioDucked = ducked;
-        } catch (Exception ignored) {}
+        main.post(() -> {
+            ExoPlayer player = radioPlayer;
+            if (player == null) return;
+            try {
+                player.setVolume(ducked ? 0.06f : 1.0f);
+                radioDucked = ducked;
+            } catch (Exception ignored) {}
+        });
     }
 
     @PluginMethod public void speak(PluginCall call) {
