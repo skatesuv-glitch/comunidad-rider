@@ -121,8 +121,10 @@
     }
     return { wake, order, id: null };
   };
+  const radioPrefixes = ['pon','ponme','reproduce','escucha'];
   const grammar = [...new Set(['rider', 'raider', '[unk]',
-    ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p))])];
+    ...['rider', 'raider'].flatMap(w => Object.values(orders).flat().map(p => w + ' ' + p)),
+    ...['rider', 'raider'].flatMap(w => radioPrefixes.map(p => w + ' ' + p))])];
 
   class Bot {
     constructor(options) {
