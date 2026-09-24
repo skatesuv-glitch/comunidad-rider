@@ -2,11 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Bot, parse, helpGroups } = require('../src/voice/rider-commands.js');
 function setup(overrides = {}) {
-  const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true };
+  const out = { volume: .5, vox: true, said: [], left: 0, emergency: 0, voice: true, route:'speaker', radio:null };
   const bot = new Bot({ native: { speak: async ({text}) => out.said.push(text) }, status:()=>{}, toggle:()=>{},
     confirmations:()=>true, getVolume:()=>out.volume,setVolume:v=>out.volume=v,setVox:async v=>out.vox=v,
     getRiders:async()=>[{name:'Ana'},{name:'David'}],getNearbyRiders:async()=>({available:true,riders:[{name:'Ana'}]}),
-    getOnboard:async()=>({available:true,ageMs:100,data:{speedKmh:23.6,tripDistanceKm:12.4,bmsConnected:true,batteryPercent:62,rangeKm:31,navigationActive:true,remainingDistanceKm:8.3,remainingMinutes:22,etaEpochMs:Date.now()+22*60000,nextInstruction:'Gira a la derecha',nextInstructionDistanceMeters:300}}),
+    getOnboard:async()=>({available:true,ageMs:100,data:{speedKmh:23.6,tripDistanceKm:12.4,elapsedSeconds:3120,averageSpeedKmh:14.3,maximumSpeedKmh:38.7,bmsConnected:true,batteryPercent:62,rangeKm:31,gpsAvailable:true,navigationActive:true,remainingDistanceKm:8.3,remainingMinutes:22,etaEpochMs:Date.now()+22*60000,nextInstruction:'Gira a la derecha',nextInstructionDistanceMeters:300,recordingActive:true,recordingPaused:false}}),
+    getDeviceStatus:async()=>({phoneBatteryPercent:71,internet:true,bluetooth:true}),
+    isVoiceActive:()=>out.voice,isVoxActive:()=>out.vox,
+    setAudioRoute:async route=>{out.route=route;return true},
+    playRadio:async query=>{out.radio=query;return {name:'Rock FM'}},stopRadio:async()=>{out.radio=null},
     startVoice:async()=>true,stopVoice:()=>out.voice=false,
     leave:()=>out.left++, emergency:()=>out.emergency++, ...overrides });
   bot.enabled=true;return { bot,out };
@@ -129,4 +133,51 @@ test('unknown confirmation says Repite and keeps pending action',async()=>{
   await bot.receive('Rider no');
   assert.equal(out.left,0);
   assert.equal(bot.pending,null);
+});
+
+test('time, trip metrics and phone state commands work',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider que hora es');assert.match(out.said.at(-1),/^Son las \d{2}:\d{2}$/);
+  await bot.receive('Rider cuanto tiempo llevo');assert.equal(out.said.at(-1),'Llevas 52 minutos');
+  await bot.receive('Rider cual es mi velocidad media');assert.equal(out.said.at(-1),'Tu velocidad media es de 14 kilómetros por hora');
+  await bot.receive('Rider cual ha sido mi velocidad maxima');assert.equal(out.said.at(-1),'Tu velocidad máxima es de 39 kilómetros por hora');
+  await bot.receive('Rider que bateria tiene el movil');assert.equal(out.said.at(-1),'El móvil tiene un 71 por ciento de batería');
+});
+
+test('navigation, GPS and battery reach answers use real snapshot',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider esta activa la navegacion');assert.equal(out.said.at(-1),'La navegación está activa');
+  await bot.receive('Rider repite la ultima indicacion');assert.equal(out.said.at(-1),'Gira a la derecha');
+  await bot.receive('Rider tengo gps');assert.equal(out.said.at(-1),'GPS activo');
+  await bot.receive('Rider esta grabando la ruta');assert.equal(out.said.at(-1),'La ruta se está grabando');
+  await bot.receive('Rider llego al destino con esta bateria');assert.match(out.said.at(-1),/estimación actual.*31 kilómetros.*8,3/);
+});
+
+test('internet bluetooth Rider Voz and audio route commands',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider tengo internet');assert.equal(out.said.at(-1),'Tienes conexión a Internet');
+  await bot.receive('Rider tengo bluetooth');assert.equal(out.said.at(-1),'Bluetooth activo');
+  await bot.receive('Rider esta activo rider voz');assert.equal(out.said.at(-1),'Rider Voz está activo');
+  await bot.receive('Rider esta activo manos libres');assert.equal(out.said.at(-1),'Manos libres activo');
+  await bot.receive('Rider usar bluetooth');assert.equal(out.route,'bluetooth');
+  await bot.receive('Rider usar altavoz');assert.equal(out.route,'speaker');
+});
+
+test('radio and short help commands',async()=>{
+  const {bot,out}=setup();
+  await bot.receive('Rider pon rock fm');assert.equal(out.radio,'Rock FM');assert.equal(out.said.at(-1),'Poniendo Rock FM');
+  await bot.receive('Rider para la radio');assert.equal(out.radio,null);assert.equal(out.said.at(-1),'Radio detenida');
+  await bot.receive('Rider que puedes hacer');assert.match(out.said.at(-1),/marcha, navegación, batería, Comunidad Rider, audio, conexiones y radio/);
+});
+
+test('settings catalogue includes every public command family',()=>{
+  const all=helpGroups.flatMap(g=>g.commands);
+  const expected=[
+    'Rider, ¿qué hora es?','Rider, ¿cuánto tiempo llevo?','Rider, ¿cuál es mi velocidad media?',
+    'Rider, ¿cuál ha sido mi velocidad máxima?','Rider, ¿qué batería tiene el móvil?',
+    'Rider, ¿llego al destino con esta batería?','Rider, ¿está activa la navegación?',
+    'Rider, repite la última indicación','Rider, ¿tengo GPS?','Rider, ¿tengo Internet?',
+    'Rider, ¿tengo Bluetooth?','Rider, pon Rock FM','Rider, para la radio'
+  ];
+  for(const command of expected)assert.ok(all.includes(command),command);
 });
