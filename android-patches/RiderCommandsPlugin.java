@@ -28,6 +28,9 @@ import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Comparator;
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -39,6 +42,7 @@ import java.util.concurrent.Executors;
 @CapacitorPlugin(name = "RiderCommands")
 public final class RiderCommandsPlugin extends Plugin {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService ioWorker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private Model model;
     private Recognizer recognizer;
@@ -56,6 +60,9 @@ public final class RiderCommandsPlugin extends Plugin {
     private int radioPartialHits;
     private boolean radioCandidate;
     private long radioCandidateAt;
+    private long lastRadioChangeAt;
+    private final ArrayDeque<byte[]> preRoll = new ArrayDeque<>();
+    private final ConcurrentHashMap<String,String[]> radioCache = new ConcurrentHashMap<>();
     private int partialHits;
     private String lastEmitted = "";
     private long lastEmitAt;
@@ -108,7 +115,7 @@ public final class RiderCommandsPlugin extends Plugin {
                 if (!phrase.isEmpty() && !"[unk]".equals(phrase)) grammarPhrases.add(phrase);
             }
         } catch (Exception e) { call.reject("Gramática de comandos no válida"); return; }
-        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; radioCandidate = false; radioCandidateAt = 0; lastEmitted = ""; lastEmitAt = 0;
+        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; radioCandidate = false; radioCandidateAt = 0; lastRadioChangeAt = 0; preRoll.clear(); lastEmitted = ""; lastEmitAt = 0;
         worker.execute(() -> {
             try {
                 active = false;
@@ -142,20 +149,26 @@ public final class RiderCommandsPlugin extends Plugin {
             try {
                 if (active && !speaking && recognizer != null) {
                     byte[] bytes = Base64.decode(pcm, Base64.NO_WRAP);
-                    processRadioRecognition(bytes);
-                    if (recognizer.acceptWaveForm(bytes, bytes.length)) {
+                    rememberPreRoll(bytes);
+                    if (radioCandidate) {
+                        processRadioRecognition(bytes);
+                    } else if (recognizer.acceptWaveForm(bytes, bytes.length)) {
                         String text = new JSONObject(recognizer.getResult()).optString("text", "").trim();
-                        emitTranscript(text, false);
+                        if (isRadioPrefix(text)) beginRadioMode();
+                        else emitTranscript(text, false);
                     } else {
                         String partial = new JSONObject(recognizer.getPartialResult()).optString("partial", "").trim();
                         if (partial.isEmpty()) { lastPartial = ""; partialHits = 0; }
                         else {
                             if (partial.equals(lastPartial)) partialHits++; else { lastPartial = partial; partialHits = 1; }
-                            boolean exact = grammarPhrases.contains(partial);
-                            boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
-                            boolean radioInProgress = radioCandidate && System.currentTimeMillis() - radioCandidateAt < 3000;
-                            int stableHits = wakeOnly ? 5 : 2;
-                            if (exact && partialHits >= stableHits && !(wakeOnly && radioInProgress)) emitTranscript(partial, true);
+                            if (isRadioPrefix(partial)) {
+                                beginRadioMode();
+                            } else {
+                                boolean exact = grammarPhrases.contains(partial);
+                                boolean wakeOnly = "rider".equals(partial) || "raider".equals(partial);
+                                int stableHits = wakeOnly ? 5 : 2;
+                                if (exact && partialHits >= stableHits) emitTranscript(partial, true);
+                            }
                         }
                     }
                 }
@@ -164,24 +177,72 @@ public final class RiderCommandsPlugin extends Plugin {
         });
     }
 
+    private void rememberPreRoll(byte[] bytes) {
+        preRoll.addLast(Arrays.copyOf(bytes, bytes.length));
+        while (preRoll.size() > 12) preRoll.removeFirst();
+    }
+
+    private boolean isRadioPrefix(String raw) {
+        String n = normalizeSpeech(raw);
+        return n.matches("^(rider|raider) (pon|ponme|reproduce|escucha)$");
+    }
+
+    private void beginRadioMode() {
+        if (radioCandidate || radioRecognizer == null) return;
+        radioCandidate = true;
+        radioCandidateAt = System.currentTimeMillis();
+        lastRadioPartial = "";
+        radioPartialHits = 0;
+        lastRadioChangeAt = radioCandidateAt;
+        try {
+            radioRecognizer.reset();
+            for (byte[] chunk : preRoll) radioRecognizer.acceptWaveForm(chunk, chunk.length);
+        } catch (Exception ignored) {}
+        main.post(() -> setRadioDucked(true));
+    }
+
+    private void endRadioMode(boolean accepted) {
+        radioCandidate = false;
+        radioCandidateAt = 0;
+        lastRadioPartial = "";
+        radioPartialHits = 0;
+        lastRadioChangeAt = 0;
+        preRoll.clear();
+        try { if (radioRecognizer != null) radioRecognizer.reset(); } catch (Exception ignored) {}
+        try { if (recognizer != null) recognizer.reset(); } catch (Exception ignored) {}
+        main.post(() -> setRadioDucked(false));
+    }
+
     private void processRadioRecognition(byte[] bytes) {
-        if (radioRecognizer == null || speaking || !active) return;
+        if (radioRecognizer == null || speaking || !active || !radioCandidate) return;
+        long now = System.currentTimeMillis();
+        if (now - radioCandidateAt > 4500) {
+            endRadioMode(false);
+            return;
+        }
         try {
             if (radioRecognizer.acceptWaveForm(bytes, bytes.length)) {
                 String text = new JSONObject(radioRecognizer.getResult()).optString("text", "").trim();
-                maybeEmitRadio(text, true);
+                if (!maybeEmitRadio(text, true)) endRadioMode(false);
             } else {
                 String partial = new JSONObject(radioRecognizer.getPartialResult()).optString("partial", "").trim();
-                if (partial.isEmpty()) { lastRadioPartial = ""; radioPartialHits = 0; return; }
-                String normalizedPartial = normalizeSpeech(partial);
-                if (normalizedPartial.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( .*)?")) {
-                    radioCandidate = true;
-                    radioCandidateAt = System.currentTimeMillis();
+                if (partial.isEmpty()) return;
+                if (partial.equals(lastRadioPartial)) {
+                    radioPartialHits++;
+                } else {
+                    lastRadioPartial = partial;
+                    radioPartialHits = 1;
+                    lastRadioChangeAt = now;
                 }
-                if (partial.equals(lastRadioPartial)) radioPartialHits++; else { lastRadioPartial = partial; radioPartialHits = 1; }
-                if (radioPartialHits >= 3) maybeEmitRadio(partial, false);
+                String normalized = normalizeSpeech(partial);
+                String stationTail = extractStationTail(normalized);
+                if (!stationTail.isEmpty() && radioPartialHits >= 2 && now - lastRadioChangeAt >= 650) {
+                    if (maybeEmitRadio(partial, false)) endRadioMode(true);
+                }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            endRadioMode(false);
+        }
     }
 
     private String normalizeSpeech(String raw) {
@@ -192,20 +253,20 @@ public final class RiderCommandsPlugin extends Plugin {
             .trim();
     }
 
-    private void maybeEmitRadio(String raw, boolean finalResult) {
-        if (raw == null || raw.trim().isEmpty()) return;
+    private String extractStationTail(String normalized) {
+        if (normalized == null) return "";
+        String tail = normalized.replaceFirst("^(rider|raider) (pon|ponme|reproduce|escucha)( la radio)? ", "").trim();
+        return tail.equals(normalized) ? "" : tail;
+    }
+
+    private boolean maybeEmitRadio(String raw, boolean finalResult) {
+        if (raw == null || raw.trim().isEmpty()) return false;
         String normalized = normalizeSpeech(raw);
-        boolean radio = normalized.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? .+");
-        if (!radio) return;
-        radioCandidate = true;
-        radioCandidateAt = System.currentTimeMillis();
-        if (grammarPhrases.contains(normalized)) return;
-        if (normalized.endsWith(" altavoz") || normalized.endsWith(" bluetooth") || normalized.endsWith(" sonido")) return;
-        String stationTail = normalized.replaceFirst("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? ", "").trim();
-        if (!finalResult && stationTail.split(" ").length < 2) return;
-        emitTranscript(normalized, finalResult);
-        lastRadioPartial = ""; radioPartialHits = 0;
-        if (finalResult && radioRecognizer != null) radioRecognizer.reset();
+        String stationTail = extractStationTail(normalized);
+        if (stationTail.isEmpty()) return false;
+        if (stationTail.equals("altavoz") || stationTail.equals("bluetooth") || stationTail.equals("sonido")) return false;
+        emitTranscript(normalized, true);
+        return true;
     }
 
     private void emitTranscript(String text, boolean resetAfter) {
@@ -297,8 +358,16 @@ public final class RiderCommandsPlugin extends Plugin {
 
     @PluginMethod public void playRadio(PluginCall call) {
         final String query = call.getString("query", "").trim();
-        if (query.isEmpty() || query.length() > 80) { call.reject("Emisora no válida"); return; }
-        worker.execute(() -> {
+        if (query.isEmpty() || query.length() > 80) {
+            JSObject out = new JSObject(); out.put("ok", false); out.put("message", "Emisora no válida"); call.resolve(out); return;
+        }
+        String cacheKey = normalizeSpeech(query);
+        String[] cached = radioCache.get(cacheKey);
+        if (cached != null) {
+            main.post(() -> startRadioPlayer(cached[0], cached[1], call));
+            return;
+        }
+        ioWorker.execute(() -> {
             HttpURLConnection connection = null;
             try {
                 String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
@@ -322,14 +391,19 @@ public final class RiderCommandsPlugin extends Plugin {
                     if (name.equals(normalizedQuery) || name.contains(normalizedQuery)) { chosen = station; break; }
                 }
                 if (chosen == null && stations.length() > 0) chosen = stations.optJSONObject(0);
-                if (chosen == null) { call.reject("No encontré esa emisora"); return; }
+                if (chosen == null) {
+                    JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No encuentro esa emisora"); call.resolve(out); return;
+                }
                 String streamUrl = chosen.optString("url_resolved", chosen.optString("url", ""));
                 String stationName = chosen.optString("name", query).trim();
-                if (streamUrl.isEmpty()) { call.reject("La emisora no tiene audio disponible"); return; }
+                if (streamUrl.isEmpty()) {
+                    JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora no tiene audio disponible"); call.resolve(out); return;
+                }
+                radioCache.put(cacheKey, new String[]{streamUrl, stationName});
                 final String finalUrl = streamUrl, finalName = stationName;
                 main.post(() -> startRadioPlayer(finalUrl, finalName, call));
             } catch (Exception e) {
-                call.reject("No se pudo abrir la radio: " + e.getMessage());
+                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No pude conectar con la radio"); call.resolve(out);
             } finally {
                 if (connection != null) connection.disconnect();
             }
@@ -349,17 +423,17 @@ public final class RiderCommandsPlugin extends Plugin {
                 radioPlayer = p;
                 radioStationName = name;
                 p.start();
-                JSObject result = new JSObject(); result.put("name", name); call.resolve(result);
+                JSObject result = new JSObject(); result.put("ok", true); result.put("name", name); call.resolve(result);
             });
             player.setOnErrorListener((p, what, extra) -> {
                 try { p.release(); } catch (Exception ignored) {}
                 if (radioPlayer == p) radioPlayer = null;
-                call.reject("La emisora no pudo iniciar la reproducción");
+                JSObject out = new JSObject(); out.put("ok", false); out.put("message", "La emisora no pudo iniciar la reproducción"); call.resolve(out);
                 return true;
             });
             player.prepareAsync();
         } catch (Exception e) {
-            call.reject("No se pudo reproducir la emisora", e);
+            JSObject out = new JSObject(); out.put("ok", false); out.put("message", "No se pudo reproducir la emisora"); call.resolve(out);
         }
     }
 
@@ -422,7 +496,7 @@ public final class RiderCommandsPlugin extends Plugin {
 
     @PluginMethod public void stop(PluginCall call) {
         generation.incrementAndGet(); active = false;
-        lastPartial = ""; partialHits = 0; lastEmitted = ""; lastEmitAt = 0;
+        lastPartial = ""; partialHits = 0; lastRadioPartial = ""; radioPartialHits = 0; radioCandidate = false; radioCandidateAt = 0; lastRadioChangeAt = 0; preRoll.clear(); lastEmitted = ""; lastEmitAt = 0;
         main.post(() -> {
             ++speechId;
             if (tts != null) tts.stop();
@@ -450,6 +524,7 @@ public final class RiderCommandsPlugin extends Plugin {
         generation.incrementAndGet(); destroyed = true; active = false;
         main.removeCallbacksAndMessages(null);
         main.post(() -> { stopRadioPlayer(); if (tts != null) { tts.stop(); tts.shutdown(); } });
+        ioWorker.shutdownNow();
         worker.execute(() -> { if (recognizer != null) { recognizer.close(); recognizer = null; } if (radioRecognizer != null) { radioRecognizer.close(); radioRecognizer = null; } if (model != null) { model.close(); model = null; } });
         // Delayed callbacks may still drain. No work is accepted from JS after plugin destruction.
         super.handleOnDestroy();
