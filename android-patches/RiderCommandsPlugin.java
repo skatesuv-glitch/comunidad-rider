@@ -186,6 +186,8 @@ public final class RiderCommandsPlugin extends Plugin {
         boolean radio = normalized.matches("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? .+");
         if (!radio) return;
         if (normalized.endsWith(" altavoz") || normalized.endsWith(" bluetooth") || normalized.endsWith(" sonido")) return;
+        String stationTail = normalized.replaceFirst("^(rider|raider) (pon|ponme|reproduce|escucha)( la)?( radio)? ", "").trim();
+        if (!finalResult && stationTail.split(" ").length < 2) return;
         emitTranscript(normalized, finalResult);
         lastRadioPartial = ""; radioPartialHits = 0;
         if (finalResult && radioRecognizer != null) radioRecognizer.reset();
@@ -286,7 +288,7 @@ public final class RiderCommandsPlugin extends Plugin {
             try {
                 String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
                 URL url = new URL("https://de1.api.radio-browser.info/json/stations/search?name=" +
-                    encoded + "&countrycode=ES&hidebroken=true&order=clickcount&reverse=true&limit=12");
+                    encoded + "&hidebroken=true&order=clickcount&reverse=true&limit=20");
                 connection = (HttpURLConnection)url.openConnection();
                 connection.setConnectTimeout(7000);
                 connection.setReadTimeout(9000);
@@ -372,8 +374,8 @@ public final class RiderCommandsPlugin extends Plugin {
         speaking = true; // Gate PCM before the reply; recognition cannot hear its own TTS.
         setRadioDucked(true);
         main.post(() -> {
-            if (!active || !ttsReady || destroyed) { speaking = false; call.reject("La respuesta de voz no está disponible"); return; }
-            if (text.isEmpty() || text.length() > 3000) { speaking = false; call.reject("Respuesta de voz no válida"); return; }
+            if (!active || !ttsReady || destroyed) { speaking = false; setRadioDucked(false); call.reject("La respuesta de voz no está disponible"); return; }
+            if (text.isEmpty() || text.length() > 3000) { speaking = false; setRadioDucked(false); call.reject("Respuesta de voz no válida"); return; }
             if (speechCall != null) { speaking = true; call.reject("Ya se está reproduciendo una respuesta"); return; }
             speechCall = call;
             String id = Long.toString(++speechId);
