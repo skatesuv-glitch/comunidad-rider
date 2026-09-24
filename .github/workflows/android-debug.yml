@@ -30,10 +30,6 @@ jobs:
           mkdir -p www/vendor
           cp node_modules/leaflet/dist/leaflet.js www/vendor/leaflet.js
           cp node_modules/leaflet/dist/leaflet.css www/vendor/leaflet.css
-      - name: Restore approved Community Rider image
-        run: |
-          cat www/assets/community_cover_*.part | tr -d '\n\r ' | base64 -d > www/assets/community-approved.png
-          test -s www/assets/community-approved.png
       - run: npx cap add android
       - run: npx cap sync android
       - name: Build debug APK
