@@ -21,6 +21,21 @@
     yes: ['si', 'confirmar', 'confirmo', 'si confirmar'],
     no: ['no', 'cancelar', 'cancela']
   };
+  const helpGroups = [
+    { title: 'Audio', commands: [
+      'Rider, subir volumen', 'Rider, bajar volumen', 'Rider, silenciar', 'Rider, activar sonido'
+    ]},
+    { title: 'Rider Voz', commands: [
+      'Rider, activar Rider Voz', 'Rider, desactivar Rider Voz',
+      'Rider, activar manos libres', 'Rider, desactivar manos libres'
+    ]},
+    { title: 'Grupo', commands: [
+      'Rider, ¿quién está conectado?', 'Rider, ¿cuántos Riders hay?', 'Rider, salir del grupo'
+    ]},
+    { title: 'Asistente', commands: [
+      'Rider, repetir último mensaje', 'Rider, emergencia'
+    ]}
+  ];
   const lookup = new Map(Object.entries(orders).flatMap(([id, phrases]) => phrases.map(p => [p, id])));
   const parse = raw => {
     const text = normalize(raw), wake = /^(?:rider|raider)\b/.test(text);
@@ -163,7 +178,7 @@
       } finally { if (run === this.generation) this.busy = false; }
     }
   }
-  const api = { parse, grammar, Bot, create: options => new Bot(options) };
+  const api = { parse, grammar, helpGroups, Bot, create: options => new Bot(options) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RiderCommands = api;
 })(typeof window === 'undefined' ? globalThis : window);
