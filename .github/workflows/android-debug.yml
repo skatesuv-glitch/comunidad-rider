@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, rider-voice-clean-rebuild]
   pull_request:
-    branches: [main]
+    branches: [main, rider-voice-clean-rebuild]
 jobs:
   build:
     runs-on: ubuntu-latest
