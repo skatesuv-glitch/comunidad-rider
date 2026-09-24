@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.database.Cursor;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
+import android.media.AudioManager;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
@@ -17,6 +18,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.net.Uri;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
@@ -456,6 +458,20 @@ public final class RiderCommandsPlugin extends Plugin {
 
     @PluginMethod public void playRadio(PluginCall call) {
         final String query = call.getString("query", "").trim();
+        final boolean riderVoiceActive = call.getBoolean("voiceActive", false);
+        if (!riderVoiceActive) {
+            try {
+                AudioManager audio = (AudioManager)getContext().getSystemService(Context.AUDIO_SERVICE);
+                if (audio != null && audio.getMode() == AudioManager.MODE_IN_COMMUNICATION) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try { audio.clearCommunicationDevice(); } catch (Exception ignored) {}
+                    }
+                    try { audio.stopBluetoothSco(); } catch (Exception ignored) {}
+                    try { audio.setBluetoothScoOn(false); } catch (Exception ignored) {}
+                    audio.setMode(AudioManager.MODE_NORMAL);
+                }
+            } catch (Exception ignored) {}
+        }
         if (query.isEmpty() || query.length() > 80) {
             JSObject out = new JSObject(); out.put("ok", false); out.put("message", "Emisora no válida"); call.resolve(out); return;
         }
