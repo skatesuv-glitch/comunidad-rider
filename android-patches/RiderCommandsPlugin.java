@@ -559,7 +559,7 @@ public final class RiderCommandsPlugin extends Plugin {
 
     private String radioError(PlaybackException error) {
         if (error == null) return "error desconocido";
-        String name = error.errorCodeName;
+        String name = error.getErrorCodeName();
         if (name == null || name.isEmpty()) name = "código " + error.errorCode;
         return name.replace("ERROR_CODE_", "").toLowerCase(Locale.ROOT).replace('_', ' ');
     }
