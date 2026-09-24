@@ -2,7 +2,7 @@ name: Android debug APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, rider-voice-clean-rebuild, rider-voz-blindada-287, rider-voz-trabajo-294]
+    branches: [main, rider-voice-clean-rebuild, rider-voz-blindada-287, rider-voz-trabajo-295]
   pull_request:
     branches: [main, rider-voice-clean-rebuild]
 jobs:
@@ -24,6 +24,7 @@ jobs:
           node --check www/app.js
           node --test tests/commands.test.js
           python3 tests/verify_base.py
+          python3 tests/verify_radio_native.py
       - run: npx cap add android && npx cap sync android
       - name: Install offline command engine
         run: |
@@ -36,7 +37,7 @@ jobs:
         run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: rider-voz-trabajo-289
+          name: rider-voz-trabajo-295
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Export apksigner tool
