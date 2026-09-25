@@ -56,12 +56,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "9ad73607f59ecdbc7a0a72ef4a6f899ad33ac7b2"
+          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "70a18c3c8364f5f277e36f30c5be18b4496a8dd2"
           test "$(git hash-object project/app/src/main/assets/public/community/index.html)" = "4992b04a4fb81514a8efa384dce3aab7c54363e4"
           test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "d5ae2cbb9dcb3fa9a2bb2119989143f36161c640"
-          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "d576792481a8129df467b3fac127aa6a5ba02076"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "91186f765d9968ea9fe161fb22d01310c7cef415"
           test "$(git hash-object project/app/src/main/assets/public/ridervoz/styles.css)" = "3bca32a95733166475ca002cdf6f30d3efe8d4f5"
-          test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "5b92c8b08332c75716dde619e3e5886ccfe44956"
+          test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "2422285e07bf24f78580c1e3db4efb70125a6cde"
           test "$(git hash-object project/scripts/campo_map_patch.py)" = "f40dd2383cd90a513d77e62626123128e26e136f"
           grep -q "COMUNIDAD → HABLAR" project/BIBLIA-INTEGRACION.md
           echo "Tres piezas bloqueadas: OK"
@@ -201,7 +201,13 @@ jobs:
           ! grep -q "bottomNav{display:none!important}" app/src/main/assets/public/community/styles.css
           ! grep -q "rvNav{display:none!important}" app/src/main/assets/public/ridervoz/styles.css
           ! grep -q "document.body.classList.remove('pickerOpen');home()" app/src/main/assets/public/ridervoz/app.js
-          echo "Cableado interno Comunidad + Voz + SKATESUV: OK"
+          grep -q "rider_commands_enabled" app/src/main/assets/public/ridervoz/app.js
+          grep -q "semanticIntent" app/src/main/assets/public/ridervoz/app.js
+          grep -q "new Recognizer(model, rate);" app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java
+          ! grep -q "new Recognizer(model, rate, grammar)" app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java
+          grep -q 'data-main-nav="SETTINGS".*AJUSTES.*data-main-nav="COMMUNITY".*COMUNIDAD' app/src/main/assets/public/ridervoz/app.js
+          grep -q 'data-nav="ajustes".*AJUSTES.*data-nav="comunidad".*COMUNIDAD' app/src/main/assets/public/community/app.js
+          echo "Cableado interno Comunidad + Voz + SKATESUV + comandos naturales: OK"
 
       - name: Setup Gradle 8.14.3
         uses: gradle/actions/setup-gradle@v4
