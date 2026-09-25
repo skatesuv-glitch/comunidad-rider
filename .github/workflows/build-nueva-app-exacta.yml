@@ -56,11 +56,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "220faedb558515e898b9f8f96e2af5ef758d4f29"
+          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "9ad73607f59ecdbc7a0a72ef4a6f899ad33ac7b2"
           test "$(git hash-object project/app/src/main/assets/public/community/index.html)" = "4992b04a4fb81514a8efa384dce3aab7c54363e4"
-          test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "36071fd11f14245e075366435e6881a1e339e89f"
-          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "55e7c3f6d69547aa9e37ad547d202942b72c94de"
-          test "$(git hash-object project/app/src/main/assets/public/ridervoz/styles.css)" = "7810c8e8bee0cca4d5ebf0a38f4c44ab5d981532"
+          test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "d5ae2cbb9dcb3fa9a2bb2119989143f36161c640"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "d576792481a8129df467b3fac127aa6a5ba02076"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/styles.css)" = "3bca32a95733166475ca002cdf6f30d3efe8d4f5"
           test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "5b92c8b08332c75716dde619e3e5886ccfe44956"
           test "$(git hash-object project/scripts/campo_map_patch.py)" = "f40dd2383cd90a513d77e62626123128e26e136f"
           grep -q "COMUNIDAD → HABLAR" project/BIBLIA-INTEGRACION.md
@@ -189,9 +189,17 @@ jobs:
           grep -q "RECORD_AUDIO" app/src/main/AndroidManifest.xml
           grep -q "FOREGROUND_SERVICE_MICROPHONE" app/src/main/AndroidManifest.xml
           grep -q "closeModule" app/src/main/java/com/skatesuv/eskate/SkateIntegrationPlugin.java
-          grep -q "display:none!important}.appShell" app/src/main/assets/public/community/styles.css
-          grep -q "rvNav{display:none!important}" app/src/main/assets/public/ridervoz/styles.css
-          grep -q "SkateIntegration" app/src/main/assets/public/ridervoz/app.js
+          grep -q "openMainScreen" app/src/main/assets/public/community/app.js
+          grep -q "data-nav=\"comunidad\"" app/src/main/assets/public/community/app.js
+          grep -q "data-main-nav=\"HOME\"" app/src/main/assets/public/ridervoz/app.js
+          grep -q "data-main-nav=\"MAP\"" app/src/main/assets/public/ridervoz/app.js
+          grep -q "data-main-nav=\"SETTINGS\"" app/src/main/assets/public/ridervoz/app.js
+          grep -q "openMainScreen" app/src/main/assets/public/ridervoz/app.js
+          grep -q "AppNavigationBridge.requestedScreen" app/src/main/java/com/skatesuv/eskate/MainActivity.kt
+          grep -q "public void openMainScreen" app/src/main/java/com/skatesuv/eskate/SkateIntegrationPlugin.java
+          test -s app/src/main/java/com/skatesuv/eskate/AppNavigationBridge.kt
+          ! grep -q "bottomNav{display:none!important}" app/src/main/assets/public/community/styles.css
+          ! grep -q "rvNav{display:none!important}" app/src/main/assets/public/ridervoz/styles.css
           ! grep -q "document.body.classList.remove('pickerOpen');home()" app/src/main/assets/public/ridervoz/app.js
           echo "Cableado interno Comunidad + Voz + SKATESUV: OK"
 
