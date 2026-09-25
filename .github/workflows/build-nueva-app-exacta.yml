@@ -56,10 +56,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "a49f4ac80c35ac36e56a8187aa9d1481bb0afc09"
+          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "220faedb558515e898b9f8f96e2af5ef758d4f29"
           test "$(git hash-object project/app/src/main/assets/public/community/index.html)" = "4992b04a4fb81514a8efa384dce3aab7c54363e4"
           test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "2178df9dca304ef85acedb2d05ab61a041849cc9"
-          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "1f323a6fce4b855d9f51d69ea0f6743e3450ca8c"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "55e7c3f6d69547aa9e37ad547d202942b72c94de"
           test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "5b92c8b08332c75716dde619e3e5886ccfe44956"
           test "$(git hash-object project/scripts/campo_map_patch.py)" = "f40dd2383cd90a513d77e62626123128e26e136f"
           grep -q "COMUNIDAD → HABLAR" project/BIBLIA-INTEGRACION.md
@@ -187,6 +187,11 @@ jobs:
           grep -q "RiderAssistantProvider" app/src/main/AndroidManifest.xml
           grep -q "RECORD_AUDIO" app/src/main/AndroidManifest.xml
           grep -q "FOREGROUND_SERVICE_MICROPHONE" app/src/main/AndroidManifest.xml
+          grep -q "closeModule" app/src/main/java/com/skatesuv/eskate/SkateIntegrationPlugin.java
+          grep -q "display:none!important}.appShell" app/src/main/assets/public/community/styles.css
+          grep -q "rvNav{display:none!important}" app/src/main/assets/public/ridervoz/styles.css
+          grep -q "SkateIntegration" app/src/main/assets/public/ridervoz/app.js
+          ! grep -q "document.body.classList.remove('pickerOpen');home()" app/src/main/assets/public/ridervoz/app.js
           echo "Cableado interno Comunidad + Voz + SKATESUV: OK"
 
       - name: Setup Gradle 8.14.3
