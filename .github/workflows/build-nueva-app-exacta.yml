@@ -1,0 +1,220 @@
+name: Build NUEVA APP exacta
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/nueva-app-exacta-20260925
+    paths:
+      - "snapshot/**"
+      - ".github/workflows/build-nueva-app-exacta.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build snapshot
+        uses: actions/checkout@v4
+
+      - name: Reconstruct exact locked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, subprocess
+          root=Path("project")
+          root.mkdir(exist_ok=True)
+          written={}
+          for part in sorted(Path("snapshot").glob("part-*.json")):
+              data=json.loads(part.read_text(encoding="utf-8"))
+              for rel,content in data.items():
+                  if rel in written:
+                      raise SystemExit(f"Duplicado: {rel}")
+                  p=root/rel
+                  p.parent.mkdir(parents=True,exist_ok=True)
+                  p.write_text(content,encoding="utf-8")
+                  written[rel]=part.name
+          manifest=json.loads(Path("snapshot/manifest.json").read_text(encoding="utf-8"))
+          expected=manifest["files"]
+          if set(written)!=set(expected):
+              missing=sorted(set(expected)-set(written))
+              extra=sorted(set(written)-set(expected))
+              raise SystemExit(f"Snapshot incompleto. missing={missing} extra={extra}")
+          for rel,meta in expected.items():
+              p=root/rel
+              got=subprocess.check_output(["git","hash-object",str(p)],text=True).strip()
+              if got!=meta["sha"]:
+                  raise SystemExit(f"Hash distinto: {rel} {got} != {meta['sha']}")
+          print(f"Snapshot exacto verificado: {len(written)} archivos")
+          PY
+
+      - name: Verify three locked pieces before any patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "a49f4ac80c35ac36e56a8187aa9d1481bb0afc09"
+          test "$(git hash-object project/app/src/main/assets/public/community/index.html)" = "4992b04a4fb81514a8efa384dce3aab7c54363e4"
+          test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "2178df9dca304ef85acedb2d05ab61a041849cc9"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "1f323a6fce4b855d9f51d69ea0f6743e3450ca8c"
+          test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "5b92c8b08332c75716dde619e3e5886ccfe44956"
+          test "$(git hash-object project/scripts/campo_map_patch.py)" = "f40dd2383cd90a513d77e62626123128e26e136f"
+          grep -q "COMUNIDAD → HABLAR" project/BIBLIA-INTEGRACION.md
+          echo "Tres piezas bloqueadas: OK"
+
+      - name: Apply exact validated SKATESUV navigation build patches
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("app/src/main/java/com/skatesuv/eskate/MainActivity.kt")
+          s=p.read_text()
+          old=".zoom(18.0)"
+          new=".zoom(if (map.cameraPosition.zoom in 3.0..19.0) map.cameraPosition.zoom else 18.0)"
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+          PY
+          python3 scripts/campo_map_patch.py
+
+      - name: Verify SKATESUV validated behavior after patches
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          cat app/src/main/assets/static20_*.part | base64 -d > /tmp/skatesuv_splash.webp
+          test "$(stat -c%s /tmp/skatesuv_splash.webp)" -eq 279582
+          echo "7208561551dcfea4de0f8e6b2efe0b87e87db787774e4804b2e235ba545c1d34  /tmp/skatesuv_splash.webp" | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("app/src/main/java/com/skatesuv/eskate/MainActivity.kt").read_text()
+          checks=[
+              "StartupStaticSplash",
+              'static20_%02d.part',
+              "delay(2_650L)",
+              "durationMillis = 350",
+              "portStateAlertMessage != null",
+              "dischargeUserRequestedOff",
+              "BluetoothSignalBars(device.rssi)",
+              "rangeSegmentSeconds >= 60.0",
+              "learnedDistanceKm >= 0.50",
+              "previous * 0.80 + boundedSegmentWhKm * 0.20",
+              "previousDisplayed - 1.0",
+              "RoutingProfile.TRAIL",
+              "RouteRecordButton",
+              "parseTrailRoute",
+              ".zoom(if (map.cameraPosition.zoom in 3.0..19.0)",
+              "TrailVariant.URBAN_BIKE",
+              'Class.forName("com.eskatesuv.ridervoz.RiderVoiceActivity")',
+              "CommunityRiderActivity::class.java"
+          ]
+          for item in checks:
+              assert item in s,item
+          assert "StartupVideoSplash" not in s
+          assert "val routeRecordingActive" not in s
+          assert "routeRecordingActive by remember" in s
+          print("SKATESUV exacta + navegación/campo/zoom: OK")
+          PY
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install exact web/native dependencies
+        shell: bash
+        working-directory: project
+        run: npm install --no-audit --no-fund
+
+      - name: Prepare exact Community and Rider Voz runtime assets
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/public/community/vendor
+          mkdir -p app/src/main/assets/public/community/assets
+          mkdir -p app/src/main/assets/public/ridervoz/assets
+          mkdir -p app/src/main/assets/rider-model
+
+          cp node_modules/leaflet/dist/leaflet.js app/src/main/assets/public/community/vendor/leaflet.js
+          cp node_modules/leaflet/dist/leaflet.css app/src/main/assets/public/community/vendor/leaflet.css
+          echo "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a  app/src/main/assets/public/community/vendor/leaflet.js" | sha256sum -c -
+          echo "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6  app/src/main/assets/public/community/vendor/leaflet.css" | sha256sum -c -
+
+          base64 -d build-assets/community-approved.jpg.b64 > app/src/main/assets/public/community/assets/community-approved.jpg
+          base64 -d build-assets/community-hero.jpg.b64 > app/src/main/assets/public/community/assets/community-hero.jpg
+          base64 -d build-assets/rider-voz-hero.webp.b64 > app/src/main/assets/public/ridervoz/assets/rider-voz-hero.webp
+          echo "e88426afcd40ced52f740cf8d7a67ee0665e957706e2d254da233d1ce89c2547  app/src/main/assets/public/community/assets/community-approved.jpg" | sha256sum -c -
+          echo "f7547b8a1d13d9717c8a9b46de83a83d1847b74b680952a2577105074ebf9215  app/src/main/assets/public/community/assets/community-hero.jpg" | sha256sum -c -
+          echo "4111e2e9ad4410f0a14d218c5141e5c682592e18e5396b8ee7b48319f1f23fa2  app/src/main/assets/public/ridervoz/assets/rider-voz-hero.webp" | sha256sum -c -
+
+          cp app/src/main/assets/community/assets/community_cover_*.part app/src/main/assets/public/community/assets/
+
+          NATIVE_BRIDGE="$(find node_modules/@capacitor -type f -name native-bridge.js | head -n 1)"
+          test -n "$NATIVE_BRIDGE"
+          cp "$NATIVE_BRIDGE" app/src/main/assets/native-bridge.js
+          echo "44ae55c944c91d5ebeb1ca2374e831d7920d1af6464faef8f0001a96252109bc  app/src/main/assets/native-bridge.js" | sha256sum -c -
+
+          curl --fail --location --retry 3 https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip -o /tmp/rider-model.zip
+          echo "09b239888f633ef2f0b4e09736e3d9936acfd810bc65d53fad45261762c6511f  /tmp/rider-model.zip" | sha256sum -c -
+          unzip -q /tmp/rider-model.zip -d /tmp
+          cp -a /tmp/vosk-model-small-es-0.42/. app/src/main/assets/rider-model/
+          echo "ff9508e4db01d2e2375da3887973f94ef8057ee85411f4cb10a5c174ce7a4425  app/src/main/assets/rider-model/am/final.mdl" | sha256sum -c -
+          echo "330c1b50575d0c1c0402276c9cdc7a589ebd04de5d3de17695dd7e6db701da54  app/src/main/assets/rider-model/conf/model.conf" | sha256sum -c -
+          echo "ce42fba42b99076f16bfe2892c3cab0936fb7409edba95c545be81c74f2f59e5  app/src/main/assets/rider-model/graph/HCLr.fst" | sha256sum -c -
+          echo "0ddc8aacbc80b2e8d470060a429eb26706b2ae1d32615a499befd60cc86a0304  app/src/main/assets/rider-model/graph/Gr.fst" | sha256sum -c -
+
+      - name: Verify integration wiring before compile
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          grep -q "SkateIntegration" app/src/main/assets/public/community/app.js
+          grep -q "openRiderVoice" app/src/main/assets/public/community/app.js
+          ! grep -q "eskatesuv://voz-rider" app/src/main/assets/public/community/app.js
+          grep -q "getOnboardSnapshot" app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java
+          grep -q "controlSkatesuv" app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java
+          grep -q "RiderAssistantProvider" app/src/main/AndroidManifest.xml
+          grep -q "RECORD_AUDIO" app/src/main/AndroidManifest.xml
+          grep -q "FOREGROUND_SERVICE_MICROPHONE" app/src/main/AndroidManifest.xml
+          echo "Cableado interno Comunidad + Voz + SKATESUV: OK"
+
+      - name: Setup Gradle 8.14.3
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Compile fused APK
+        shell: bash
+        working-directory: project
+        run: gradle clean assembleDebug --stacktrace --no-daemon
+
+      - name: Package and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cp project/app/build/outputs/apk/debug/app-debug.apk out/NUEVA-APP-SKATESUV-VOZ-COMUNIDAD.apk
+          sha256sum out/NUEVA-APP-SKATESUV-VOZ-COMUNIDAD.apk | tee out/SHA256.txt
+          unzip -t out/NUEVA-APP-SKATESUV-VOZ-COMUNIDAD.apk >/dev/null
+          test -s out/NUEVA-APP-SKATESUV-VOZ-COMUNIDAD.apk
+
+      - name: Upload fused APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NUEVA-APP-SKATESUV-VOZ-COMUNIDAD
+          path: |
+            out/NUEVA-APP-SKATESUV-VOZ-COMUNIDAD.apk
+            out/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
