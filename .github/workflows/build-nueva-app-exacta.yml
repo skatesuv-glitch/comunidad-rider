@@ -58,8 +58,9 @@ jobs:
           set -euo pipefail
           test "$(git hash-object project/app/src/main/assets/public/community/app.js)" = "220faedb558515e898b9f8f96e2af5ef758d4f29"
           test "$(git hash-object project/app/src/main/assets/public/community/index.html)" = "4992b04a4fb81514a8efa384dce3aab7c54363e4"
-          test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "2178df9dca304ef85acedb2d05ab61a041849cc9"
+          test "$(git hash-object project/app/src/main/assets/public/community/styles.css)" = "36071fd11f14245e075366435e6881a1e339e89f"
           test "$(git hash-object project/app/src/main/assets/public/ridervoz/app.js)" = "55e7c3f6d69547aa9e37ad547d202942b72c94de"
+          test "$(git hash-object project/app/src/main/assets/public/ridervoz/styles.css)" = "7810c8e8bee0cca4d5ebf0a38f4c44ab5d981532"
           test "$(git hash-object project/app/src/main/java/com/eskatesuv/ridervoz/RiderCommandsPlugin.java)" = "5b92c8b08332c75716dde619e3e5886ccfe44956"
           test "$(git hash-object project/scripts/campo_map_patch.py)" = "f40dd2383cd90a513d77e62626123128e26e136f"
           grep -q "COMUNIDAD → HABLAR" project/BIBLIA-INTEGRACION.md
